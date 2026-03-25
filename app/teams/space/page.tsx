@@ -190,7 +190,7 @@ export default function TeamSpacePage() {
         console.error('获取聊天消息失败:', error)
       } else {
         // 获取所有用户的ID
-        const userIds = [...new Set(data.map(message => message.user_id))];
+        const userIds = Array.from(new Set(data.map(message => message.user_id)));
         
         // 批量获取用户头像
         for (const userId of userIds) {
