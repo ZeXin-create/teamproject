@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import Image from 'next/image'
 
 interface Team {
   id: string
@@ -86,9 +87,9 @@ export default function EditTeamPage() {
       setCity(teamData.city)
       setDistrict(teamData.district || '')
       setDeclaration(teamData.declaration || '')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('获取战队信息失败:', err)
-      setError(err.message || '获取战队信息失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '获取战队信息失败，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -153,9 +154,9 @@ export default function EditTeamPage() {
             .getPublicUrl(data.path)
           
           avatarUrl = urlData.publicUrl
-        } catch (uploadError: any) {
+        } catch (uploadError: unknown) {
           console.error('上传图标失败:', uploadError)
-          throw new Error(`上传图标失败: ${uploadError.message}`)
+          throw new Error(`上传图标失败: ${typeof uploadError === 'object' && uploadError !== null && 'message' in uploadError ? String(uploadError.message) : '未知错误'}`)
         }
       }
       
@@ -181,9 +182,9 @@ export default function EditTeamPage() {
       setTimeout(() => {
         router.push('/teams/space')
       }, 1000)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('更新战队信息失败:', err)
-      setError(err.message || '更新战队信息失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '更新战队信息失败，请稍后重试')
     }
   }
   
@@ -325,11 +326,13 @@ export default function EditTeamPage() {
                 onChange={handleAvatarChange}
               />
               {team.avatar_url && (
-                <div className="mt-2">
-                  <img 
+                <div className="mt-2 relative w-16 h-16 rounded-full overflow-hidden">
+                  <Image 
                     src={team.avatar_url} 
                     alt="当前战队图标"
-                    className="w-16 h-16 rounded-full"
+                    width={64}
+                    height={64}
+                    className="object-cover"
                   />
                 </div>
               )}

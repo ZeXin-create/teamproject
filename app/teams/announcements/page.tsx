@@ -65,7 +65,18 @@ export default function AnnouncementsPage() {
       
       // 获取用户信息
       if (data && data.length > 0) {
-        for (const announcement of data) {
+        const processedAnnouncements: Announcement[] = []
+        
+        for (const item of data) {
+          const announcement: Announcement = {
+            id: item.id,
+            team_id: item.team_id,
+            title: item.title,
+            content: item.content,
+            created_at: item.created_at,
+            user_id: item.user_id
+          }
+          
           const { data: userData } = await supabase
             .from('auth.users')
             .select('email')
@@ -75,17 +86,21 @@ export default function AnnouncementsPage() {
           if (userData) {
             announcement.user = userData
           }
+          
+          processedAnnouncements.push(announcement)
         }
+        
+        setAnnouncements(processedAnnouncements)
+      } else {
+        setAnnouncements([])
       }
       
       if (error) {
         throw error
       }
-      
-      setAnnouncements(data)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('获取战队公告失败:', err)
-      setError(err.message || '获取战队公告失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '获取战队公告失败，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -120,9 +135,9 @@ export default function AnnouncementsPage() {
       setShowModal(false)
       setSuccess('公告发布成功！')
       getTeamAnnouncements()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('发布公告失败:', err)
-      setError(err.message || '发布公告失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '发布公告失败，请稍后重试')
     }
   }
   

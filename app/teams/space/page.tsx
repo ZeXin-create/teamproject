@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+  import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 interface Team {
   id: string
@@ -53,15 +54,7 @@ export default function TeamSpacePage() {
   const [showGroupForm, setShowGroupForm] = useState(false)
   const [showGroupResult, setShowGroupResult] = useState(false)
   
-  useEffect(() => {
-    if (user) {
-      checkUserTeam()
-    } else {
-      setLoading(false)
-    }
-  }, [user])
-  
-  const checkUserTeam = async () => {
+  const checkUserTeam = useCallback(async () => {
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -98,7 +91,15 @@ export default function TeamSpacePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+  
+  useEffect(() => {
+    if (user) {
+      checkUserTeam()
+    } else {
+      setLoading(false)
+    }
+  }, [user, checkUserTeam])
   
   const getTeamMembers = async (teamId: string) => {
     try {
@@ -113,15 +114,26 @@ export default function TeamSpacePage() {
       }
       
       if (data && data.length > 0) {
-        for (const member of data) {
+        const processedMembers: Member[] = []
+        
+        for (const item of data) {
+          const member: Member = {
+            id: item.id,
+            user_id: item.user_id,
+            team_id: item.team_id,
+            role: item.role,
+            status: item.status,
+            joined_at: item.joined_at
+          }
+          
           try {
-            const { data: profileData, error: profileError } = await supabase
+            const { data: profileData, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', member.user_id)
               .maybeSingle()
             
-            if (profileError) {
+            if (error) {
               member.user = {
                 email: member.user_id,
                 user_metadata: {
@@ -146,7 +158,7 @@ export default function TeamSpacePage() {
                 }
               }
             }
-          } catch (profileError) {
+          } catch {
             member.user = {
               email: member.user_id,
               user_metadata: {
@@ -155,17 +167,21 @@ export default function TeamSpacePage() {
               }
             }
           }
+          
+          processedMembers.push(member)
         }
+        
+        setMembers(processedMembers)
+      } else {
+        setMembers([])
       }
-      
-      setMembers(data)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('获取战队成员失败:', err)
     }
   }
   
   const handleGroupMatch = () => {
-    const filteredMembers = members.filter(member => {
+    const filteredMembers = members.filter(() => {
       return true
     })
     
@@ -177,18 +193,18 @@ export default function TeamSpacePage() {
       const groupMembers: Member[] = []
       const positions = ['上单', '打野', '中单', '射手', '辅助']
       
-      for (const pos of positions) {
+      for (let i = 0; i < positions.length; i++) {
         if (availableMembers.length === 0) break
         const randomIndex = Math.floor(Math.random() * availableMembers.length)
-        const member = availableMembers[randomIndex]
-        groupMembers.push(member)
+        const selectedMember = availableMembers[randomIndex]
+        groupMembers.push(selectedMember)
         availableMembers.splice(randomIndex, 1)
       }
       
       while (groupMembers.length < groupSize && availableMembers.length > 0) {
         const randomIndex = Math.floor(Math.random() * availableMembers.length)
-        const member = availableMembers[randomIndex]
-        groupMembers.push(member)
+        const selectedMember = availableMembers[randomIndex]
+        groupMembers.push(selectedMember)
         availableMembers.splice(randomIndex, 1)
       }
       
@@ -236,11 +252,15 @@ export default function TeamSpacePage() {
               <div className="flex flex-col md:flex-row items-center gap-6">
                 <div className="relative">
                   {team.avatar_url ? (
-                    <img 
-                      src={team.avatar_url} 
-                      alt="战队图标"
-                      className="w-24 h-24 rounded-2xl object-cover border-4 border-white/50 shadow-lg"
-                    />
+                    <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-4 border-white/50 shadow-lg">
+                      <Image 
+                        src={team.avatar_url} 
+                        alt="战队图标"
+                        width={96}
+                        height={96}
+                        className="object-cover"
+                      />
+                    </div>
                   ) : (
                     <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-white text-4xl font-bold shadow-lg"
                       style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
@@ -262,7 +282,7 @@ export default function TeamSpacePage() {
                     </span>
                   </div>
                   {team.declaration && (
-                    <p className="text-gray-600 mt-3 italic">"{team.declaration}"</p>
+                    <p className="text-gray-600 mt-3 italic">&quot;{team.declaration}&quot;</p>
                   )}
                 </div>
               </div>
@@ -323,15 +343,19 @@ export default function TeamSpacePage() {
                   <div key={member.id} className="glass-card p-4 hover:scale-[1.02] transition-transform">
                     <div className="flex items-center gap-4">
                       {member.user?.user_metadata?.avatar ? (
-                        <img 
-                          src={member.user.user_metadata.avatar} 
-                          alt={member.user?.email || '用户'}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-white/50"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
+                        <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-white/50">
+                          <Image 
+                            src={member.user.user_metadata.avatar} 
+                            alt={member.user?.email || '用户'}
+                            width={56}
+                            height={56}
+                            className="object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        </div>
                       ) : null}
                       <div 
                         className={`w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold ${member.user?.user_metadata?.avatar ? 'hidden' : ''}`}
@@ -480,15 +504,19 @@ export default function TeamSpacePage() {
                         <div key={member.id} className="text-center">
                           <div className="relative mb-2">
                             {member.user?.user_metadata?.avatar ? (
-                              <img 
-                                src={member.user.user_metadata.avatar} 
-                                alt={member.user?.email || '用户'}
-                                className="w-16 h-16 rounded-full object-cover border-2 border-white/50 mx-auto"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                                }}
-                              />
+                              <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/50 mx-auto">
+                                <Image 
+                                  src={member.user.user_metadata.avatar} 
+                                  alt={member.user?.email || '用户'}
+                                  width={64}
+                                  height={64}
+                                  className="object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                  }}
+                                />
+                              </div>
                             ) : null}
                             <div 
                               className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold mx-auto ${member.user?.user_metadata?.avatar ? 'hidden' : ''}`}

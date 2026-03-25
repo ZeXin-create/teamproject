@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+  import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 export default function Navbar() {
   const { user, isLoading, logout } = useAuth()
@@ -15,15 +16,9 @@ export default function Navbar() {
   })
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   
-  useEffect(() => {
-    if (user) {
-      fetchUserProfile()
-    }
-  }, [user])
-  
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('nickname, avatar')
         .eq('id', user?.id)
@@ -31,22 +26,28 @@ export default function Navbar() {
       
       if (data) {
         setUserProfile({
-          nickname: data.nickname || data.email?.split('@')[0] || user?.email?.split('@')[0] || '用户',
+          nickname: data.nickname || user?.email?.split('@')[0] || '用户',
           avatar: data.avatar || ''
         })
       } else {
         setUserProfile({
-          nickname: user?.user_metadata?.nickname || user?.email?.split('@')[0] || '用户',
-          avatar: user?.user_metadata?.avatar || ''
+          nickname: user?.email?.split('@')[0] || '用户',
+          avatar: ''
         })
       }
-    } catch (error) {
+    } catch {
       setUserProfile({
-        nickname: user?.user_metadata?.nickname || user?.email?.split('@')[0] || '用户',
-        avatar: user?.user_metadata?.avatar || ''
+        nickname: user?.email?.split('@')[0] || '用户',
+        avatar: ''
       })
     }
-  }
+  }, [user])
+  
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile()
+    }
+  }, [user, fetchUserProfile])
 
   const handleLogout = async () => {
     try {
@@ -100,15 +101,19 @@ export default function Navbar() {
                   className="flex items-center gap-3 glass-card px-4 py-2 hover:scale-105 transition-transform"
                 >
                   {userProfile.avatar ? (
-                    <img 
-                      src={userProfile.avatar} 
-                      alt="用户头像"
-                      className="w-10 h-10 rounded-full object-cover border-2 border-white/50"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                      }}
-                    />
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white/50">
+                      <Image 
+                        src={userProfile.avatar} 
+                        alt="用户头像"
+                        width={40}
+                        height={40}
+                        className="object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    </div>
                   ) : null}
                   <div 
                     className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${userProfile.avatar ? 'hidden' : ''}`}

@@ -25,7 +25,7 @@ export default function RegisterPage() {
     try {
       await register(email, password)
       router.push('/')
-    } catch (err) {
+    } catch {
       setError('注册失败，请稍后重试')
     }
   }

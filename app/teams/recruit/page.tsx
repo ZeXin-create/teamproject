@@ -49,10 +49,16 @@ export default function RecruitPage() {
         throw error
       }
       
-      setRecruits(data)
-    } catch (err: any) {
+      // 处理 team 字段的类型问题
+      const processedData: Recruit[] = (data || []).map(item => ({
+        ...item,
+        team: Array.isArray(item.team) ? item.team[0] : item.team
+      }))
+      
+      setRecruits(processedData)
+    } catch (err: unknown) {
       console.error('获取招募信息失败:', err)
-      setError(err.message || '获取招募信息失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '获取招募信息失败，请稍后重试')
     } finally {
       setLoading(false)
     }

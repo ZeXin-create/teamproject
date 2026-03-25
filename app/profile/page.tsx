@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
+import Image from 'next/image'
 
 export default function ProfilePage() {
   const { user } = useAuth()
@@ -13,18 +14,174 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState('')
   const [userInfo, setUserInfo] = useState({
     email: user?.email || '',
-    avatar: user?.user_metadata?.avatar || '',
-    nickname: user?.user_metadata?.nickname || '',
-    gender: user?.user_metadata?.gender || '',
-    birthday: user?.user_metadata?.birthday || ''
+    avatar: '',
+    nickname: '',
+    gender: '',
+    birthday: ''
   })
   const [avatar, setAvatar] = useState<File | null>(null)
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null)
-  const [userBlacklistItems, setUserBlacklistItems] = useState<any[]>([])
+  const [userBlacklistItems, setUserBlacklistItems] = useState<Array<{
+    id: string
+    team_id: string
+    reason: string
+    evidence?: string
+    created_at: string
+    custom_team?: string
+    region?: string
+    team?: {
+      name: string
+      region?: string
+    }
+  }>>([])
   const [loadingBlacklist, setLoadingBlacklist] = useState(false)
-  const [editingItem, setEditingItem] = useState<any | null>(null)
+  const [editingItem, setEditingItem] = useState<{
+    id: string
+    team_id: string
+    reason: string
+    evidence?: string
+    created_at: string
+    custom_team?: string
+    region?: string
+    team?: {
+      name: string
+      region?: string
+    }
+  } | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .maybeSingle()
+
+      if (data) {
+        setUserInfo({
+          email: data.email || user?.email || '',
+          avatar: data.avatar || '',
+          nickname: data.nickname || '',
+          gender: data.gender || '',
+          birthday: data.birthday || ''
+        })
+      } else {
+        setUserInfo({
+          email: user?.email || '',
+          avatar: '',
+          nickname: '',
+          gender: '',
+          birthday: ''
+        })
+      }
+    } catch {
+      setUserInfo({
+        email: user?.email || '',
+        avatar: '',
+        nickname: '',
+        gender: '',
+        birthday: ''
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 获取用户自己发布的避雷条
+  const fetchUserBlacklistItems = async () => {
+    setLoadingBlacklist(true)
+    try {
+      const { data } = await supabase
+        .from('避雷榜单')
+        .select('id, team_id, reason, evidence, created_at, custom_team, region')
+        .eq('reporter_id', user?.id)
+        .order('created_at', { ascending: false })
+
+      if (data && data.length > 0) {
+        const processedData: Array<{
+          id: string
+          team_id: string
+          reason: string
+          evidence?: string
+          created_at: string
+          custom_team?: string
+          region?: string
+          team?: {
+            name: string
+            region?: string
+          }
+        }> = []
+        
+        for (const item of data) {
+          const processedItem: {
+            id: string
+            team_id: string
+            reason: string
+            evidence?: string
+            created_at: string
+            custom_team?: string
+            region?: string
+            team?: {
+              name: string
+              region?: string
+            }
+          } = {
+            id: item.id,
+            team_id: item.team_id,
+            reason: item.reason,
+            evidence: item.evidence,
+            created_at: item.created_at,
+            custom_team: item.custom_team,
+            region: item.region
+          }
+          
+          // 首先检查是否有自定义战队名称
+          if (processedItem.custom_team) {
+            processedItem.team = {
+              name: processedItem.custom_team,
+              region: processedItem.region
+            }
+          } else {
+            // 获取战队信息
+            try {
+              const { data: teamData } = await supabase
+                .from('teams')
+                .select('name, region')
+                .eq('id', processedItem.team_id)
+                .single()
+              if (teamData) {
+                processedItem.team = teamData
+              } else {
+                processedItem.team = {
+                  name: '未知战队',
+                  region: processedItem.region || ''
+                }
+              }
+            } catch (teamError) {
+              console.error('获取战队信息失败:', teamError)
+              processedItem.team = {
+                name: '未知战队',
+                region: processedItem.region || ''
+              }
+            }
+          }
+          
+          processedData.push(processedItem)
+        }
+        
+        setUserBlacklistItems(processedData)
+      } else {
+        setUserBlacklistItems([])
+      }
+    } catch (error) {
+      console.error('获取避雷条失败:', error)
+      setUserBlacklistItems([])
+    } finally {
+      setLoadingBlacklist(false)
+    }
+  }
 
   useEffect(() => {
     if (!user) {
@@ -33,61 +190,7 @@ export default function ProfilePage() {
       fetchUserProfile()
       fetchUserBlacklistItems()
     }
-  }, [user, router])
-
-  // 获取用户自己发布的避雷条
-  const fetchUserBlacklistItems = async () => {
-    setLoadingBlacklist(true)
-    try {
-      const { data, error } = await supabase
-        .from('避雷榜单')
-        .select('id, team_id, reason, evidence, created_at, custom_team, region')
-        .eq('reporter_id', user?.id)
-        .order('created_at', { ascending: false })
-
-      if (data && data.length > 0) {
-        for (const item of data) {
-          // 首先检查是否有自定义战队名称
-          if (item.custom_team) {
-            item.team = {
-              name: item.custom_team,
-              region: item.region
-            }
-          } else {
-            // 获取战队信息
-            try {
-              const { data: teamData } = await supabase
-                .from('teams')
-                .select('name, region')
-                .eq('id', item.team_id)
-                .single()
-              if (teamData) {
-                item.team = teamData
-              } else {
-                item.team = {
-                  name: '未知战队',
-                  region: item.region || ''
-                }
-              }
-            } catch (teamError) {
-              console.error('获取战队信息失败:', teamError)
-              item.team = {
-                name: '未知战队',
-                region: item.region || ''
-              }
-            }
-          }
-        }
-      }
-
-      setUserBlacklistItems(data || [])
-    } catch (error) {
-      console.error('获取避雷条失败:', error)
-      setUserBlacklistItems([])
-    } finally {
-      setLoadingBlacklist(false)
-    }
-  }
+  }, [user, router, fetchUserProfile, fetchUserBlacklistItems])
 
   // 删除避雷条
   const deleteBlacklistItem = async (id: string) => {
@@ -107,14 +210,26 @@ export default function ProfilePage() {
       // 重新获取避雷条列表
       fetchUserBlacklistItems()
       setSuccess('删除成功！')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('删除避雷条失败:', err)
-      setError(err.message || '删除失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '删除失败，请稍后重试')
     }
   }
 
   // 编辑避雷条
-  const editBlacklistItem = (item: any) => {
+  const editBlacklistItem = (item: {
+    id: string
+    team_id: string
+    reason: string
+    evidence?: string
+    created_at: string
+    custom_team?: string
+    region?: string
+    team?: {
+      name: string
+      region?: string
+    }
+  }) => {
     setEditingItem(item)
     setShowEditModal(true)
   }
@@ -142,55 +257,9 @@ export default function ProfilePage() {
       setEditingItem(null)
       fetchUserBlacklistItems()
       setSuccess('修改成功！')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('修改避雷条失败:', err)
-      setError(err.message || '修改失败，请稍后重试')
-    }
-  }
-
-  const fetchUserProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .maybeSingle()
-
-      if (error) {
-        setUserInfo({
-          email: user?.email || '',
-          avatar: user?.user_metadata?.avatar || '',
-          nickname: user?.user_metadata?.nickname || '',
-          gender: user?.user_metadata?.gender || '',
-          birthday: user?.user_metadata?.birthday || ''
-        })
-      } else if (data) {
-        setUserInfo({
-          email: data.email || user?.email || '',
-          avatar: data.avatar || user?.user_metadata?.avatar || '',
-          nickname: data.nickname || user?.user_metadata?.nickname || '',
-          gender: data.gender || user?.user_metadata?.gender || '',
-          birthday: data.birthday || user?.user_metadata?.birthday || ''
-        })
-      } else {
-        setUserInfo({
-          email: user?.email || '',
-          avatar: user?.user_metadata?.avatar || '',
-          nickname: user?.user_metadata?.nickname || '',
-          gender: user?.user_metadata?.gender || '',
-          birthday: user?.user_metadata?.birthday || ''
-        })
-      }
-    } catch (error) {
-      setUserInfo({
-        email: user?.email || '',
-        avatar: user?.user_metadata?.avatar || '',
-        nickname: user?.user_metadata?.nickname || '',
-        gender: user?.user_metadata?.gender || '',
-        birthday: user?.user_metadata?.birthday || ''
-      })
-    } finally {
-      setLoading(false)
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '修改失败，请稍后重试')
     }
   }
 
@@ -278,9 +347,9 @@ export default function ProfilePage() {
       setTimeout(() => {
         router.refresh()
       }, 1000)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('更新个人信息失败:', err)
-      setError(err.message || '更新个人信息失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '更新个人信息失败，请稍后重试')
     }
   }
 
@@ -362,9 +431,9 @@ export default function ProfilePage() {
       setTimeout(() => {
         router.refresh()
       }, 1000)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('更新头像失败:', err)
-      setError(err.message || '更新头像失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '更新头像失败，请稍后重试')
     }
   }
 
@@ -413,16 +482,20 @@ export default function ProfilePage() {
             <div className="flex flex-col items-center mb-8">
               <div className="relative mb-4">
                 {userInfo.avatar ? (
-                  <img 
-                    src={userInfo.avatar} 
-                    alt="用户头像"
-                    className="w-28 h-28 rounded-full object-cover border-4 border-white/50 shadow-lg cursor-pointer hover:scale-105 transition-transform"
-                    onClick={handleAvatarClick}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
+                  <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-white/50 shadow-lg cursor-pointer hover:scale-105 transition-transform">
+                    <Image 
+                      src={userInfo.avatar} 
+                      alt="用户头像"
+                      width={112}
+                      height={112}
+                      className="object-cover"
+                      onClick={handleAvatarClick}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  </div>
                 ) : null}
                 <div 
                   className={`w-28 h-28 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-lg cursor-pointer hover:scale-105 transition-transform ${userInfo.avatar ? 'hidden' : ''}`}
@@ -652,11 +725,15 @@ export default function ProfilePage() {
               
               <div className="flex flex-col items-center mb-6">
                 {previewAvatar || userInfo.avatar ? (
-                  <img 
-                    src={previewAvatar || userInfo.avatar} 
-                    alt="头像预览"
-                    className="w-32 h-32 rounded-full object-cover border-4 border-white/50 shadow-lg mb-4"
-                  />
+                  <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white/50 shadow-lg mb-4">
+                    <Image 
+                      src={previewAvatar || userInfo.avatar} 
+                      alt="头像预览"
+                      width={128}
+                      height={128}
+                      className="object-cover"
+                    />
+                  </div>
                 ) : (
                   <div 
                     className="w-32 h-32 rounded-full flex items-center justify-center text-white text-5xl font-bold shadow-lg mb-4"

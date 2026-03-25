@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { getDefaultAvatar, getInitialAvatar } from '../lib/avatar'
+import Image from 'next/image'
 
 interface TabContentProps {
   activeTab: number
@@ -14,9 +14,12 @@ interface BlacklistItem {
   reason: string
   evidence?: string
   created_at: string
+  custom_team?: string
+  region?: string
   team?: {
     name: string
     avatar_url?: string
+    region?: string
   }
   reporter?: {
     email: string
@@ -31,38 +34,38 @@ export default function TabContent({ activeTab }: TabContentProps) {
   const [loading, setLoading] = useState(false)
   const [is队长, setIs队长] = useState(false)
   const [showModal, setShowModal] = useState(false)
-  const [selectedTeam, setSelectedTeam] = useState('')
   const [customTeam, setCustomTeam] = useState('')
   const [region, setRegion] = useState('')
   const [reason, setReason] = useState('')
   const [evidence, setEvidence] = useState('')
   const [evidenceImage, setEvidenceImage] = useState<File | null>(null)
-  const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([])
-  const [rankedTeams, setRankedTeams] = useState<Array<{ id: string; name: string; rank: number }>>([])
+  const [teams, setTeams] = useState<Array<{ id: string; name: string; avatar_url?: string; region?: string }>>([])
+  const [rankedTeams, setRankedTeams] = useState<Array<{ id: string; name: string; rank: number; avatar_url?: string; region?: string }>>([])
   const [selectedRegion, setSelectedRegion] = useState('')
 
-  useEffect(() => {
-    if (activeTab === 0) {
-      fetch避雷信息()
-      checkUserRole()
-      fetchTeams()
-    } else if (activeTab === 4) {
-      fetchTeams()
-    } else if (activeTab === 5) {
-      fetchRankedTeams()
-    }
-  }, [activeTab, user, selectedRegion])
-
-  const fetch避雷信息 = async () => {
+  const fetch避雷信息 = useCallback(async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('避雷榜单')
         .select('id, team_id, reporter_id, reason, evidence, created_at, custom_team, region')
         .order('created_at', { ascending: false })
 
       if (data && data.length > 0) {
-        for (const info of data) {
+        const processedData: BlacklistItem[] = []
+        
+        for (const item of data) {
+          const info: BlacklistItem = {
+            id: item.id,
+            team_id: item.team_id,
+            reporter_id: item.reporter_id,
+            reason: item.reason,
+            evidence: item.evidence,
+            created_at: item.created_at,
+            custom_team: item.custom_team,
+            region: item.region
+          }
+          
           // 首先检查是否有自定义战队名称
           if (info.custom_team) {
             info.team = {
@@ -99,21 +102,13 @@ export default function TabContent({ activeTab }: TabContentProps) {
 
           // 获取举报者信息
           try {
-            const { data: userData, error: userError } = await supabase
+            const { data: userData } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', info.reporter_id)
               .maybeSingle()
             
-            if (userError) {
-              console.error('查询profiles表失败:', userError)
-              // 出错时使用默认值
-              info.reporter = {
-                email: info.reporter_id,
-                nickname: '未知用户',
-                avatar: ''
-              }
-            } else if (userData) {
+            if (userData) {
               info.reporter = {
                 email: userData.email || info.reporter_id,
                 nickname: userData.nickname || userData.email?.split('@')[0] || '未知用户',
@@ -136,18 +131,23 @@ export default function TabContent({ activeTab }: TabContentProps) {
               avatar: ''
             }
           }
+          
+          processedData.push(info)
         }
+        
+        set避雷信息(processedData)
+      } else {
+        set避雷信息([])
       }
-
-      set避雷信息(data || [])
     } catch (error) {
       console.error('获取避雷信息失败:', error)
+      set避雷信息([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const checkUserRole = async () => {
+  const checkUserRole = useCallback(async () => {
     if (!user) return
 
     try {
@@ -164,11 +164,11 @@ export default function TabContent({ activeTab }: TabContentProps) {
     } catch (error) {
       console.error('检查用户角色失败:', error)
     }
-  }
+  }, [user])
 
-  const fetchTeams = async () => {
+  const fetchTeams = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('teams')
         .select('id, name, avatar_url, region')
 
@@ -178,9 +178,9 @@ export default function TabContent({ activeTab }: TabContentProps) {
     } catch (error) {
       console.error('获取战队列表失败:', error)
     }
-  }
+  }, [])
 
-  const fetchRankedTeams = async () => {
+  const fetchRankedTeams = useCallback(async () => {
     setLoading(true)
     try {
       let query = supabase
@@ -193,7 +193,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
         query = query.eq('region', selectedRegion)
       }
 
-      const { data, error } = await query
+      const { data } = await query
 
       if (data) {
         const ranked = data.map((team, index) => ({
@@ -207,7 +207,19 @@ export default function TabContent({ activeTab }: TabContentProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedRegion])
+
+  useEffect(() => {
+    if (activeTab === 0) {
+      fetch避雷信息()
+      checkUserRole()
+      fetchTeams()
+    } else if (activeTab === 4) {
+      fetchTeams()
+    } else if (activeTab === 5) {
+      fetchRankedTeams()
+    }
+  }, [activeTab, user, selectedRegion, fetch避雷信息, checkUserRole, fetchTeams, fetchRankedTeams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -259,16 +271,15 @@ export default function TabContent({ activeTab }: TabContentProps) {
       }
 
       setShowModal(false)
-      setSelectedTeam('')
       setCustomTeam('')
       setRegion('')
       setReason('')
       setEvidence('')
       setEvidenceImage(null)
       fetch避雷信息()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('发布避雷信息失败:', error)
-      alert(`发布失败: ${error.message}`)
+      alert(`发布失败: ${typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : '发布失败，请稍后重试'}`)
     }
   }
 
@@ -307,15 +318,19 @@ export default function TabContent({ activeTab }: TabContentProps) {
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         {info.reporter?.avatar ? (
-                          <img 
-                            src={info.reporter.avatar} 
-                            alt={info.reporter?.nickname || '举报者'}
-                            className="w-10 h-10 rounded-full border-2 border-white/50 object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
+                          <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white/50">
+                            <Image 
+                              src={info.reporter.avatar} 
+                              alt={info.reporter?.nickname || '举报者'}
+                              width={40}
+                              height={40}
+                              className="object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          </div>
                         ) : null}
                         <div 
                           className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${info.reporter?.avatar ? 'hidden' : ''}`}
@@ -530,11 +545,15 @@ export default function TabContent({ activeTab }: TabContentProps) {
                   <div key={team.id} className="glass-card p-6 hover:scale-[1.02] transition-transform">
                     <div className="flex items-center gap-4 mb-4">
                       {team.avatar_url ? (
-                        <img 
-                          src={team.avatar_url}
-                          alt={team.name}
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-white/50"
-                        />
+                        <div className="relative w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/50">
+                          <Image 
+                            src={team.avatar_url}
+                            alt={team.name}
+                            width={56}
+                            height={56}
+                            className="object-cover"
+                          />
+                        </div>
                       ) : (
                         <div 
                           className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-2xl font-bold"
@@ -613,11 +632,15 @@ export default function TabContent({ activeTab }: TabContentProps) {
                         {team.rank === 1 ? '👑' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : team.rank}
                       </div>
                       {team.avatar_url ? (
-                        <img 
-                          src={team.avatar_url}
-                          alt={team.name}
-                          className="w-12 h-12 rounded-2xl object-cover border-2 border-white/50"
-                        />
+                        <div className="relative w-12 h-12 rounded-2xl overflow-hidden border-2 border-white/50">
+                          <Image 
+                            src={team.avatar_url}
+                            alt={team.name}
+                            width={48}
+                            height={48}
+                            className="object-cover"
+                          />
+                        </div>
                       ) : (
                         <div 
                           className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl font-bold"

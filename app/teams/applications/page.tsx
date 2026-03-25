@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 interface Application {
   id: string
@@ -70,7 +71,17 @@ export default function ApplicationsPage() {
       
       // 获取用户信息
       if (data && data.length > 0) {
-        for (const app of data) {
+        const processedApplications: Application[] = []
+        
+        for (const item of data) {
+          const app: Application = {
+            id: item.id,
+            user_id: item.user_id,
+            team_id: item.team_id,
+            status: item.status,
+            created_at: item.created_at
+          }
+          
           const { data: userData } = await supabase
             .from('auth.users')
             .select('email, user_metadata')
@@ -80,17 +91,21 @@ export default function ApplicationsPage() {
           if (userData) {
             app.user = userData
           }
+          
+          processedApplications.push(app)
         }
+        
+        setApplications(processedApplications)
+      } else {
+        setApplications([])
       }
       
       if (error) {
         throw error
       }
-      
-      setApplications(data)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('获取战队申请失败:', err)
-      setError(err.message || '获取战队申请失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '获取战队申请失败，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -123,9 +138,9 @@ export default function ApplicationsPage() {
       
       setApplications(applications.filter(app => app.id !== applicationId))
       setSuccess('批准申请成功')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('批准申请失败:', err)
-      setError(err.message || '批准申请失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '批准申请失败，请稍后重试')
     }
   }
   
@@ -142,9 +157,9 @@ export default function ApplicationsPage() {
       
       setApplications(applications.filter(app => app.id !== applicationId))
       setSuccess('拒绝申请成功')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('拒绝申请失败:', err)
-      setError(err.message || '拒绝申请失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '拒绝申请失败，请稍后重试')
     }
   }
   
@@ -193,11 +208,15 @@ export default function ApplicationsPage() {
               {applications.map((app) => (
                 <div key={app.id} className="border border-gray-200 rounded p-4">
                   <div className="flex items-center gap-4 mb-4">
-                    <img 
-                      src={app.user?.user_metadata?.avatar || 'https://via.placeholder.com/40'} 
-                      alt={app.user?.email || '用户'}
-                      className="w-12 h-12 rounded-full"
-                    />
+                    <div className="relative w-12 h-12 rounded-full overflow-hidden">
+                      <Image 
+                        src={app.user?.user_metadata?.avatar || 'https://via.placeholder.com/40'} 
+                        alt={app.user?.email || '用户'}
+                        width={48}
+                        height={48}
+                        className="object-cover"
+                      />
+                    </div>
                     <div>
                       <h3 className="font-semibold">{app.user?.email}</h3>
                       <p className="text-sm text-gray-600">申请时间：{new Date(app.created_at).toLocaleString()}</p>

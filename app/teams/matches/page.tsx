@@ -84,9 +84,9 @@ export default function MatchesPage() {
       setWinCount(wins)
       setLossCount(losses)
       setWinRate(rate)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('获取战队比赛记录失败:', err)
-      setError(err.message || '获取战队比赛记录失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '获取战队比赛记录失败，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -126,9 +126,9 @@ export default function MatchesPage() {
       setShowModal(false)
       setSuccess('比赛记录添加成功！')
       getTeamMatches()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('添加比赛记录失败:', err)
-      setError(err.message || '添加比赛记录失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '添加比赛记录失败，请稍后重试')
     }
   }
   

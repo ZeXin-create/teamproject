@@ -19,7 +19,7 @@ export default function LoginPage() {
     try {
       await login(email, password)
       router.push('/')
-    } catch (err) {
+    } catch {
       setError('登录失败，请检查邮箱和密码')
     }
   }

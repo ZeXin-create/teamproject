@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import Image from 'next/image'
 
 interface Team {
   id: string
@@ -40,9 +41,9 @@ export default function JoinTeamPage() {
       }
       
       setTeams(data)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('搜索战队失败:', err)
-      setError(err.message || '搜索战队失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '搜索战队失败，请稍后重试')
     } finally {
       setIsSearching(false)
     }
@@ -91,9 +92,9 @@ export default function JoinTeamPage() {
         })
       
       setSuccess('申请加入战队成功！等待队长审批')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('申请加入战队失败:', err)
-      setError(err.message || '申请加入战队失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '申请加入战队失败，请稍后重试')
     }
   }
   
@@ -137,11 +138,15 @@ export default function JoinTeamPage() {
           {teams.map((team) => (
             <div key={team.id} className="bg-white p-4 rounded-lg shadow-md">
               <div className="flex items-center gap-4 mb-4">
-                <img 
-                  src={team.avatar_url || 'https://via.placeholder.com/100'} 
-                  alt={team.name}
-                  className="w-16 h-16 rounded-full"
-                />
+                <div className="relative w-16 h-16 rounded-full overflow-hidden">
+                  <Image 
+                    src={team.avatar_url || 'https://via.placeholder.com/100'} 
+                    alt={team.name}
+                    width={64}
+                    height={64}
+                    className="object-cover"
+                  />
+                </div>
                 <div>
                   <h3 className="text-lg font-semibold">{team.name}</h3>
                   <p className="text-gray-600">{team.region}</p>

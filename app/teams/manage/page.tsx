@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import Image from 'next/image'
 
 interface Member {
   id: string
@@ -115,7 +115,18 @@ export default function TeamManagePage() {
       if (error) throw error
 
       if (data) {
-        for (const member of data) {
+        const processedMembers: Member[] = []
+        
+        for (const item of data) {
+          const member: Member = {
+            id: item.id,
+            user_id: item.user_id,
+            team_id: item.team_id,
+            role: item.role,
+            status: item.status,
+            joined_at: item.joined_at
+          }
+          
           try {
             const { data: profileData } = await supabase
               .from('profiles')
@@ -142,7 +153,7 @@ export default function TeamManagePage() {
                 }
               }
             }
-          } catch (error) {
+          } catch {
             member.user = {
               email: member.user_id,
               user_metadata: {
@@ -151,8 +162,13 @@ export default function TeamManagePage() {
               }
             }
           }
+          
+          processedMembers.push(member)
         }
-        setMembers(data)
+        
+        setMembers(processedMembers)
+      } else {
+        setMembers([])
       }
     } catch (error) {
       console.error('获取成员失败:', error)
@@ -243,10 +259,6 @@ export default function TeamManagePage() {
     )
   }
 
-  const manageableMembers = members.filter(m => 
-    m.user_id !== user?.id && ROLE_HIERARCHY[m.role] < ROLE_HIERARCHY[userRole]
-  )
-
   return (
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4 max-w-4xl">
@@ -292,11 +304,15 @@ export default function TeamManagePage() {
                 >
                   {/* 头像 */}
                   {member.user?.user_metadata?.avatar ? (
-                    <img 
-                      src={member.user.user_metadata.avatar}
-                      alt="头像"
-                      className="w-14 h-14 rounded-full object-cover border-2 border-white/50"
-                    />
+                    <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-white/50">
+                      <Image 
+                        src={member.user.user_metadata.avatar}
+                        alt="头像"
+                        width={56}
+                        height={56}
+                        className="object-cover"
+                      />
+                    </div>
                   ) : (
                     <div 
                       className="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold"
@@ -342,11 +358,15 @@ export default function TeamManagePage() {
             <div className="glass-card p-8 w-full max-w-sm">
               <div className="text-center mb-6">
                 {selectedMember.user?.user_metadata?.avatar ? (
-                  <img 
-                    src={selectedMember.user.user_metadata.avatar}
-                    alt="头像"
-                    className="w-20 h-20 rounded-full object-cover border-4 border-white/50 mx-auto mb-4"
-                  />
+                  <div className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-white/50 mx-auto mb-4">
+                    <Image 
+                      src={selectedMember.user.user_metadata.avatar}
+                      alt="头像"
+                      width={80}
+                      height={80}
+                      className="object-cover"
+                    />
+                  </div>
                 ) : (
                   <div 
                     className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4"
@@ -426,11 +446,15 @@ export default function TeamManagePage() {
 
               <div className="text-center mb-6">
                 {selectedMember.user?.user_metadata?.avatar ? (
-                  <img 
-                    src={selectedMember.user.user_metadata.avatar}
-                    alt="头像"
-                    className="w-24 h-24 rounded-full object-cover border-4 border-white/50 mx-auto mb-4"
-                  />
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-white/50 mx-auto mb-4">
+                    <Image 
+                      src={selectedMember.user.user_metadata.avatar}
+                      alt="头像"
+                      width={96}
+                      height={96}
+                      className="object-cover"
+                    />
+                  </div>
                 ) : (
                   <div 
                     className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold mx-auto mb-4"

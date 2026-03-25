@@ -94,9 +94,9 @@ export default function CreateTeamPage() {
       setTimeout(() => {
         router.push('/teams/space')
       }, 1000)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('创建战队失败:', err)
-      setError(err.message || '创建战队失败，请稍后重试')
+      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '创建战队失败，请稍后重试')
     } finally {
       setLoading(false)
     }
