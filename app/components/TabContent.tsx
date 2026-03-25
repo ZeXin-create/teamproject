@@ -320,7 +320,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                         {info.reporter?.avatar ? (
                           <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white/50">
                             <Image 
-                              src={info.reporter.avatar} 
+                              src={info.reporter.avatar?.replace(/[`]/g, '') || ''} 
                               alt={info.reporter?.nickname || '举报者'}
                               width={40}
                               height={40}
@@ -547,7 +547,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                       {team.avatar_url ? (
                         <div className="relative w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/50">
                           <Image 
-                            src={team.avatar_url}
+                            src={team.avatar_url?.replace(/[`]/g, '') || ''}
                             alt={team.name}
                             width={56}
                             height={56}
@@ -634,7 +634,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                       {team.avatar_url ? (
                         <div className="relative w-12 h-12 rounded-2xl overflow-hidden border-2 border-white/50">
                           <Image 
-                            src={team.avatar_url}
+                            src={team.avatar_url?.replace(/[`]/g, '') || ''}
                             alt={team.name}
                             width={48}
                             height={48}
