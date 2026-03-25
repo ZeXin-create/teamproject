@@ -376,8 +376,8 @@ export default function TabContent({ activeTab }: TabContentProps) {
 
             {/* 发布避雷信息模态框 */}
             {showModal && (
-              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-                <div className="glass-card p-8 w-full max-w-2xl">
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="glass-card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-2xl font-bold gradient-text flex items-center gap-2">
                       <span>⚡</span> 发布避雷信息
@@ -395,7 +395,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                       <label className="block text-gray-700 font-medium mb-3">
                         🎮 游戏大区
                       </label>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {['iOS QQ', '安卓QQ', '微信iOS', '微信安卓'].map((option) => (
                           <label 
                             key={option} 

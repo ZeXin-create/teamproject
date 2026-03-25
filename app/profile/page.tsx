@@ -647,8 +647,8 @@ export default function ProfilePage() {
 
         {/* 编辑避雷条模态框 */}
         {showEditModal && editingItem && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="glass-card p-8 w-full max-w-2xl">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="glass-card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold gradient-text">✏️ 编辑避雷信息</h3>
                 <button 
@@ -711,8 +711,8 @@ export default function ProfilePage() {
 
         {/* 头像编辑模态框 */}
         {showAvatarModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="glass-card p-8 w-full max-w-md">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="glass-card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold gradient-text">✨ 编辑头像</h3>
                 <button 
