@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
@@ -51,7 +51,7 @@ export default function ProfilePage() {
   } | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
 
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('profiles')
@@ -87,10 +87,10 @@ export default function ProfilePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
   // 获取用户自己发布的避雷条
-  const fetchUserBlacklistItems = async () => {
+  const fetchUserBlacklistItems = useCallback(async () => {
     setLoadingBlacklist(true)
     try {
       const { data } = await supabase
@@ -181,7 +181,7 @@ export default function ProfilePage() {
     } finally {
       setLoadingBlacklist(false)
     }
-  }
+  }, [user])
 
   useEffect(() => {
     if (!user) {
