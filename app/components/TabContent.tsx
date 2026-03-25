@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import Image from 'next/image'
 
@@ -26,7 +25,6 @@ interface Recruit {
 }
 
 export default function TabContent({ activeTab }: TabContentProps) {
-  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [teams, setTeams] = useState<Array<{ id: string; name: string; avatar_url?: string; region?: string; declaration?: string; city?: string; member_count?: number; images?: string[] }>>([])
   const [rankedTeams, setRankedTeams] = useState<Array<{ id: string; name: string; rank: number; avatar_url?: string; region?: string }>>([])
@@ -290,7 +288,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
               </div>
             ) : (
               <div className="space-y-4">
-                {teams.map((team, index) => (
+                {teams.map((team) => (
                   <div key={team.id} className="glass-card p-4 hover:scale-[1.02] transition-transform cursor-pointer" onClick={() => setSelectedTeam(team)}>
                     <div className="flex items-center gap-4">
                       {team.avatar_url ? (
@@ -390,7 +388,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                     <div className="mb-6">
                       <h4 className="font-bold text-gray-800 mb-2">战队宣言</h4>
                       <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4">
-                        <p className="text-gray-700 italic">"{selectedTeam.declaration}"</p>
+                        <p className="text-gray-700 italic">&quot;{selectedTeam.declaration}&quot;</p>
                       </div>
                     </div>
                   )}

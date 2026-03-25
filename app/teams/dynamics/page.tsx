@@ -69,16 +69,27 @@ export default function DynamicsPage() {
         .select(`
           id,
           requirements,
-          team:teams(
-            name
-          )
+          team_id
         `)
         .eq('id', recruitId)
         .single()
 
+      if (data) {
+        const { data: teamData } = await supabase
+          .from('teams')
+          .select('name')
+          .eq('id', data.team_id)
+          .single()
+
+        return {
+          teamName: teamData?.name || '未知战队',
+          requirements: data.requirements || ''
+        }
+      }
+
       return {
-        teamName: data?.team?.name || '未知战队',
-        requirements: data?.requirements || ''
+        teamName: '未知战队',
+        requirements: ''
       }
     } catch (error) {
       console.error('获取招募信息失败:', error)

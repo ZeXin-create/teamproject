@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
@@ -61,9 +61,7 @@ export default function FriendsPage() {
           id,
           sender_id,
           receiver_id,
-          status,
-          profiles(sender_id: id, nickname, email, avatar),
-          profiles(receiver_id: id, nickname, email, avatar)
+          status
         `)
         .or(`and(sender_id.eq.${user?.id},status.eq.accepted),and(receiver_id.eq.${user?.id},status.eq.accepted)`)
 
@@ -72,25 +70,33 @@ export default function FriendsPage() {
       }
 
       if (friendData) {
-        const processedFriends: Friend[] = friendData.map((item) => {
-          const isSender = item.sender_id === user?.id
-          const friendId = isSender ? item.receiver_id : item.sender_id
-          const friendProfile = isSender ? item.profiles : item.profiles
+        const processedFriends: Friend[] = await Promise.all(
+          friendData.map(async (item) => {
+            const isSender = item.sender_id === user?.id
+            const friendId = isSender ? item.receiver_id : item.sender_id
 
-          return {
-            id: item.id,
-            friend_id: friendId,
-            user: {
-              id: friendId,
-              email: friendProfile?.email || '',
-              nickname: friendProfile?.nickname || friendProfile?.email?.split('@')[0] || '未知用户',
-              avatar: friendProfile?.avatar || '',
-              status: 'offline',
-              last_seen: new Date().toISOString()
-            },
-            status: item.status
-          }
-        })
+            // 获取好友的个人资料
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('email, nickname, avatar')
+              .eq('id', friendId)
+              .single()
+
+            return {
+              id: item.id,
+              friend_id: friendId,
+              user: {
+                id: friendId,
+                email: profileData?.email || '',
+                nickname: profileData?.nickname || profileData?.email?.split('@')[0] || '未知用户',
+                avatar: profileData?.avatar || '',
+                status: 'offline',
+                last_seen: new Date().toISOString()
+              },
+              status: item.status
+            }
+          })
+        )
 
         // 获取好友在线状态
         for (const friend of processedFriends) {
@@ -125,8 +131,7 @@ export default function FriendsPage() {
           sender_id,
           receiver_id,
           status,
-          created_at,
-          profiles(sender_id: id, nickname, email, avatar)
+          created_at
         `)
         .eq('receiver_id', user?.id)
         .eq('status', 'pending')
@@ -136,21 +141,32 @@ export default function FriendsPage() {
       }
 
       if (requestData) {
-        const processedRequests: FriendRequest[] = requestData.map((item) => ({
-          id: item.id,
-          sender_id: item.sender_id,
-          receiver_id: item.receiver_id,
-          status: item.status,
-          created_at: item.created_at,
-          sender: {
-            id: item.sender_id,
-            email: item.profiles?.email || '',
-            nickname: item.profiles?.nickname || item.profiles?.email?.split('@')[0] || '未知用户',
-            avatar: item.profiles?.avatar || '',
-            status: 'offline',
-            last_seen: new Date().toISOString()
-          }
-        }))
+        const processedRequests: FriendRequest[] = await Promise.all(
+          requestData.map(async (item) => {
+            // 获取发送者的个人资料
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('email, nickname, avatar')
+              .eq('id', item.sender_id)
+              .single()
+
+            return {
+              id: item.id,
+              sender_id: item.sender_id,
+              receiver_id: item.receiver_id,
+              status: item.status,
+              created_at: item.created_at,
+              sender: {
+                id: item.sender_id,
+                email: profileData?.email || '',
+                nickname: profileData?.nickname || profileData?.email?.split('@')[0] || '未知用户',
+                avatar: profileData?.avatar || '',
+                status: 'offline',
+                last_seen: new Date().toISOString()
+              }
+            }
+          })
+        )
 
         setFriendRequests(processedRequests)
       }

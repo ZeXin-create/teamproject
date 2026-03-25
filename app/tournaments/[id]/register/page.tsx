@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useAuth } from '../../../../context/AuthContext'
+import { useAuth } from '../../../context/AuthContext'
 import { useRouter, useParams } from 'next/navigation'
-import { supabase } from '../../../../lib/supabase'
+import { supabase } from '../../../lib/supabase'
 import Image from 'next/image'
 
 interface Tournament {
@@ -18,7 +18,7 @@ interface Tournament {
 interface Team {
   id: string
   name: string
-  avatar_url?: string
+  avatar_url: string
   region: string
   member_count: number
 }
@@ -85,19 +85,23 @@ export default function RegisterTournamentPage() {
               .eq('team_id', member.team_id)
               .eq('status', 'active')
 
-            return {
-              id: teamData.id,
-              name: teamData.name,
-              avatar_url: teamData.avatar_url,
-              region: teamData.region,
-              member_count: memberCount?.length || 0
+            if (teamData) {
+              return {
+                id: teamData.id,
+                name: teamData.name,
+                avatar_url: teamData.avatar_url || '',
+                region: teamData.region,
+                member_count: memberCount?.length || 0
+              }
             }
+            return null
           })
         )
 
-        setUserTeams(teams)
-        if (teams.length > 0) {
-          setSelectedTeamId(teams[0].id)
+        const validTeams = teams.filter((team): team is Team => team !== null)
+        setUserTeams(validTeams)
+        if (validTeams.length > 0) {
+          setSelectedTeamId(validTeams[0].id)
         }
       }
     } catch (err: unknown) {

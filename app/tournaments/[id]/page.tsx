@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useRouter, useParams } from 'next/navigation'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import Image from 'next/image'
 
 interface Tournament {
@@ -94,14 +94,7 @@ export default function TournamentDetailPage() {
     try {
       const { data, error } = await supabase
         .from('tournament_registrations')
-        .select(`
-          team:teams(
-            id,
-            name,
-            avatar_url,
-            region
-          )
-        `)
+        .select('team_id')
         .eq('tournament_id', id)
         .eq('status', 'approved')
 
@@ -109,9 +102,16 @@ export default function TournamentDetailPage() {
         throw error
       }
 
-      if (data) {
-        const teams = data.map(item => item.team).filter((team): team is Team => team !== null && team !== undefined)
-        setRegisteredTeams(teams)
+      if (data && data.length > 0) {
+        const teamIds = data.map(item => item.team_id)
+        const { data: teamsData } = await supabase
+          .from('teams')
+          .select('id, name, avatar_url, region')
+          .in('id', teamIds)
+
+        if (teamsData) {
+          setRegisteredTeams(teamsData)
+        }
       }
     } catch (err: unknown) {
       console.error('获取报名队伍失败:', err)
@@ -188,18 +188,7 @@ export default function TournamentDetailPage() {
     try {
       const { data, error } = await supabase
         .from('tournament_results')
-        .select(`
-          id,
-          team_id,
-          rank,
-          prize,
-          team:teams(
-            id,
-            name,
-            avatar_url,
-            region
-          )
-        `)
+        .select('id, team_id, rank, prize')
         .eq('tournament_id', id)
         .order('rank', { ascending: true })
 
@@ -207,8 +196,22 @@ export default function TournamentDetailPage() {
         throw error
       }
 
-      if (data) {
-        setResults(data)
+      if (data && data.length > 0) {
+        const resultsWithTeam = await Promise.all(
+          data.map(async (result) => {
+            const { data: teamData } = await supabase
+              .from('teams')
+              .select('id, name, avatar_url, region')
+              .eq('id', result.team_id)
+              .single()
+
+            return {
+              ...result,
+              team: teamData || undefined
+            }
+          })
+        )
+        setResults(resultsWithTeam)
       }
     } catch (err: unknown) {
       console.error('获取结果失败:', err)

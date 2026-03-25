@@ -1,10 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Navbar from '../../components/Navbar'
 
@@ -19,24 +18,7 @@ interface Team {
   avatar_url?: string
 }
 
-interface Member {
-  id: string
-  user_id: string
-  team_id: string
-  role: string
-  status: string
-  joined_at: string
-  // 扩展字段用于智能分组
-  match_history?: {
-    total_matches: number
-    wins: number
-    losses: number
-    win_rate: number
-  }
-  preferred_positions?: string[] // 擅长位置
-  hero_pool?: string[] // 英雄池
-  compatibility_scores?: Record<string, number> // 与其他队员的配合分数
-}
+
 
 
 
@@ -51,10 +33,8 @@ interface ChatMessage {
 
 export default function TeamSpacePage() {
   const { user } = useAuth()
-  const router = useRouter()
   const [hasTeam, setHasTeam] = useState(false)
   const [team, setTeam] = useState<Team | null>(null)
-  const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [messageInput, setMessageInput] = useState('')
@@ -86,7 +66,6 @@ export default function TeamSpacePage() {
         } else {
           setTeam(teamData)
           setHasTeam(true)
-          await getTeamMembers(data.team_id)
         }
       } else {
         setHasTeam(false)
@@ -108,51 +87,9 @@ export default function TeamSpacePage() {
   }, [user, checkUserTeam])
   
   // 缓存机制
-  const [cache, setCache] = useState<Record<string, { data: any; timestamp: number }>>({});
+  const [cache, setCache] = useState<Record<string, { data: ChatMessage[]; timestamp: number }>>({});
   
-  const getTeamMembers = useCallback(async (teamId: string) => {
-    // 检查缓存
-    const cacheKey = `team_members_${teamId}`;
-    const cachedData = cache[cacheKey];
-    const now = Date.now();
-    
-    // 如果缓存存在且未过期（5分钟内）
-    if (cachedData && (now - cachedData.timestamp) < 5 * 60 * 1000) {
-      setMembers(cachedData.data);
-      return;
-    }
-    
-    try {
-      const { data, error } = await supabase
-        .from('team_members')
-        .select(`
-          id,
-          user_id,
-          team_id,
-          role,
-          status,
-          joined_at
-        `)
-        .eq('team_id', teamId)
-        .eq('status', 'active')
-      
-      if (error) {
-        console.error('获取战队成员失败:', error)
-      } else {
-        setMembers(data || []);
-        // 更新缓存
-        setCache(prev => ({
-          ...prev,
-          [cacheKey]: {
-            data: data || [],
-            timestamp: now
-          }
-        }));
-      }
-    } catch (error) {
-      console.error('获取战队成员失败:', error)
-    }
-  }, [cache])
+
   
 
   
@@ -177,7 +114,7 @@ export default function TeamSpacePage() {
       } else {
         setChatMessages(prev => [...prev, {
           ...data,
-          user_name: user?.user_metadata?.nickname || '匿名用户'
+          user_name: user?.email?.split('@')[0] || '匿名用户'
         }])
         setMessageInput('')
       }
@@ -251,8 +188,12 @@ export default function TeamSpacePage() {
           filter: `team_id=eq.${team.id}`
         }, (payload) => {
           // 新消息插入时更新聊天记录
-          const newMessage = {
-            ...payload.new,
+          const newMessage: ChatMessage = {
+            id: payload.new.id,
+            team_id: payload.new.team_id,
+            user_id: payload.new.user_id,
+            content: payload.new.content,
+            created_at: payload.new.created_at,
             user_name: payload.new.user_id.substring(0, 8)
           };
           setChatMessages(prev => [...prev, newMessage]);
@@ -308,7 +249,7 @@ export default function TeamSpacePage() {
         <div className="glass-card p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center">
-              {team.avatar_url ? (
+              {team?.avatar_url ? (
                 <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-white/50 shadow-lg">
                   <Image 
                     src={team.avatar_url} 
@@ -322,13 +263,13 @@ export default function TeamSpacePage() {
                 </div>
               ) : (
                 <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}>
-                  <span className="text-white text-2xl font-bold">{team.name.charAt(0)}</span>
+                  <span className="text-white text-2xl font-bold">{team?.name?.charAt(0) || ''}</span>
                 </div>
               )}
               <div className="ml-6">
-                <h1 className="text-2xl font-bold gradient-text">{team.name}</h1>
-                <p className="mt-2 text-gray-600">{team.region} · {team.province} · {team.city}</p>
-                {team.declaration && (
+                <h1 className="text-2xl font-bold gradient-text">{team?.name || ''}</h1>
+                <p className="mt-2 text-gray-600">{team?.region} · {team?.province} · {team?.city}</p>
+                {team?.declaration && (
                   <p className="mt-3 text-gray-700">{team.declaration}</p>
                 )}
               </div>

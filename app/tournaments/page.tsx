@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
-import Image from 'next/image'
+
 
 interface Tournament {
   id: string
@@ -181,7 +181,7 @@ export default function TournamentsPage() {
             <div className="glass-card p-12 text-center">
               <div className="text-6xl mb-4">🏆</div>
               <p className="text-gray-600 text-lg">暂无赛事</p>
-              <p className="text-gray-400 text-sm mt-2">点击上方的"创建赛事"按钮创建新赛事</p>
+              <p className="text-gray-400 text-sm mt-2">点击上方的&ldquo;创建赛事&rdquo;按钮创建新赛事</p>
             </div>
           ) : (
             tournaments.map((tournament) => (

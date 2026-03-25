@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import Image from 'next/image'
 import Link from 'next/link'
-import { calculateLevel, getNextLevelExperience, getLevelProgress, getLevelTitle, getLevelColor } from '../lib/userLevels'
+import { getLevelProgress, getLevelTitle, getLevelColor } from '../lib/userLevels'
 
 export default function ProfilePage() {
   const { user } = useAuth()
