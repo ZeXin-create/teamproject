@@ -15,6 +15,7 @@ export default function Navbar() {
     avatar: ''
   })
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   
   const fetchUserProfile = useCallback(async () => {
     try {
@@ -80,7 +81,8 @@ export default function Navbar() {
           </span>
         </Link>
         
-        <div className="flex items-center gap-6">
+        {/* 桌面菜单 */}
+        <div className="hidden md:flex items-center gap-6">
           {user ? (
             <>
               <Link 
@@ -105,8 +107,8 @@ export default function Navbar() {
                       <Image 
                         src={userProfile.avatar} 
                         alt="用户头像"
-                        width={40}
-                        height={40}
+                        width={40} 
+                        height={40} 
                         className="object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = 'none';
@@ -149,7 +151,94 @@ export default function Navbar() {
             </>
           )}
         </div>
+        
+        {/* 移动端菜单按钮 */}
+        <button 
+          className="md:hidden text-gray-700 focus:outline-none"
+          onClick={() => setShowMobileMenu(!showMobileMenu)}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {showMobileMenu ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+            )}
+          </svg>
+        </button>
       </div>
+      
+      {/* 移动端菜单 */}
+      {showMobileMenu && (
+        <div className="md:hidden container mx-auto px-4 py-4">
+          <div className="flex flex-col space-y-4">
+            {user ? (
+              <>
+                <Link 
+                  href="/teams/space" 
+                  className="px-4 py-3 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                  onClick={() => setShowMobileMenu(false)}
+                >
+                  🎮 战队空间
+                </Link>
+                <Link 
+                  href="/profile" 
+                  className="px-4 py-3 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                  onClick={() => setShowMobileMenu(false)}
+                >
+                  👤 个人中心
+                </Link>
+                <div className="flex items-center gap-3 glass-card p-4">
+                  {userProfile.avatar ? (
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white/50">
+                      <Image 
+                        src={userProfile.avatar} 
+                        alt="用户头像"
+                        width={40} 
+                        height={40} 
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div 
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                      style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
+                    >
+                      {userProfile.nickname.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-gray-800 font-medium">{userProfile.nickname}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowLogoutConfirm(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="px-4 py-3 rounded-2xl text-gray-700 hover:text-red-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                >
+                  🚪 退出登录
+                </button>
+              </>
+            ) : (
+              <>
+                <Link 
+                  href="/auth/login" 
+                  className="px-6 py-3 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                  onClick={() => setShowMobileMenu(false)}
+                >
+                  登录
+                </Link>
+                <Link 
+                  href="/auth/register" 
+                  className="px-6 py-3 glass-button text-white font-medium"
+                  onClick={() => setShowMobileMenu(false)}
+                >
+                  注册
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 退出登录确认模态框 */}
       {showLogoutConfirm && (

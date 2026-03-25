@@ -10,7 +10,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
-  const { register, isLoading } = useAuth()
+  const { register, isLoading, successMessage, setSuccessMessage } = useAuth()
   const router = useRouter()
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,7 +24,11 @@ export default function RegisterPage() {
     
     try {
       await register(email, password)
-      router.push('/')
+      setSuccessMessage('注册成功！请前往邮箱验证')
+      // 3秒后跳转到登录页面
+      setTimeout(() => {
+        router.push('/auth/login')
+      }, 3000)
     } catch {
       setError('注册失败，请稍后重试')
     }
@@ -44,6 +48,22 @@ export default function RegisterPage() {
             {error}
           </div>
         )}
+        
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200 text-center">
+            {successMessage}
+          </div>
+        )}
+        
+        <div className="mb-6 p-4 bg-blue-100/80 backdrop-blur-sm text-blue-700 rounded-2xl border border-blue-200">
+          <div className="flex items-start gap-2">
+            <span className="text-xl">📧</span>
+            <div>
+              <p className="font-medium">邮箱验证提示</p>
+              <p className="text-sm mt-1">注册成功后，请前往您的邮箱点击确认链接完成注册流程。</p>
+            </div>
+          </div>
+        </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>

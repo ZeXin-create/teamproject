@@ -1,11 +1,12 @@
 'use client'
 
-  import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Navbar from '../../components/Navbar'
 
 interface Team {
   id: string
@@ -25,19 +26,27 @@ interface Member {
   role: string
   status: string
   joined_at: string
-  user?: {
-    email: string
-    user_metadata?: {
-      nickname?: string
-      avatar?: string
-    }
+  // 扩展字段用于智能分组
+  match_history?: {
+    total_matches: number
+    wins: number
+    losses: number
+    win_rate: number
   }
+  preferred_positions?: string[] // 擅长位置
+  hero_pool?: string[] // 英雄池
+  compatibility_scores?: Record<string, number> // 与其他队员的配合分数
 }
 
-interface Group {
-  id: number
-  name: string
-  members: Member[]
+
+
+interface ChatMessage {
+  id: string
+  team_id: string
+  user_id: string
+  user_name: string
+  content: string
+  created_at: string
 }
 
 export default function TeamSpacePage() {
@@ -47,12 +56,9 @@ export default function TeamSpacePage() {
   const [team, setTeam] = useState<Team | null>(null)
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
-  const [position, setPosition] = useState('')
-  const [timeRange, setTimeRange] = useState('')
-  const [heroPower, setHeroPower] = useState('')
-  const [groups, setGroups] = useState<Group[]>([])
-  const [showGroupForm, setShowGroupForm] = useState(false)
-  const [showGroupResult, setShowGroupResult] = useState(false)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [messageInput, setMessageInput] = useState('')
+  const [loadingMessages, setLoadingMessages] = useState(false)
   
   const checkUserTeam = useCallback(async () => {
     setLoading(true)
@@ -101,453 +107,330 @@ export default function TeamSpacePage() {
     }
   }, [user, checkUserTeam])
   
-  const getTeamMembers = async (teamId: string) => {
+  // 缓存机制
+  const [cache, setCache] = useState<Record<string, { data: any; timestamp: number }>>({});
+  
+  const getTeamMembers = useCallback(async (teamId: string) => {
+    // 检查缓存
+    const cacheKey = `team_members_${teamId}`;
+    const cachedData = cache[cacheKey];
+    const now = Date.now();
+    
+    // 如果缓存存在且未过期（5分钟内）
+    if (cachedData && (now - cachedData.timestamp) < 5 * 60 * 1000) {
+      setMembers(cachedData.data);
+      return;
+    }
+    
     try {
       const { data, error } = await supabase
         .from('team_members')
-        .select('id, user_id, team_id, role, status, joined_at')
+        .select(`
+          id,
+          user_id,
+          team_id,
+          role,
+          status,
+          joined_at
+        `)
         .eq('team_id', teamId)
         .eq('status', 'active')
       
       if (error) {
-        throw error
-      }
-      
-      if (data && data.length > 0) {
-        const processedMembers: Member[] = []
-        
-        for (const item of data) {
-          const member: Member = {
-            id: item.id,
-            user_id: item.user_id,
-            team_id: item.team_id,
-            role: item.role,
-            status: item.status,
-            joined_at: item.joined_at
-          }
-          
-          try {
-            const { data: profileData, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', member.user_id)
-              .maybeSingle()
-            
-            if (error) {
-              member.user = {
-                email: member.user_id,
-                user_metadata: {
-                  nickname: '未知用户',
-                  avatar: ''
-                }
-              }
-            } else if (profileData) {
-              member.user = {
-                email: profileData.email || member.user_id,
-                user_metadata: {
-                  nickname: profileData.nickname || profileData.email?.split('@')[0] || '未知用户',
-                  avatar: profileData.avatar || ''
-                }
-              }
-            } else {
-              member.user = {
-                email: member.user_id,
-                user_metadata: {
-                  nickname: '未知用户',
-                  avatar: ''
-                }
-              }
-            }
-          } catch {
-            member.user = {
-              email: member.user_id,
-              user_metadata: {
-                nickname: '未知用户',
-                avatar: ''
-              }
-            }
-          }
-          
-          processedMembers.push(member)
-        }
-        
-        setMembers(processedMembers)
+        console.error('获取战队成员失败:', error)
       } else {
-        setMembers([])
+        setMembers(data || []);
+        // 更新缓存
+        setCache(prev => ({
+          ...prev,
+          [cacheKey]: {
+            data: data || [],
+            timestamp: now
+          }
+        }));
       }
-    } catch (err: unknown) {
-      console.error('获取战队成员失败:', err)
+    } catch (error) {
+      console.error('获取战队成员失败:', error)
     }
-  }
+  }, [cache])
   
-  const handleGroupMatch = () => {
-    const filteredMembers = members.filter(() => {
-      return true
-    })
+
+  
+  const handleSendMessage = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
     
-    const groups: Group[] = []
-    const groupSize = 5
-    const availableMembers = [...filteredMembers]
+    if (!messageInput.trim() || !team) return
     
-    while (availableMembers.length > 0) {
-      const groupMembers: Member[] = []
-      const positions = ['上单', '打野', '中单', '射手', '辅助']
-      
-      for (let i = 0; i < positions.length; i++) {
-        if (availableMembers.length === 0) break
-        const randomIndex = Math.floor(Math.random() * availableMembers.length)
-        const selectedMember = availableMembers[randomIndex]
-        groupMembers.push(selectedMember)
-        availableMembers.splice(randomIndex, 1)
-      }
-      
-      while (groupMembers.length < groupSize && availableMembers.length > 0) {
-        const randomIndex = Math.floor(Math.random() * availableMembers.length)
-        const selectedMember = availableMembers[randomIndex]
-        groupMembers.push(selectedMember)
-        availableMembers.splice(randomIndex, 1)
-      }
-      
-      if (groupMembers.length > 0) {
-        groups.push({
-          id: groups.length + 1,
-          name: `第${groups.length + 1}小组`,
-          members: groupMembers
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert({
+          team_id: team.id,
+          user_id: user?.id,
+          content: messageInput
         })
+        .select()
+        .single()
+      
+      if (error) {
+        console.error('发送消息失败:', error)
+      } else {
+        setChatMessages(prev => [...prev, {
+          ...data,
+          user_name: user?.user_metadata?.nickname || '匿名用户'
+        }])
+        setMessageInput('')
       }
+    } catch (error) {
+      console.error('发送消息失败:', error)
+    }
+  }, [messageInput, team, user])
+  
+  const fetchChatMessages = useCallback(async () => {
+    if (!team) return
+    
+    // 检查缓存
+    const cacheKey = `chat_messages_${team.id}`;
+    const cachedData = cache[cacheKey];
+    const now = Date.now();
+    
+    // 如果缓存存在且未过期（1分钟内）
+    if (cachedData && (now - cachedData.timestamp) < 60 * 1000) {
+      setChatMessages(cachedData.data);
+      setLoadingMessages(false);
+      return;
     }
     
-    setGroups(groups)
-    setShowGroupForm(false)
-    setShowGroupResult(true)
-  }
+    setLoadingMessages(true)
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('team_id', team.id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      
+      if (error) {
+        console.error('获取聊天消息失败:', error)
+      } else {
+        // 为每条消息添加user_name字段
+        const messagesWithUserName = data.map(message => ({
+          ...message,
+          user_name: message.user_id.substring(0, 8) // 使用用户ID前8位作为用户名
+        }))
+        const reversedMessages = messagesWithUserName.reverse();
+        setChatMessages(reversedMessages);
+        
+        // 更新缓存
+        setCache(prev => ({
+          ...prev,
+          [cacheKey]: {
+            data: reversedMessages,
+            timestamp: now
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('获取聊天消息失败:', error)
+    } finally {
+      setLoadingMessages(false)
+    }
+  }, [team, cache])
+  
+  useEffect(() => {
+    if (team) {
+      fetchChatMessages()
+      
+      // 设置实时订阅
+      const subscription = supabase
+        .channel(`team_chat_${team.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `team_id=eq.${team.id}`
+        }, (payload) => {
+          // 新消息插入时更新聊天记录
+          const newMessage = {
+            ...payload.new,
+            user_name: payload.new.user_id.substring(0, 8)
+          };
+          setChatMessages(prev => [...prev, newMessage]);
+        })
+        .subscribe();
+      
+      // 清理订阅
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [team, fetchChatMessages])
   
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="glass-card p-12 text-center">
-          <div className="animate-pulse text-pink-500 text-xl">✨ 加载中...</div>
+      <div className="min-h-screen bg-gray-100">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="mt-4 text-gray-600">加载中...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  if (!hasTeam) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-800">您还没有加入战队</h1>
+          <p className="mt-4 text-gray-600">请先创建或加入一个战队</p>
+          <div className="mt-8 flex space-x-4 justify-center">
+            <Link href="/teams/new" className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              创建战队
+            </Link>
+            <Link href="/teams/join" className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+              加入战队
+            </Link>
+          </div>
         </div>
       </div>
     )
   }
   
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
-        {/* 返回按钮 */}
-        <div className="flex items-center mb-8">
-          <button 
-            className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2"
-            onClick={() => router.back()}
-          >
-            <span>←</span> 返回
-          </button>
-        </div>
-        
-        {hasTeam && team ? (
-          <div className="space-y-8">
-            {/* 战队信息卡片 */}
-            <div className="glass-card p-8">
-              <div className="flex flex-col md:flex-row items-center gap-6">
-                <div className="relative">
-                  {team.avatar_url ? (
-                    <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-4 border-white/50 shadow-lg">
-                      <Image 
-                        src={team.avatar_url} 
-                        alt="战队图标"
-                        width={96}
-                        height={96}
-                        className="object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-white text-4xl font-bold shadow-lg"
-                      style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                      {team.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <div className="text-center md:text-left flex-1">
-                  <h2 className="text-3xl font-bold gradient-text mb-2">{team.name}</h2>
-                  <div className="flex flex-wrap justify-center md:justify-start gap-3">
-                    <span className="px-4 py-1 bg-pink-100 text-pink-600 rounded-full text-sm font-medium">
-                      🎮 {team.region}
-                    </span>
-                    <span className="px-4 py-1 bg-blue-100 text-blue-600 rounded-full text-sm font-medium">
-                      👥 {members.length} 名成员
-                    </span>
-                    <span className="px-4 py-1 bg-purple-100 text-purple-600 rounded-full text-sm font-medium">
-                      📍 {team.city}
-                    </span>
-                  </div>
-                  {team.declaration && (
-                    <p className="text-gray-600 mt-3 italic">&quot;{team.declaration}&quot;</p>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {/* 功能导航 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link href="/teams/edit" 
-                className="glass-card p-6 text-center hover:scale-105 transition-transform group">
-                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">✏️</div>
-                <h3 className="font-bold text-gray-800">编辑信息</h3>
-                <p className="text-sm text-gray-500 mt-1">修改战队资料</p>
-              </Link>
-              <Link href="/teams/applications" 
-                className="glass-card p-6 text-center hover:scale-105 transition-transform group">
-                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📋</div>
-                <h3 className="font-bold text-gray-800">申请管理</h3>
-                <p className="text-sm text-gray-500 mt-1">审核入队申请</p>
-              </Link>
-              <Link href="/teams/announcements" 
-                className="glass-card p-6 text-center hover:scale-105 transition-transform group">
-                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📢</div>
-                <h3 className="font-bold text-gray-800">战队公告</h3>
-                <p className="text-sm text-gray-500 mt-1">发布重要通知</p>
-              </Link>
-              <Link href="/teams/matches" 
-                className="glass-card p-6 text-center hover:scale-105 transition-transform group">
-                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🏆</div>
-                <h3 className="font-bold text-gray-800">战队赛记录</h3>
-                <p className="text-sm text-gray-500 mt-1">查看比赛历史</p>
-              </Link>
-            </div>
-
-            {/* 智能分组按钮 */}
-            <div className="text-center">
-              <button 
-                className="glass-button px-8 py-4 text-white font-bold text-lg flex items-center gap-3 mx-auto"
-                onClick={() => setShowGroupForm(true)}
-              >
-                <span className="text-2xl">🎯</span> 智能战队赛分组
-              </button>
-            </div>
-            
-            {/* 战队成员 */}
-            <div className="glass-card p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold gradient-text flex items-center gap-2">
-                  <span>👥</span> 战队成员
-                </h3>
-                <Link href="/teams/manage" 
-                  className="glass-button px-6 py-2 text-white text-sm font-medium">
-                  ⚙️ 管理成员
-                </Link>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {members.map((member) => (
-                  <div key={member.id} className="glass-card p-4 hover:scale-[1.02] transition-transform">
-                    <div className="flex items-center gap-4">
-                      {member.user?.user_metadata?.avatar ? (
-                        <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-white/50">
-                          <Image 
-                            src={member.user.user_metadata.avatar} 
-                            alt={member.user?.email || '用户'}
-                            width={56}
-                            height={56}
-                            className="object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                        </div>
-                      ) : null}
-                      <div 
-                        className={`w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold ${member.user?.user_metadata?.avatar ? 'hidden' : ''}`}
-                        style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}>
-                        {(member.user?.user_metadata?.nickname || member.user?.email || 'U').charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-gray-800">{member.user?.user_metadata?.nickname || member.user?.email?.split('@')[0] || member.user?.email}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            member.role === '队长' ? 'bg-yellow-100 text-yellow-600' :
-                            member.role === '副队长' ? 'bg-blue-100 text-blue-600' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
-                            {member.role}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      <p className="text-xs text-gray-400">
-                        加入时间：{new Date(member.joined_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="glass-card p-12 text-center">
-            <div className="text-6xl mb-6">🎮</div>
-            <h2 className="text-2xl font-bold gradient-text mb-4">您还没有加入任何战队</h2>
-            <p className="text-gray-600 mb-8 text-lg">加入或创建一个战队，开始您的战队之旅</p>
-            <div className="flex justify-center gap-6">
-              <Link href="/teams/new" 
-                className="glass-button px-8 py-3 text-white font-medium">
-                ✨ 创建战队
-              </Link>
-              <Link href="/teams/join" 
-                className="px-8 py-3 rounded-2xl bg-white/50 text-gray-700 hover:bg-white/80 transition-all font-medium">
-                🔍 加入战队
-              </Link>
-            </div>
-          </div>
-        )}
-        
-        {/* 分组表单模态框 */}
-        {showGroupForm && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="glass-card p-8 w-full max-w-2xl">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold gradient-text">🎯 智能战队赛分组</h3>
-                <button 
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                  onClick={() => setShowGroupForm(false)}
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">🎮 位置</label>
-                  <select 
-                    className="glass-input w-full px-4 py-3"
-                    value={position}
-                    onChange={(e) => setPosition(e.target.value)}
-                  >
-                    <option value="">全部位置</option>
-                    <option value="上单">上单</option>
-                    <option value="打野">打野</option>
-                    <option value="中单">中单</option>
-                    <option value="射手">射手</option>
-                    <option value="辅助">辅助</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">⏰ 时间区间</label>
-                  <select 
-                    className="glass-input w-full px-4 py-3"
-                    value={timeRange}
-                    onChange={(e) => setTimeRange(e.target.value)}
-                  >
-                    <option value="">全部时间</option>
-                    <option value="周五 12:00-24:00">周五 12:00-24:00</option>
-                    <option value="周六 12:00-24:00">周六 12:00-24:00</option>
-                    <option value="周日 12:00-24:00">周日 12:00-24:00</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">⚡ 英雄战力</label>
-                  <input 
-                    type="number" 
-                    className="glass-input w-full px-4 py-3"
-                    placeholder="最低战力要求"
-                    value={heroPower}
-                    onChange={(e) => setHeroPower(e.target.value)}
+    <div className="min-h-screen">
+      <Navbar />
+      <div className="container mx-auto px-4 py-8">
+        {/* 战队信息 */}
+        <div className="glass-card p-6 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center">
+              {team.avatar_url ? (
+                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-white/50 shadow-lg">
+                  <Image 
+                    src={team.avatar_url} 
+                    alt={team.name} 
+                    width={80} 
+                    height={80} 
+                    className="object-cover"
+                    loading="lazy" // 启用懒加载
+                    priority={false} // 非首屏图片不需要优先级
                   />
                 </div>
-              </div>
-              
-              <div className="flex justify-end gap-4">
-                <button 
-                  className="px-6 py-3 rounded-2xl text-gray-600 hover:text-gray-800 hover:bg-white/50 transition-all"
-                  onClick={() => setShowGroupForm(false)}
-                >
-                  取消
-                </button>
-                <button 
-                  className="glass-button px-8 py-3 text-white font-medium"
-                  onClick={handleGroupMatch}
-                >
-                  🚀 开始匹配分组
-                </button>
+              ) : (
+                <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}>
+                  <span className="text-white text-2xl font-bold">{team.name.charAt(0)}</span>
+                </div>
+              )}
+              <div className="ml-6">
+                <h1 className="text-2xl font-bold gradient-text">{team.name}</h1>
+                <p className="mt-2 text-gray-600">{team.region} · {team.province} · {team.city}</p>
+                {team.declaration && (
+                  <p className="mt-3 text-gray-700">{team.declaration}</p>
+                )}
               </div>
             </div>
+            <div className="flex space-x-4">
+              <Link href="/teams/manage" className="px-4 py-2 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium">
+                管理战队
+              </Link>
+              <Link href="/teams/recruit" className="glass-button px-4 py-2 text-white font-medium">
+                招募队员
+              </Link>
+            </div>
           </div>
-        )}
+          
+          {/* 功能导航 */}
+          <div className="grid grid-cols-3 gap-4 mt-8">
+            <Link href="/teams/edit" className="glass-card p-4 text-center hover:scale-105 transition-transform">
+              <div className="text-2xl mb-2">✏️</div>
+              <div className="font-medium text-gray-800">编辑资料</div>
+            </Link>
+            <Link href="/teams/applications" className="glass-card p-4 text-center hover:scale-105 transition-transform">
+              <div className="text-2xl mb-2">📋</div>
+              <div className="font-medium text-gray-800">申请管理</div>
+            </Link>
+
+            <Link href="/teams/matches" className="glass-card p-4 text-center hover:scale-105 transition-transform">
+              <div className="text-2xl mb-2">🏆</div>
+              <div className="font-medium text-gray-800">战队赛记录</div>
+            </Link>
+          </div>
+        </div>
         
-        {/* 分组结果模态框 */}
-        {showGroupResult && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="glass-card p-8 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold gradient-text">🎉 分组结果</h3>
-                <button 
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                  onClick={() => setShowGroupResult(false)}
-                >
-                  ×
-                </button>
+
+        
+        {/* 战队聊天 */}
+        <div className="glass-card p-6">
+          <h2 className="text-xl font-bold gradient-text mb-6">战队聊天</h2>
+          
+          <div className="h-96 glass-input rounded-lg p-4 overflow-y-auto mb-6">
+            {loadingMessages ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
               </div>
-              
+            ) : (
               <div className="space-y-6">
-                {groups.map((group) => (
-                  <div key={group.id} className="glass-card p-6">
-                    <h4 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
-                      <span className="w-8 h-8 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 text-white flex items-center justify-center text-sm">
-                        {group.id}
-                      </span>
-                      {group.name}
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      {group.members.map((member, index) => (
-                        <div key={member.id} className="text-center">
-                          <div className="relative mb-2">
-                            {member.user?.user_metadata?.avatar ? (
-                              <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/50 mx-auto">
-                                <Image 
-                                  src={member.user.user_metadata.avatar} 
-                                  alt={member.user?.email || '用户'}
-                                  width={64}
-                                  height={64}
-                                  className="object-cover"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                                  }}
-                                />
-                              </div>
-                            ) : null}
-                            <div 
-                              className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold mx-auto ${member.user?.user_metadata?.avatar ? 'hidden' : ''}`}
-                              style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}>
-                              {(member.user?.user_metadata?.nickname || member.user?.email || 'U').charAt(0).toUpperCase()}
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-r from-blue-400 to-blue-500 text-white text-xs flex items-center justify-center">
-                              {['上', '野', '中', '射', '辅'][index] || '?'}
-                            </div>
+                {chatMessages.map(message => {
+                  const isOwnMessage = message.user_id === user?.id;
+                  return (
+                    <div key={message.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                      {!isOwnMessage && (
+                        <div className="mr-4">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}>
+                            <span className="text-white font-bold">{message.user_name.charAt(0)}</span>
                           </div>
-                          <p className="text-sm font-medium text-gray-700 truncate">
-                            {member.user?.user_metadata?.nickname || member.user?.email?.split('@')[0]}
-                          </p>
                         </div>
-                      ))}
+                      )}
+                      <div className={`max-w-[70%] ${isOwnMessage ? 'text-right' : 'text-left'}`}>
+                        {!isOwnMessage && (
+                          <div className="flex items-center mb-1">
+                            <span className="font-semibold text-gray-800">{message.user_name}</span>
+                            <span className="ml-3 text-xs text-gray-500">{new Date(message.created_at).toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className={`inline-block p-3 rounded-lg ${isOwnMessage ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'}`}>
+                          <p>{message.content}</p>
+                        </div>
+                        {isOwnMessage && (
+                          <div className="flex justify-end mt-1">
+                            <span className="text-xs text-gray-500">{new Date(message.created_at).toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+                      {isOwnMessage && (
+                        <div className="ml-4">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg, #4ecdc4, #45b7d1)' }}>
+                            <span className="text-white font-bold">{message.user_name.charAt(0)}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              
-              <div className="mt-6 text-right">
-                <button 
-                  className="glass-button px-8 py-3 text-white font-medium"
-                  onClick={() => setShowGroupResult(false)}
-                >
-                  ✨ 确定
-                </button>
-              </div>
-            </div>
+            )}
           </div>
-        )}
+          
+          <form onSubmit={handleSendMessage} className="flex gap-3">
+            <input 
+              type="text" 
+              value={messageInput} 
+              onChange={(e) => setMessageInput(e.target.value)}
+              placeholder="输入消息..."
+              className="flex-1 px-4 py-3 glass-input focus:outline-none"
+            />
+            <button 
+              type="submit" 
+              className="glass-button px-6 py-3 text-white font-medium"
+            >
+              发送
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )

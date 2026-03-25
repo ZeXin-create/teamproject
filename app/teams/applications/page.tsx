@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Navbar from '../../components/Navbar'
 
 interface Application {
   id: string
@@ -172,32 +173,33 @@ export default function ApplicationsPage() {
   }
   
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <Navbar />
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center mb-6">
           <button 
-            className="mr-4 text-blue-600 hover:text-blue-800"
+            className="mr-4 text-pink-500 hover:text-pink-600 glass-button px-4 py-2 rounded-lg"
             onClick={() => router.back()}
           >
             ← 返回
           </button>
-          <h1 className="text-2xl font-bold">战队申请管理</h1>
+          <h1 className="text-2xl font-bold text-gray-800">战队申请管理</h1>
         </div>
         
         {error && (
-          <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+          <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg glass-card">
             {error}
           </div>
         )}
         
         {success && (
-          <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">
+          <div className="mb-4 p-3 bg-green-100 text-green-600 rounded-lg glass-card">
             {success}
           </div>
         )}
         
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-lg font-semibold mb-4">待审批申请</h2>
+        <div className="glass-card p-6 rounded-xl">
+          <h2 className="text-lg font-semibold mb-4 text-gray-800">待审批申请</h2>
           
           {applications.length === 0 ? (
             <div className="text-center py-8">
@@ -206,9 +208,9 @@ export default function ApplicationsPage() {
           ) : (
             <div className="space-y-4">
               {applications.map((app) => (
-                <div key={app.id} className="border border-gray-200 rounded p-4">
+                <div key={app.id} className="border border-gray-300 rounded-lg p-4 glass-card">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="relative w-12 h-12 rounded-full overflow-hidden">
+                    <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-pink-500">
                       <Image 
                         src={app.user?.user_metadata?.avatar || 'https://via.placeholder.com/40'} 
                         alt={app.user?.email || '用户'}
@@ -218,19 +220,19 @@ export default function ApplicationsPage() {
                       />
                     </div>
                     <div>
-                      <h3 className="font-semibold">{app.user?.email}</h3>
+                      <h3 className="font-semibold text-gray-800">{app.user?.email}</h3>
                       <p className="text-sm text-gray-600">申请时间：{new Date(app.created_at).toLocaleString()}</p>
                     </div>
                   </div>
                   <div className="flex justify-end gap-4">
                     <button
-                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                      className="px-4 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-lg hover:from-red-500 hover:to-red-600 transition-colors"
                       onClick={() => handleReject(app.id)}
                     >
                       拒绝
                     </button>
                     <button
-                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg hover:from-pink-600 hover:to-purple-600 transition-colors"
                       onClick={() => handleApprove(app.id, app.user_id)}
                     >
                       批准

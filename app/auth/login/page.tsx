@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const { login, isLoading } = useAuth()
+  const { login, isLoading, successMessage, setSuccessMessage } = useAuth()
   const router = useRouter()
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,7 +18,11 @@ export default function LoginPage() {
     
     try {
       await login(email, password)
-      router.push('/')
+      setSuccessMessage('登录成功！欢迎回来')
+      // 1秒后跳转到首页
+      setTimeout(() => {
+        router.push('/')
+      }, 1000)
     } catch {
       setError('登录失败，请检查邮箱和密码')
     }
@@ -36,6 +40,12 @@ export default function LoginPage() {
         {error && (
           <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200 text-center">
             {error}
+          </div>
+        )}
+        
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200 text-center">
+            {successMessage}
           </div>
         )}
         
@@ -94,6 +104,7 @@ export default function LoginPage() {
               立即注册 ✨
             </Link>
           </p>
+          <p className="text-gray-400 text-xs mt-4">当前版本 1.1</p>
         </div>
       </div>
     </div>

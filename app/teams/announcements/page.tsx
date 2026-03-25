@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
+import Navbar from '../../components/Navbar'
 
 interface Announcement {
   id: string
@@ -150,26 +151,27 @@ export default function AnnouncementsPage() {
   }
   
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <Navbar />
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center mb-6">
           <button 
-            className="mr-4 text-blue-600 hover:text-blue-800"
+            className="mr-4 text-pink-500 hover:text-pink-600 glass-button px-4 py-2 rounded-lg"
             onClick={() => router.back()}
           >
             ← 返回
           </button>
-          <h1 className="text-2xl font-bold">战队公告</h1>
+          <h1 className="text-2xl font-bold text-gray-800">战队公告</h1>
         </div>
         
         {error && (
-          <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+          <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg glass-card">
             {error}
           </div>
         )}
         
         {success && (
-          <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">
+          <div className="mb-4 p-3 bg-green-100 text-green-600 rounded-lg glass-card">
             {success}
           </div>
         )}
@@ -177,7 +179,7 @@ export default function AnnouncementsPage() {
         {is队长 && (
           <div className="mb-6">
             <button 
-              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className="px-6 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg hover:from-pink-600 hover:to-purple-600 transition-colors"
               onClick={() => setShowModal(true)}
             >
               发布公告
@@ -185,8 +187,8 @@ export default function AnnouncementsPage() {
           </div>
         )}
         
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-lg font-semibold mb-4">公告列表</h2>
+        <div className="glass-card p-6 rounded-xl">
+          <h2 className="text-lg font-semibold mb-4 text-gray-800">公告列表</h2>
           
           {announcements.length === 0 ? (
             <div className="text-center py-8">
@@ -195,15 +197,15 @@ export default function AnnouncementsPage() {
           ) : (
             <div className="space-y-4">
               {announcements.map((announcement) => (
-                <div key={announcement.id} className="border border-gray-200 rounded p-4">
+                <div key={announcement.id} className="border border-gray-300 rounded-lg p-4 glass-card">
                   <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold">{announcement.title}</h3>
-                    <span className="text-sm text-gray-500">
+                    <h3 className="font-semibold text-gray-800">{announcement.title}</h3>
+                    <span className="text-sm text-gray-600">
                       {new Date(announcement.created_at).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-gray-600 mb-2">{announcement.content}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-gray-700 mb-2">{announcement.content}</p>
+                  <p className="text-sm text-gray-600">
                     发布者：{announcement.user?.email}
                   </p>
                 </div>
@@ -215,11 +217,11 @@ export default function AnnouncementsPage() {
         {/* 发布公告模态框 */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-2xl">
+            <div className="glass-card p-6 rounded-xl w-full max-w-2xl">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">发布公告</h3>
+                <h3 className="text-lg font-semibold text-gray-800">发布公告</h3>
                 <button 
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-600 hover:text-gray-800"
                   onClick={() => setShowModal(false)}
                 >
                   ×
@@ -234,7 +236,7 @@ export default function AnnouncementsPage() {
                   <input
                     type="text"
                     id="title"
-                    className="w-full px-4 py-2 border border-gray-300 rounded"
+                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     required
@@ -247,7 +249,7 @@ export default function AnnouncementsPage() {
                   </label>
                   <textarea
                     id="content"
-                    className="w-full px-4 py-2 border border-gray-300 rounded"
+                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                     rows={6}
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
@@ -258,14 +260,14 @@ export default function AnnouncementsPage() {
                 <div className="flex justify-end gap-4">
                   <button
                     type="button"
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                    className="px-4 py-2 glass-button hover:bg-white/20 rounded-lg"
                     onClick={() => setShowModal(false)}
                   >
                     取消
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg hover:from-pink-600 hover:to-purple-600 transition-colors"
                   >
                     发布
                   </button>

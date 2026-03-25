@@ -1,25 +1,18 @@
--- 创建存储桶
-INSERT INTO storage.buckets (id, name, public) VALUES 
-('team-avatars', 'team-avatars', true);
+-- 创建战队图片存储桶
+INSERT INTO storage.buckets (id, name, public) VALUES ('team-images', 'team-images', true) ON CONFLICT (id) DO NOTHING;
 
--- 为存储桶添加权限策略
-CREATE POLICY "Team avatars are publicly accessible" ON storage.objects
-  FOR SELECT USING (bucket_id = 'team-avatars');
-
-CREATE POLICY "Team leaders can upload avatars" ON storage.objects
+-- 创建战队图片存储桶的 RLS 策略
+CREATE POLICY "Team members can upload images" ON storage.objects
   FOR INSERT WITH CHECK (
-    bucket_id = 'team-avatars' AND
-    auth.role() = 'authenticated'
+    bucket_id = 'team-images'
   );
 
-CREATE POLICY "Team leaders can update avatars" ON storage.objects
-  FOR UPDATE USING (
-    bucket_id = 'team-avatars' AND
-    auth.role() = 'authenticated'
+CREATE POLICY "Team members can view images" ON storage.objects
+  FOR SELECT USING (
+    bucket_id = 'team-images'
   );
 
-CREATE POLICY "Team leaders can delete avatars" ON storage.objects
+CREATE POLICY "Team members can delete images" ON storage.objects
   FOR DELETE USING (
-    bucket_id = 'team-avatars' AND
-    auth.role() = 'authenticated'
+    bucket_id = 'team-images'
   );

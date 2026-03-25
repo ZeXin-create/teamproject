@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import Image from 'next/image'
+import Link from 'next/link'
+import { calculateLevel, getNextLevelExperience, getLevelProgress, getLevelTitle, getLevelColor } from '../lib/userLevels'
 
 export default function ProfilePage() {
   const { user } = useAuth()
@@ -50,6 +52,15 @@ export default function ProfilePage() {
     }
   } | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  
+  // 用户等级信息
+  const [userLevel, setUserLevel] = useState({
+    experience: 0,
+    level: 1,
+    activityScore: 0,
+    contributionScore: 0,
+    lastActive: new Date().toISOString()
+  })
 
   const fetchUserProfile = useCallback(async () => {
     try {
@@ -183,14 +194,63 @@ export default function ProfilePage() {
     }
   }, [user])
 
+  // 获取用户等级信息
+  const fetchUserLevel = useCallback(async () => {
+    if (!user) return
+
+    try {
+      // 尝试获取用户等级信息
+      const { data, error } = await supabase
+        .from('user_levels')
+        .select('experience, level, activity_score, contribution_score, last_active')
+        .eq('user_id', user.id)
+        .single()
+
+      if (error && error.code === 'PGRST116') {
+        // 用户等级记录不存在，创建默认记录
+        await supabase
+          .from('user_levels')
+          .insert({
+            user_id: user.id,
+            experience: 0,
+            level: 1,
+            activity_score: 0,
+            contribution_score: 0
+          })
+
+        setUserLevel({
+          experience: 0,
+          level: 1,
+          activityScore: 0,
+          contributionScore: 0,
+          lastActive: new Date().toISOString()
+        })
+      } else if (data) {
+        setUserLevel({
+          experience: data.experience,
+          level: data.level,
+          activityScore: data.activity_score,
+          contributionScore: data.contribution_score,
+          lastActive: data.last_active
+        })
+      }
+    } catch (err) {
+      console.error('获取用户等级信息失败:', err)
+    }
+  }, [user])
+
   useEffect(() => {
     if (!user) {
-      router.push('/auth/login')
+      // 使用setTimeout确保在渲染完成后执行导航
+      setTimeout(() => {
+        router.push('/auth/login')
+      }, 0)
     } else {
       fetchUserProfile()
       fetchUserBlacklistItems()
+      fetchUserLevel()
     }
-  }, [user, router, fetchUserProfile, fetchUserBlacklistItems])
+  }, [user, router, fetchUserProfile, fetchUserBlacklistItems, fetchUserLevel])
 
   // 删除避雷条
   const deleteBlacklistItem = async (id: string) => {
@@ -510,6 +570,42 @@ export default function ProfilePage() {
               </div>
               <p className="text-sm text-gray-500">点击头像查看或编辑</p>
               <h2 className="text-xl font-bold text-gray-800 mt-2">{userInfo.nickname || userInfo.email}</h2>
+              
+              {/* 用户等级信息 */}
+              <div className="mt-4 w-full max-w-xs">
+                <div className="glass-card p-4 rounded-2xl">
+                  <div className="flex justify-between items-center mb-3">
+                    <div>
+                      <span className={`font-bold ${getLevelColor(userLevel.level)}`}>
+                        Lv.{userLevel.level} {getLevelTitle(userLevel.level)}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      经验值: {userLevel.experience}
+                    </div>
+                  </div>
+                  
+                  {/* 等级进度条 */}
+                  <div className="w-full h-2 bg-gray-200 rounded-full mb-4">
+                    <div 
+                      className="h-full bg-gradient-to-r from-pink-400 to-purple-500 rounded-full transition-all duration-500"
+                      style={{ width: `${getLevelProgress(userLevel.level, userLevel.experience)}%` }}
+                    ></div>
+                  </div>
+                  
+                  {/* 活跃度和贡献度 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500 mb-1">活跃度</div>
+                      <div className="font-bold text-blue-600">{userLevel.activityScore}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500 mb-1">贡献度</div>
+                      <div className="font-bold text-pink-600">{userLevel.contributionScore}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* 表单字段 */}
@@ -576,6 +672,34 @@ export default function ProfilePage() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* 功能导航 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <Link href="/teams" 
+            className="glass-card p-6 text-center hover:scale-105 transition-transform group">
+            <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🏆</div>
+            <h3 className="font-bold text-gray-800">我的战队</h3>
+            <p className="text-sm text-gray-500 mt-1">查看和管理战队</p>
+          </Link>
+          <Link href="/friends" 
+            className="glass-card p-6 text-center hover:scale-105 transition-transform group">
+            <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">👥</div>
+            <h3 className="font-bold text-gray-800">我的好友</h3>
+            <p className="text-sm text-gray-500 mt-1">添加和管理好友</p>
+          </Link>
+          <Link href="/tournaments" 
+            className="glass-card p-6 text-center hover:scale-105 transition-transform group">
+            <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🏅</div>
+            <h3 className="font-bold text-gray-800">赛事管理</h3>
+            <p className="text-sm text-gray-500 mt-1">查看和参与赛事</p>
+          </Link>
+          <Link href="/forum" 
+            className="glass-card p-6 text-center hover:scale-105 transition-transform group">
+            <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">💬</div>
+            <h3 className="font-bold text-gray-800">论坛</h3>
+            <p className="text-sm text-gray-500 mt-1">讨论游戏和战队</p>
+          </Link>
         </div>
 
         {/* 我的避雷条 */}

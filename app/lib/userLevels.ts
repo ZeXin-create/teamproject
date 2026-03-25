@@ -74,6 +74,10 @@ export function getLevelProgress(currentLevel: number, currentExperience: number
   const levelRange = nextLevelExp - currentLevelExp;
   const currentLevelProgress = currentExperience - currentLevelExp;
   
+  if (levelRange <= 0) {
+    return 100;
+  }
+  
   return Math.min(100, Math.round((currentLevelProgress / levelRange) * 100));
 }
 

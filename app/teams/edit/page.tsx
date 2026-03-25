@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Image from 'next/image'
+import Navbar from '../../components/Navbar'
 
 interface Team {
   id: string
@@ -203,32 +204,33 @@ export default function EditTeamPage() {
   }
   
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <Navbar />
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center mb-6">
           <button 
-            className="mr-4 text-blue-600 hover:text-blue-800"
+            className="mr-4 text-pink-500 hover:text-pink-600 glass-button px-4 py-2 rounded-lg"
             onClick={() => router.back()}
           >
             ← 返回
           </button>
-          <h1 className="text-2xl font-bold">编辑战队信息</h1>
+          <h1 className="text-2xl font-bold text-gray-800">编辑战队信息</h1>
         </div>
         
         {error && (
-          <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+          <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg glass-card">
             {error}
           </div>
         )}
         
         {success && (
-          <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">
+          <div className="mb-4 p-3 bg-green-100 text-green-600 rounded-lg glass-card">
             {success}
           </div>
         )}
         
         {team && (
-          <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
+          <form onSubmit={handleSubmit} className="glass-card p-6 rounded-xl">
             <div className="mb-4">
               <label htmlFor="teamName" className="block text-gray-700 mb-2">
                 战队名称 *
@@ -236,7 +238,7 @@ export default function EditTeamPage() {
               <input
                 type="text"
                 id="teamName"
-                className="w-full px-4 py-2 border border-gray-300 rounded"
+                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                 value={teamName}
                 onChange={(e) => setTeamName(e.target.value)}
                 required
@@ -249,7 +251,7 @@ export default function EditTeamPage() {
               </label>
               <select
                 id="region"
-                className="w-full px-4 py-2 border border-gray-300 rounded"
+                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
                 required
@@ -269,7 +271,7 @@ export default function EditTeamPage() {
                 <input
                   type="text"
                   id="province"
-                  className="w-full px-4 py-2 border border-gray-300 rounded"
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
                   required
@@ -282,7 +284,7 @@ export default function EditTeamPage() {
                 <input
                   type="text"
                   id="city"
-                  className="w-full px-4 py-2 border border-gray-300 rounded"
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   required
@@ -295,7 +297,7 @@ export default function EditTeamPage() {
                 <input
                   type="text"
                   id="district"
-                  className="w-full px-4 py-2 border border-gray-300 rounded"
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
                 />
@@ -308,7 +310,7 @@ export default function EditTeamPage() {
               </label>
               <textarea
                 id="declaration"
-                className="w-full px-4 py-2 border border-gray-300 rounded"
+                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                 rows={4}
                 value={declaration}
                 onChange={(e) => setDeclaration(e.target.value)}
@@ -322,11 +324,11 @@ export default function EditTeamPage() {
               <input
                 type="file"
                 id="avatar"
-                className="w-full px-4 py-2 border border-gray-300 rounded"
+                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                 onChange={handleAvatarChange}
               />
               {team.avatar_url && (
-                <div className="mt-2 relative w-16 h-16 rounded-full overflow-hidden">
+                <div className="mt-2 relative w-16 h-16 rounded-full overflow-hidden border-2 border-pink-500">
                   <Image 
                     src={team.avatar_url} 
                     alt="当前战队图标"
@@ -341,14 +343,14 @@ export default function EditTeamPage() {
             <div className="flex justify-end gap-4">
               <button
                 type="button"
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                className="px-4 py-2 glass-button hover:bg-white/20 rounded-lg"
                 onClick={() => router.push('/teams/space')}
               >
                 取消
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg hover:from-pink-600 hover:to-purple-600 transition-colors"
               >
                 保存修改
               </button>

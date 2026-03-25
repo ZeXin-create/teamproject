@@ -8,9 +8,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState(0)
   
   const tabs = [
-    '避雷榜单',
-    '信息榜单',
-    '约战信息',
     '招募大厅',
     '战队列表',
     '战区排行'
