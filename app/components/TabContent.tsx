@@ -35,6 +35,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
   const [selectedTeam, setSelectedTeam] = useState<{ id: string; name: string; avatar_url?: string; region?: string; declaration?: string; city?: string; member_count?: number; images?: string[] } | null>(null)
 
   const fetchTeams = useCallback(async () => {
+    setLoading(true)
     try {
       let query = supabase
         .from('teams')
@@ -72,6 +73,8 @@ export default function TabContent({ activeTab }: TabContentProps) {
       }
     } catch (error) {
       console.error('获取战队列表失败:', error)
+    } finally {
+      setLoading(false)
     }
   }, [searchQuery, searchRegion])
 

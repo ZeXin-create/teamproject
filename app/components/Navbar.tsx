@@ -52,7 +52,11 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
+      // 先关闭确认模态框
+      setShowLogoutConfirm(false)
+      // 调用退出登录函数
       await logout()
+      // 导航到登录页面
       router.push('/auth/login')
     } catch (error) {
       console.error('退出登录失败:', error)
@@ -77,7 +81,7 @@ export default function Navbar() {
             ✨
           </div>
           <span className="text-2xl font-bold gradient-text">
-            战队管理
+            王者战队助手系统
           </span>
         </Link>
         

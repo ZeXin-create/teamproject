@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Navbar from '../../components/Navbar'
 
@@ -29,16 +30,20 @@ interface ChatMessage {
   user_name: string
   content: string
   created_at: string
+  avatar?: string
 }
 
 export default function TeamSpacePage() {
   const { user } = useAuth()
+  const router = useRouter()
   const [hasTeam, setHasTeam] = useState(false)
   const [team, setTeam] = useState<Team | null>(null)
   const [loading, setLoading] = useState(true)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [messageInput, setMessageInput] = useState('')
   const [loadingMessages, setLoadingMessages] = useState(false)
+  const [userAvatars, setUserAvatars] = useState<Record<string, string>>({})
+  const chatContainerRef = useRef<HTMLDivElement>(null)
   
   const checkUserTeam = useCallback(async () => {
     setLoading(true)
@@ -89,6 +94,35 @@ export default function TeamSpacePage() {
   // 缓存机制
   const [cache, setCache] = useState<Record<string, { data: ChatMessage[]; timestamp: number }>>({});
   
+  // 滚动聊天容器到底部
+  const scrollToBottom = useCallback(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, []);
+  
+  // 获取用户头像
+  const fetchUserAvatar = useCallback(async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      if (data?.avatar) {
+        setUserAvatars(prev => ({
+          ...prev,
+          [userId]: data.avatar
+        }));
+        return data.avatar;
+      }
+    } catch (error) {
+      console.error('获取用户头像失败:', error);
+    }
+    return '';
+  }, []);
+  
 
   
 
@@ -112,16 +146,21 @@ export default function TeamSpacePage() {
       if (error) {
         console.error('发送消息失败:', error)
       } else {
+        // 获取当前用户的头像
+        const userAvatar = userAvatars[user?.id || ''] || '';
         setChatMessages(prev => [...prev, {
           ...data,
-          user_name: user?.email?.split('@')[0] || '匿名用户'
+          user_name: user?.email?.split('@')[0] || '匿名用户',
+          avatar: userAvatar
         }])
         setMessageInput('')
+        // 滚动到底部
+        setTimeout(scrollToBottom, 100)
       }
     } catch (error) {
       console.error('发送消息失败:', error)
     }
-  }, [messageInput, team, user])
+  }, [messageInput, team, user, scrollToBottom, userAvatars])
   
   const fetchChatMessages = useCallback(async () => {
     if (!team) return
@@ -150,13 +189,26 @@ export default function TeamSpacePage() {
       if (error) {
         console.error('获取聊天消息失败:', error)
       } else {
-        // 为每条消息添加user_name字段
-        const messagesWithUserName = data.map(message => ({
+        // 获取所有用户的ID
+        const userIds = [...new Set(data.map(message => message.user_id))];
+        
+        // 批量获取用户头像
+        for (const userId of userIds) {
+          if (!userAvatars[userId]) {
+            await fetchUserAvatar(userId);
+          }
+        }
+        
+        // 为每条消息添加user_name和avatar字段
+        const messagesWithDetails = data.map(message => ({
           ...message,
-          user_name: message.user_id.substring(0, 8) // 使用用户ID前8位作为用户名
+          user_name: message.user_id.substring(0, 8), // 使用用户ID前8位作为用户名
+          avatar: userAvatars[message.user_id] || ''
         }))
-        const reversedMessages = messagesWithUserName.reverse();
+        const reversedMessages = messagesWithDetails.reverse();
         setChatMessages(reversedMessages);
+        // 滚动到底部
+        setTimeout(scrollToBottom, 100)
         
         // 更新缓存
         setCache(prev => ({
@@ -172,7 +224,7 @@ export default function TeamSpacePage() {
     } finally {
       setLoadingMessages(false)
     }
-  }, [team, cache])
+  }, [team, cache, scrollToBottom, userAvatars, fetchUserAvatar])
   
   useEffect(() => {
     if (team) {
@@ -186,17 +238,26 @@ export default function TeamSpacePage() {
           schema: 'public',
           table: 'chat_messages',
           filter: `team_id=eq.${team.id}`
-        }, (payload) => {
+        }, async (payload) => {
           // 新消息插入时更新聊天记录
+          // 获取发送者的头像
+          let userAvatar = userAvatars[payload.new.user_id] || '';
+          if (!userAvatar) {
+            userAvatar = await fetchUserAvatar(payload.new.user_id);
+          }
+          
           const newMessage: ChatMessage = {
             id: payload.new.id,
             team_id: payload.new.team_id,
             user_id: payload.new.user_id,
             content: payload.new.content,
             created_at: payload.new.created_at,
-            user_name: payload.new.user_id.substring(0, 8)
+            user_name: payload.new.user_id.substring(0, 8),
+            avatar: userAvatar
           };
           setChatMessages(prev => [...prev, newMessage]);
+          // 滚动到底部
+          setTimeout(scrollToBottom, 100)
         })
         .subscribe();
       
@@ -205,7 +266,7 @@ export default function TeamSpacePage() {
         subscription.unsubscribe();
       };
     }
-  }, [team, fetchChatMessages])
+  }, [team, fetchChatMessages, scrollToBottom, userAvatars, fetchUserAvatar])
   
   if (loading) {
     return (
@@ -248,6 +309,12 @@ export default function TeamSpacePage() {
         {/* 战队信息 */}
         <div className="glass-card p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
+            <button 
+              className="px-4 py-2 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium flex items-center gap-2"
+              onClick={() => router.push('/')}
+            >
+              <span>←</span> 返回主页面
+            </button>
             <div className="flex items-center">
               {team?.avatar_url ? (
                 <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-white/50 shadow-lg">
@@ -308,7 +375,7 @@ export default function TeamSpacePage() {
         <div className="glass-card p-6">
           <h2 className="text-xl font-bold gradient-text mb-6">战队聊天</h2>
           
-          <div className="h-96 glass-input rounded-lg p-4 overflow-y-auto mb-6">
+          <div ref={chatContainerRef} className="h-96 glass-input rounded-lg p-4 overflow-y-auto mb-6">
             {loadingMessages ? (
               <div className="flex items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
@@ -321,9 +388,19 @@ export default function TeamSpacePage() {
                     <div key={message.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
                       {!isOwnMessage && (
                         <div className="mr-4">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}>
-                            <span className="text-white font-bold">{message.user_name.charAt(0)}</span>
-                          </div>
+                          {message.avatar ? (
+                            <div className="w-10 h-10 rounded-full overflow-hidden shadow-md">
+                              <img 
+                                src={message.avatar} 
+                                alt={message.user_name} 
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}>
+                              <span className="text-white font-bold">{message.user_name.charAt(0)}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                       <div className={`max-w-[70%] ${isOwnMessage ? 'text-right' : 'text-left'}`}>
@@ -344,9 +421,19 @@ export default function TeamSpacePage() {
                       </div>
                       {isOwnMessage && (
                         <div className="ml-4">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg, #4ecdc4, #45b7d1)' }}>
-                            <span className="text-white font-bold">{message.user_name.charAt(0)}</span>
-                          </div>
+                          {message.avatar ? (
+                            <div className="w-10 h-10 rounded-full overflow-hidden shadow-md">
+                              <img 
+                                src={message.avatar} 
+                                alt={message.user_name} 
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg, #4ecdc4, #45b7d1)' }}>
+                              <span className="text-white font-bold">{message.user_name.charAt(0)}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
