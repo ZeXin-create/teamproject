@@ -10,7 +10,8 @@ export default function Home() {
   const tabs = [
     '招募大厅',
     '战队列表',
-    '战区排行'
+    '战区排行',
+    '战队/ID出售'
   ]
   
   return (

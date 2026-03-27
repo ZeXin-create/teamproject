@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 
 interface TabContentProps {
   activeTab: number
@@ -25,6 +26,14 @@ interface Recruit {
 }
 
 export default function TabContent({ activeTab }: TabContentProps) {
+  const router = useRouter()
+  
+  // 当切换到出售标签时，重定向到出售页面
+  useEffect(() => {
+    if (activeTab === 3) {
+      router.push('/team-sales')
+    }
+  }, [activeTab, router])
   const [loading, setLoading] = useState(false)
   const [teams, setTeams] = useState<Array<{ id: string; name: string; avatar_url?: string; region?: string; declaration?: string; city?: string; member_count?: number; images?: string[] }>>([])
   const [rankedTeams, setRankedTeams] = useState<Array<{ id: string; name: string; rank: number; avatar_url?: string; region?: string }>>([])

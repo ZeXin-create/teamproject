@@ -1,0 +1,148 @@
+'use client';
+
+import { supabase } from '../lib/supabase';
+import {
+  GoodsType,
+  SaleStatus,
+  TeamSale,
+  CreateTeamSaleRequest,
+  TeamSaleQueryParams
+} from '../types/teamSales';
+
+// 发布商品
+export const createTeamSale = async (data: CreateTeamSaleRequest): Promise<TeamSale> => {
+  // 验证必填字段
+  if (!data.goods_type || !data.server_area || !data.price || !data.description || !data.contact) {
+    throw new Error('缺少必填字段');
+  }
+
+  // 验证价格
+  if (data.price <= 0) {
+    throw new Error('价格必须大于0');
+  }
+
+  // 根据商品类型验证字段
+  if (data.goods_type === GoodsType.TEAM || data.goods_type === GoodsType.TEAM_AND_ID) {
+    if (!data.team_size || data.team_size <= 0) {
+      throw new Error('战队人数必须大于0');
+    }
+    if (!data.team_badge) {
+      throw new Error('请选择战队标');
+    }
+  }
+
+  if (data.goods_type === GoodsType.ID || data.goods_type === GoodsType.TEAM_AND_ID) {
+    if (!data.id_name) {
+      throw new Error('请输入ID名称');
+    }
+
+    // 检查ID名称是否已存在
+    const { data: existingId } = await supabase
+      .from('team_sales')
+      .select('id')
+      .eq('id_name', data.id_name)
+      .eq('status', SaleStatus.ON_SALE)
+      .single();
+
+    if (existingId) {
+      throw new Error('该ID名称已存在');
+    }
+  }
+
+  // 创建商品
+  const { data: newSale, error } = await supabase
+    .from('team_sales')
+    .insert({
+      ...data,
+      status: SaleStatus.ON_SALE
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`创建商品失败: ${error.message}`);
+  }
+
+  return newSale as TeamSale;
+};
+
+// 获取商品列表
+export const getTeamSales = async (params: TeamSaleQueryParams = {}): Promise<TeamSale[]> => {
+  let query = supabase
+    .from('team_sales')
+    .select('*');
+
+  // 应用筛选条件
+  if (params.goods_type) {
+    query = query.eq('goods_type', params.goods_type);
+  }
+
+  if (params.server_area) {
+    query = query.eq('server_area', params.server_area);
+  }
+
+  if (params.team_badge) {
+    query = query.eq('team_badge', params.team_badge);
+  }
+
+  if (params.status) {
+    query = query.eq('status', params.status);
+  } else {
+    // 默认只显示出售中的商品
+    query = query.eq('status', SaleStatus.ON_SALE);
+  }
+
+  // 应用排序
+  if (params.sort_by) {
+    const order = params.sort_order || 'desc';
+    query = query.order(params.sort_by, { ascending: order === 'asc' });
+  } else {
+    // 默认按创建时间降序
+    query = query.order('created_at', { ascending: false });
+  }
+
+  // 应用分页
+  if (params.page && params.limit) {
+    const offset = (params.page - 1) * params.limit;
+    query = query.range(offset, offset + params.limit - 1);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`获取商品列表失败: ${error.message}`);
+  }
+
+  return data as TeamSale[];
+};
+
+// 获取商品详情
+export const getTeamSaleById = async (id: string): Promise<TeamSale> => {
+  const { data, error } = await supabase
+    .from('team_sales')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    throw new Error(`获取商品详情失败: ${error.message}`);
+  }
+
+  return data as TeamSale;
+};
+
+// 更新商品状态
+export const updateTeamSaleStatus = async (id: string, status: SaleStatus): Promise<TeamSale> => {
+  const { data, error } = await supabase
+    .from('team_sales')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`更新商品状态失败: ${error.message}`);
+  }
+
+  return data as TeamSale;
+};
