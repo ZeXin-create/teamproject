@@ -33,6 +33,10 @@ export default function TabContent({ activeTab }: TabContentProps) {
     if (activeTab === 3) {
       router.push('/team-sales')
     }
+    // 当切换到贴吧社区标签时，重定向到贴吧页面
+    if (activeTab === 4) {
+      router.push('/forum')
+    }
   }, [activeTab, router])
   const [loading, setLoading] = useState(false)
   const [teams, setTeams] = useState<Array<{ id: string; name: string; avatar_url?: string; region?: string; declaration?: string; city?: string; member_count?: number; images?: string[] }>>([])

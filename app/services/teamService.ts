@@ -46,34 +46,7 @@ export const teamService = {
     return data || []
   },
   
-  // 获取战队聊天消息
-  getChatMessages: async (teamId: string, limit = 50) => {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('team_id', teamId)
-      .order('created_at', { ascending: false })
-      .limit(limit)
-    
-    if (error) throw error
-    return data || []
-  },
-  
-  // 发送聊天消息
-  sendChatMessage: async (teamId: string, userId: string, content: string) => {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .insert({
-        team_id: teamId,
-        user_id: userId,
-        content: content
-      })
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
-  },
+
   
   // 获取战队申请
   getTeamApplications: async (teamId: string) => {

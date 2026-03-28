@@ -24,9 +24,6 @@ export default function EditTeamPage() {
   const [team, setTeam] = useState<Team | null>(null)
   const [teamName, setTeamName] = useState('')
   const [region, setRegion] = useState('')
-  const [province, setProvince] = useState('')
-  const [city, setCity] = useState('')
-  const [district, setDistrict] = useState('')
   const [declaration, setDeclaration] = useState('')
   const [avatar, setAvatar] = useState<File | null>(null)
   const [loading, setLoading] = useState(true)
@@ -84,9 +81,6 @@ export default function EditTeamPage() {
       setTeam(teamData)
       setTeamName(teamData.name)
       setRegion(teamData.region)
-      setProvince(teamData.province)
-      setCity(teamData.city)
-      setDistrict(teamData.district || '')
       setDeclaration(teamData.declaration || '')
     } catch (err: unknown) {
       console.error('获取战队信息失败:', err)
@@ -101,7 +95,7 @@ export default function EditTeamPage() {
     setError('')
     setSuccess('')
     
-    if (!teamName || !region || !province || !city) {
+    if (!teamName || !region) {
       setError('请填写所有必填字段')
       return
     }
@@ -167,9 +161,6 @@ export default function EditTeamPage() {
         .update({
           name: teamName,
           region,
-          province,
-          city,
-          district,
           declaration,
           avatar_url: avatarUrl
         })
@@ -263,46 +254,7 @@ export default function EditTeamPage() {
               </select>
             </div>
             
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div>
-                <label htmlFor="province" className="block text-gray-700 mb-2">
-                  省份 *
-                </label>
-                <input
-                  type="text"
-                  id="province"
-                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="city" className="block text-gray-700 mb-2">
-                  城市 *
-                </label>
-                <input
-                  type="text"
-                  id="city"
-                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="district" className="block text-gray-700 mb-2">
-                  区县
-                </label>
-                <input
-                  type="text"
-                  id="district"
-                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                />
-              </div>
-            </div>
+
             
             <div className="mb-4">
               <label htmlFor="declaration" className="block text-gray-700 mb-2">

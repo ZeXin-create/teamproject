@@ -1,17 +1,29 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Navbar from './components/Navbar'
 import TabContent from './components/TabContent'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState(0)
   
+  useEffect(() => {
+    // 检查是否是首次访问
+    const hasVisited = localStorage.getItem('hasVisited')
+    if (!hasVisited) {
+      // 标记为已访问
+      localStorage.setItem('hasVisited', 'true')
+      // 刷新页面
+      window.location.reload()
+    }
+  }, [])
+  
   const tabs = [
     '招募大厅',
     '战队列表',
     '战区排行',
-    '战队/ID出售'
+    '战队/ID出售',
+    '贴吧社区'
   ]
   
   return (

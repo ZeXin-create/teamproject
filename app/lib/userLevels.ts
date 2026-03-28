@@ -41,8 +41,7 @@ const ACTIVITY_POINTS = {
   application: { experience: 30, activity: 15, contribution: 5 },
   battle: { experience: 20, activity: 10, contribution: 15 },
   forum_post: { experience: 25, activity: 12, contribution: 8 },
-  forum_reply: { experience: 15, activity: 8, contribution: 5 },
-  team_chat: { experience: 5, activity: 3, contribution: 2 }
+  forum_reply: { experience: 15, activity: 8, contribution: 5 }
 };
 
 // 计算用户等级

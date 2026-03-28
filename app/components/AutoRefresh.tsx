@@ -1,14 +1,8 @@
 'use client'
 
-import './globals.css'
-import { AuthProvider } from './context/AuthContext'
 import { useEffect } from 'react'
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function AutoRefresh() {
   useEffect(() => {
     // 检查是否是首次访问
     const hasVisited = localStorage.getItem('hasVisited')
@@ -20,13 +14,5 @@ export default function RootLayout({
     }
   }, [])
 
-  return (
-    <html lang="zh-CN">
-      <body>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      </body>
-    </html>
-  )
+  return null
 }
