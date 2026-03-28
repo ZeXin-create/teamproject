@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Hero, PlayerProfile, TeamGroup, CreatePlayerProfileRequest, CreateGroupsRequest, UpdateGroupMembersRequest, AvailableTime } from '../types/teamGrouping';
+import { Hero, PlayerProfile, TeamGroup, CreatePlayerProfileRequest, CreateGroupsRequest, UpdateGroupMembersRequest } from '../types/teamGrouping';
 
 // 获取英雄库
 export const getHeroes = async (): Promise<Hero[]> => {
@@ -79,14 +79,14 @@ export const getPlayerProfile = async (user_id: string, team_id: string): Promis
   }
 
   // 获取用户信息
-  const { data: userData, error: userError } = await supabase
+  const { data: userData } = await supabase
     .from('profiles')
     .select('id, email, nickname, avatar')
     .eq('id', user_id)
     .single();
 
   // 获取擅长英雄
-  const { data: heroData, error: heroError } = await supabase
+  const { data: heroData } = await supabase
     .from('player_heroes')
     .select('hero:hero_id(id, name, position, image_url)')
     .eq('player_profile_id', profile.id);
@@ -94,7 +94,7 @@ export const getPlayerProfile = async (user_id: string, team_id: string): Promis
   return {
     ...profile,
     user: userData || { id: user_id, email: '', nickname: '未知用户' },
-    heroes: heroData ? heroData.map((item: any) => item.hero) : []
+    heroes: heroData ? heroData.map((item) => item.hero) : []
   };
 };
 
@@ -201,16 +201,16 @@ export const getTeamPlayerProfiles = async (user_id: string, team_id: string): P
 
   // 为每个资料获取用户信息和英雄
   const profilesWithDetails = await Promise.all(
-    profiles.map(async (profile: any) => {
+    profiles.map(async (profile) => {
       // 获取用户信息
-      const { data: userData, error: userError } = await supabase
+      const { data: userData } = await supabase
         .from('profiles')
         .select('id, email, nickname, avatar')
         .eq('id', profile.user_id)
         .single();
 
       // 获取擅长英雄
-      const { data: heroData, error: heroError } = await supabase
+      const { data: heroData } = await supabase
         .from('player_heroes')
         .select('hero:hero_id(id, name, position, image_url)')
         .eq('player_profile_id', profile.id);
@@ -218,7 +218,7 @@ export const getTeamPlayerProfiles = async (user_id: string, team_id: string): P
       return {
         ...profile,
         user: userData || { id: profile.user_id, email: '', nickname: '未知用户' },
-        heroes: heroData ? heroData.map((item: any) => item.hero) : []
+        heroes: heroData ? heroData.map((item) => item.hero) : []
       };
     })
   );
@@ -245,7 +245,7 @@ export const getTeamMissingProfilesCount = async (user_id: string, team_id: stri
     throw new Error('获取战队队员失败');
   }
 
-  const memberIds = teamMembers.map((member: any) => member.user_id);
+  const memberIds = teamMembers.map((member) => member.user_id);
 
   // 获取已填写资料的队员
   const { data: profiles, error: profilesError } = await supabase
@@ -258,37 +258,15 @@ export const getTeamMissingProfilesCount = async (user_id: string, team_id: stri
     throw new Error('获取队员资料失败');
   }
 
-  const profileIds = profiles.map((profile: any) => profile.user_id);
+  const profileIds = profiles.map((profile) => profile.user_id);
   const missingCount = memberIds.filter(id => !profileIds.includes(id)).length;
 
   return missingCount;
 };
 
-// 检查时间是否重合
-const isTimeOverlap = (time1: AvailableTime, time2: AvailableTime): boolean => {
-  if (time1.day !== time2.day) {
-    return false;
-  }
 
-  const start1 = parseInt(time1.start_time.replace(':', ''));
-  const end1 = parseInt(time1.end_time.replace(':', ''));
-  const start2 = parseInt(time2.start_time.replace(':', ''));
-  const end2 = parseInt(time2.end_time.replace(':', ''));
 
-  return (start1 < end2 && end1 > start2);
-};
 
-// 检查两个队员的时间是否有重合
-const hasTimeOverlap = (player1: PlayerProfile, player2: PlayerProfile): boolean => {
-  for (const time1 of player1.available_time) {
-    for (const time2 of player2.available_time) {
-      if (isTimeOverlap(time1, time2)) {
-        return true;
-      }
-    }
-  }
-  return false;
-};
 
 // 计算小组的位置分布
 const calculatePositionDistribution = (group: PlayerProfile[]) => {
@@ -417,7 +395,7 @@ export const getTeamGroups = async (user_id: string, team_id: string): Promise<T
 
   // 为每个分组获取成员
   const groupsWithMembers = await Promise.all(
-    groups.map(async (group: any) => {
+    groups.map(async (group) => {
       // 获取分组成员
       const { data: members, error: membersError } = await supabase
         .from('group_members')
@@ -431,7 +409,7 @@ export const getTeamGroups = async (user_id: string, team_id: string): Promise<T
 
       // 获取成员详情
       const membersWithDetails = await Promise.all(
-        members.map(async (member: any) => {
+        members.map(async (member) => {
           // 获取用户信息
           const { data: userData, error: userError } = await supabase
             .from('profiles')
@@ -444,7 +422,7 @@ export const getTeamGroups = async (user_id: string, team_id: string): Promise<T
           }
 
           // 获取用户游戏资料
-          const { data: profileData, error: profileError } = await supabase
+          const { data: profileData } = await supabase
             .from('player_profiles')
             .select('id, main_positions, historical_rating, recent_rating, available_time, accept_position_adjustment')
             .eq('user_id', member.user_id)
@@ -454,15 +432,15 @@ export const getTeamGroups = async (user_id: string, team_id: string): Promise<T
           let profileWithHeroes = null;
           if (profileData) {
             // 获取用户擅长英雄
-            const { data: heroData, error: heroError } = await supabase
+            const { data: heroData } = await supabase
               .from('player_heroes')
               .select('hero:hero_id(id, name, position, image_url)')
               .eq('player_profile_id', profileData.id);
 
-            if (!heroError && heroData) {
+            if (heroData) {
               profileWithHeroes = {
                 ...profileData,
-                heroes: heroData.map((item: any) => item.hero)
+                heroes: heroData.map((item) => item.hero)
               };
             } else {
               profileWithHeroes = profileData;
