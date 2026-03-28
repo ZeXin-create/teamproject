@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoodsType, ServerArea, TeamBadge, SaleStatus, TeamSale, TeamSaleQueryParams } from '../types/teamSales';
 import { getTeamSales } from '../services/teamSalesService';
@@ -21,7 +21,7 @@ export default function TeamSalesPage() {
     sort_order: 'desc'
   });
 
-  const fetchSales = async () => {
+  const fetchSales = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getTeamSales(filters);
@@ -31,11 +31,11 @@ export default function TeamSalesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
     fetchSales();
-  }, [filters]);
+  }, [filters, fetchSales]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;

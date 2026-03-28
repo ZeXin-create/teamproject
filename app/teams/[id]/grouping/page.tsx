@@ -1,14 +1,61 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import React, { useState, useEffect, useCallback } from 'react'
+import { useParams } from 'next/navigation'
 import { useAuth } from '../../../context/AuthContext'
-import { getTeamGroups, createGroups, updateGroupMembers, getTeamMissingProfilesCount, validateGroupBalance } from '../../../services/teamGroupingService'
+import { getTeamGroups, createGroups, updateGroupMembers, getTeamMissingProfilesCount } from '../../../services/teamGroupingService'
 import Navbar from '../../../components/Navbar'
 import Image from 'next/image'
 
+interface AvailableTime {
+  day: string;
+  start_time: string;
+  end_time: string;
+}
+
+interface Hero {
+  id: number;
+  name: string;
+  position: string;
+  image_url?: string;
+}
+
+interface PlayerProfile {
+  id: string;
+  user_id: string;
+  team_id: string;
+  main_positions: string[];
+  historical_rating: number;
+  recent_rating: number;
+  available_time: AvailableTime[];
+  accept_position_adjustment: boolean;
+  created_at: string;
+  updated_at: string;
+  heroes?: Hero[];
+}
+
+interface GroupMember {
+  id: string;
+  user_id: string;
+  user: {
+    id: string;
+    email: string;
+    nickname?: string;
+    avatar?: string;
+  };
+  profile?: PlayerProfile;
+}
+
+interface TeamGroup {
+  id: string;
+  team_id: string;
+  group_name: string;
+  created_at: string;
+  updated_at: string;
+  members?: GroupMember[] | undefined;
+}
+
 export default function TeamGroupingPage() {
-  const router = useRouter()
   const params = useParams()
   const teamId = params.id as string
   const { user } = useAuth()
@@ -16,27 +63,13 @@ export default function TeamGroupingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-interface TeamGroup {
-  id: string;
-  team_id: string;
-  group_name: string;
-  created_at: string;
-  updated_at: string;
-  members: GroupMember[];
-}
 
   const [groups, setGroups] = useState<TeamGroup[]>([])
   const [missingProfilesCount, setMissingProfilesCount] = useState(0)
   const [groupCount, setGroupCount] = useState(2)
   const [isGenerating, setIsGenerating] = useState(false)
   
-  useEffect(() => {
-    if (user && teamId) {
-      fetchData()
-    }
-  }, [user, teamId])
-  
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       // 获取分组
@@ -51,7 +84,13 @@ interface TeamGroup {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, teamId])
+  
+  useEffect(() => {
+    if (user && teamId) {
+      fetchData()
+    }
+  }, [user, teamId, fetchData])
   
   const handleGenerateGroups = async () => {
     setError('')
@@ -76,39 +115,29 @@ interface TeamGroup {
       setIsGenerating(false)
     }
   }
-  
-interface GroupMember {
-  id: string;
-  user_id: string;
-  user: {
-    id: string;
-    email: string;
-    nickname: string;
-    avatar?: string;
-  };
-  profile?: any;
-}
 
   const handleMoveMember = async (fromGroupId: string, toGroupId: string, userId: string) => {
     // 从原分组移除
     const fromGroup = groups.find(g => g.id === fromGroupId)
-    const updatedFromMembers = fromGroup.members.filter((m: GroupMember) => m.user_id !== userId)
+    if (!fromGroup || !fromGroup.members) return
+    const updatedFromMembers = fromGroup.members.filter(m => m.user_id !== userId)
     
     // 添加到新分组
     const toGroup = groups.find(g => g.id === toGroupId)
+    if (!toGroup) return
     const updatedToMembers = [...(toGroup.members || []), { user_id: userId } as GroupMember]
     
     try {
       // 更新原分组
       await updateGroupMembers(user!.id, {
         group_id: fromGroupId,
-        user_ids: updatedFromMembers.map((m: GroupMember) => m.user_id)
+        user_ids: updatedFromMembers.map(m => m.user_id)
       })
       
       // 更新新分组
       await updateGroupMembers(user!.id, {
         group_id: toGroupId,
-        user_ids: updatedToMembers.map((m: GroupMember) => m.user_id)
+        user_ids: updatedToMembers.map(m => m.user_id)
       })
       
       // 重新获取分组数据
@@ -192,7 +221,7 @@ interface GroupMember {
                   {/* 小组队员 */}
                   <div className="space-y-4">
                     {group.members && group.members.length > 0 ? (
-                      group.members.map((member: any) => (
+                      group.members.map(member => (
                         <div key={member.user_id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                           {member.user.avatar ? (
                             <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white/50">

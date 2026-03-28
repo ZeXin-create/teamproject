@@ -85,8 +85,9 @@ export default function NewPostPage() {
       newFiles.forEach(file => {
         const reader = new FileReader()
         reader.onload = (e) => {
-          if (e.target?.result) {
-            setImagePreviews(prev => [...prev, e.target.result as string])
+          const target = e.target;
+          if (target?.result) {
+            setImagePreviews(prev => [...prev, target.result as string])
           }
         }
         reader.readAsDataURL(file)

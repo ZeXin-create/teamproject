@@ -440,7 +440,7 @@ export const getTeamGroups = async (user_id: string, team_id: string): Promise<T
             if (heroData) {
               profileWithHeroes = {
                 ...profileData,
-                heroes: heroData.map((item: { hero: Hero }) => item.hero)
+                heroes: heroData.map((item) => item.hero)
               };
             } else {
               profileWithHeroes = profileData;
@@ -450,7 +450,7 @@ export const getTeamGroups = async (user_id: string, team_id: string): Promise<T
           return {
             ...member,
             user: userData || { id: member.user_id, email: '', nickname: '未知用户' },
-            profile: profileWithHeroes
+            profile: profileWithHeroes as PlayerProfile || undefined
           };
         })
       );

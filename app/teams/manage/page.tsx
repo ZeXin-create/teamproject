@@ -95,7 +95,7 @@ export default function TeamManagePage() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, router])
 
   const fetchMembers = async (teamId: string) => {
     try {

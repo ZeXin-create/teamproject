@@ -36,7 +36,7 @@ export default function PostDetailPage() {
         return []
       }
       
-      const images = data
+      const images = (data as unknown as Array<{ name: string; isDirectory: boolean }>)
         .filter(item => !item.isDirectory)
         .map(item => {
           const { data: urlData } = supabase

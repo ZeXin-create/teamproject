@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
@@ -43,16 +43,7 @@ export default function FriendsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/auth/login')
-    } else {
-      fetchFriends()
-      fetchFriendRequests()
-    }
-  }, [user, router])
-
-  const fetchFriends = async () => {
+  const fetchFriends = useCallback(async () => {
     try {
       // 获取已接受的好友关系
       const { data: friendData, error } = await supabase
@@ -119,9 +110,9 @@ export default function FriendsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
-  const fetchFriendRequests = async () => {
+  const fetchFriendRequests = useCallback(async () => {
     try {
       // 获取收到的好友请求
       const { data: requestData, error } = await supabase
@@ -173,7 +164,16 @@ export default function FriendsPage() {
     } catch (err: unknown) {
       console.error('获取好友请求失败:', err)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/auth/login')
+    } else {
+      fetchFriends()
+      fetchFriendRequests()
+    }
+  }, [user, router, fetchFriends, fetchFriendRequests])
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
