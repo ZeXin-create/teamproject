@@ -395,7 +395,7 @@ export const getTeamGroups = async (user_id: string, team_id: string): Promise<T
 
   // 为每个分组获取成员
   const groupsWithMembers = await Promise.all(
-    groups.map(async (group) => {
+    groups.map(async (group: TeamGroup) => {
       // 获取分组成员
       const { data: members, error: membersError } = await supabase
         .from('group_members')
@@ -409,7 +409,7 @@ export const getTeamGroups = async (user_id: string, team_id: string): Promise<T
 
       // 获取成员详情
       const membersWithDetails = await Promise.all(
-        members.map(async (member) => {
+        members.map(async (member: { id: string; user_id: string }) => {
           // 获取用户信息
           const { data: userData, error: userError } = await supabase
             .from('profiles')
@@ -440,7 +440,7 @@ export const getTeamGroups = async (user_id: string, team_id: string): Promise<T
             if (heroData) {
               profileWithHeroes = {
                 ...profileData,
-                heroes: heroData.map((item) => item.hero)
+                heroes: heroData.map((item: { hero: Hero }) => item.hero)
               };
             } else {
               profileWithHeroes = profileData;
