@@ -16,7 +16,16 @@ export default function TeamGroupingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [groups, setGroups] = useState<any[]>([])
+interface TeamGroup {
+  id: string;
+  team_id: string;
+  group_name: string;
+  created_at: string;
+  updated_at: string;
+  members: GroupMember[];
+}
+
+  const [groups, setGroups] = useState<TeamGroup[]>([])
   const [missingProfilesCount, setMissingProfilesCount] = useState(0)
   const [groupCount, setGroupCount] = useState(2)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -68,26 +77,38 @@ export default function TeamGroupingPage() {
     }
   }
   
+interface GroupMember {
+  id: string;
+  user_id: string;
+  user: {
+    id: string;
+    email: string;
+    nickname: string;
+    avatar?: string;
+  };
+  profile?: any;
+}
+
   const handleMoveMember = async (fromGroupId: string, toGroupId: string, userId: string) => {
     // 从原分组移除
     const fromGroup = groups.find(g => g.id === fromGroupId)
-    const updatedFromMembers = fromGroup.members.filter((m: any) => m.user_id !== userId)
+    const updatedFromMembers = fromGroup.members.filter((m: GroupMember) => m.user_id !== userId)
     
     // 添加到新分组
     const toGroup = groups.find(g => g.id === toGroupId)
-    const updatedToMembers = [...(toGroup.members || []), { user_id: userId }]
+    const updatedToMembers = [...(toGroup.members || []), { user_id: userId } as GroupMember]
     
     try {
       // 更新原分组
       await updateGroupMembers(user!.id, {
         group_id: fromGroupId,
-        user_ids: updatedFromMembers.map((m: any) => m.user_id)
+        user_ids: updatedFromMembers.map((m: GroupMember) => m.user_id)
       })
       
       // 更新新分组
       await updateGroupMembers(user!.id, {
         group_id: toGroupId,
-        user_ids: updatedToMembers.map((m: any) => m.user_id)
+        user_ids: updatedToMembers.map((m: GroupMember) => m.user_id)
       })
       
       // 重新获取分组数据

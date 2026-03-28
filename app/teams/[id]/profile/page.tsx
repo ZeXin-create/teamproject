@@ -1,12 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '../../../context/AuthContext'
-import { getHeroes, getHeroesByPosition, getPlayerProfile, createOrUpdatePlayerProfile } from '../../../services/teamGroupingService'
+import { getHeroes, getPlayerProfile, createOrUpdatePlayerProfile } from '../../../services/teamGroupingService'
 import { Position, Hero, AvailableTime } from '../../../types/teamGrouping'
 import Navbar from '../../../components/Navbar'
-import Image from 'next/image'
 
 export default function PlayerProfilePage() {
   const router = useRouter()
@@ -19,7 +18,7 @@ export default function PlayerProfilePage() {
   const [success, setSuccess] = useState('')
   const [heroes, setHeroes] = useState<Hero[]>([])
   const [selectedHeroes, setSelectedHeroes] = useState<number[]>([])
-  const [profile, setProfile] = useState<any>(null)
+  // 已移除未使用的profile状态
   
   const [formData, setFormData] = useState({
     mainPositions: [] as Position[],
@@ -38,13 +37,7 @@ export default function PlayerProfilePage() {
   const positions: Position[] = ['上单', '打野', '中单', '射手', '辅助']
   const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
   
-  useEffect(() => {
-    if (user && teamId) {
-      fetchData()
-    }
-  }, [user, teamId])
-  
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       // 获取英雄库
@@ -54,7 +47,6 @@ export default function PlayerProfilePage() {
       // 获取队员资料
       const profileData = await getPlayerProfile(user!.id, teamId)
       if (profileData) {
-        setProfile(profileData)
         setFormData({
           mainPositions: profileData.main_positions,
           historicalRating: profileData.historical_rating || 0,
@@ -72,7 +64,13 @@ export default function PlayerProfilePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [teamId, user])
+  
+  useEffect(() => {
+    if (user && teamId) {
+      fetchData()
+    }
+  }, [user, teamId, fetchData])
   
   const handlePositionChange = (position: Position) => {
     setFormData(prev => {
