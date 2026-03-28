@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
@@ -37,15 +37,7 @@ export default function EditTeamPage() {
     '微信安卓'
   ]
   
-  useEffect(() => {
-    if (user) {
-      getTeamInfo()
-    } else {
-      setLoading(false)
-    }
-  }, [user])
-  
-  const getTeamInfo = async () => {
+  const getTeamInfo = useCallback(async () => {
     setLoading(true)
     try {
       // 获取用户所在的战队
@@ -88,7 +80,15 @@ export default function EditTeamPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+  
+  useEffect(() => {
+    if (user) {
+      getTeamInfo()
+    } else {
+      setLoading(false)
+    }
+  }, [user, getTeamInfo])
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
@@ -35,15 +35,7 @@ export default function TrainingPage() {
   const [trainingTime, setTrainingTime] = useState('')
   const [location, setLocation] = useState('')
   
-  useEffect(() => {
-    if (user) {
-      fetchTeamData()
-    } else {
-      setLoading(false)
-    }
-  }, [user])
-  
-  const fetchTeamData = async () => {
+  const fetchTeamData = useCallback(async () => {
     setLoading(true)
     try {
       // 获取用户所在的战队
@@ -100,7 +92,15 @@ export default function TrainingPage() {
     } catch (err: unknown) {
       console.error('获取训练安排失败:', err)
     }
-  }
+  }, [user])
+  
+  useEffect(() => {
+    if (user) {
+      fetchTeamData()
+    } else {
+      setLoading(false)
+    }
+  }, [user, fetchTeamData])
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

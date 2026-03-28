@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -31,15 +31,7 @@ export default function AnnouncementsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   
-  useEffect(() => {
-    if (user) {
-      getTeamAnnouncements()
-    } else {
-      setLoading(false)
-    }
-  }, [user])
-  
-  const getTeamAnnouncements = async () => {
+  const getTeamAnnouncements = useCallback(async () => {
     setLoading(true)
     try {
       // 获取用户所在的战队
@@ -105,7 +97,15 @@ export default function AnnouncementsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+  
+  useEffect(() => {
+    if (user) {
+      getTeamAnnouncements()
+    } else {
+      setLoading(false)
+    }
+  }, [user, getTeamAnnouncements])
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

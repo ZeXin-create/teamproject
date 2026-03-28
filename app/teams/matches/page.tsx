@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -36,15 +36,7 @@ export default function MatchesPage() {
   const [lossCount, setLossCount] = useState(0)
   const [winRate, setWinRate] = useState(0)
   
-  useEffect(() => {
-    if (user) {
-      getTeamMatches()
-    } else {
-      setLoading(false)
-    }
-  }, [user])
-  
-  const getTeamMatches = async () => {
+  const getTeamMatches = useCallback(async () => {
     setLoading(true)
     try {
       // 获取用户所在的战队
@@ -90,7 +82,15 @@ export default function MatchesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+  
+  useEffect(() => {
+    if (user) {
+      getTeamMatches()
+    } else {
+      setLoading(false)
+    }
+  }, [user, getTeamMatches])
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

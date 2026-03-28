@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -30,15 +30,7 @@ export default function ApplicationsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   
-  useEffect(() => {
-    if (user) {
-      getTeamApplications()
-    } else {
-      setLoading(false)
-    }
-  }, [user])
-  
-  const getTeamApplications = async () => {
+  const getTeamApplications = useCallback(async () => {
     setLoading(true)
     try {
       // 获取用户所在的战队
@@ -110,7 +102,15 @@ export default function ApplicationsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+  
+  useEffect(() => {
+    if (user) {
+      getTeamApplications()
+    } else {
+      setLoading(false)
+    }
+  }, [user, getTeamApplications])
   
   const handleApprove = async (applicationId: string, userId: string) => {
     try {

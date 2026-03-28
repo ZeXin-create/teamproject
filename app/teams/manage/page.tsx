@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -59,13 +59,7 @@ export default function TeamManagePage() {
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [newRole, setNewRole] = useState('')
 
-  useEffect(() => {
-    if (user) {
-      fetchTeamData()
-    }
-  }, [user])
-
-  const fetchTeamData = async () => {
+  const fetchTeamData = useCallback(async () => {
     setLoading(true)
     try {
       // 获取用户所在战队
@@ -173,7 +167,13 @@ export default function TeamManagePage() {
     } catch (error) {
       console.error('获取成员失败:', error)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchTeamData()
+    }
+  }, [user, fetchTeamData])
 
   const handleMemberClick = (member: Member) => {
     // 不能对自己操作
