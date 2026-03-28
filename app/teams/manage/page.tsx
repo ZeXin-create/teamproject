@@ -95,7 +95,7 @@ export default function TeamManagePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
   const fetchMembers = async (teamId: string) => {
     try {
@@ -167,7 +167,7 @@ export default function TeamManagePage() {
     } catch (error) {
       console.error('获取成员失败:', error)
     }
-  }, [user])
+  }
 
   useEffect(() => {
     if (user) {

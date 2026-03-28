@@ -35,6 +35,24 @@ export default function TrainingPage() {
   const [trainingTime, setTrainingTime] = useState('')
   const [location, setLocation] = useState('')
   
+  const fetchTrainings = async (teamId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('team_trainings')
+        .select('*')
+        .eq('team_id', teamId)
+        .order('training_time', { ascending: true })
+      
+      if (error) {
+        throw error
+      }
+      
+      setTrainings(data)
+    } catch (err: unknown) {
+      console.error('获取训练安排失败:', err)
+    }
+  }
+
   const fetchTeamData = useCallback(async () => {
     setLoading(true)
     try {
@@ -73,24 +91,6 @@ export default function TrainingPage() {
       setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '获取战队信息失败，请稍后重试')
     } finally {
       setLoading(false)
-    }
-  }
-  
-  const fetchTrainings = async (teamId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('team_trainings')
-        .select('*')
-        .eq('team_id', teamId)
-        .order('training_time', { ascending: true })
-      
-      if (error) {
-        throw error
-      }
-      
-      setTrainings(data)
-    } catch (err: unknown) {
-      console.error('获取训练安排失败:', err)
     }
   }, [user])
   
