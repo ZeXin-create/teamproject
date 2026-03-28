@@ -8,12 +8,25 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Navbar from '../../components/Navbar'
 
+// 招募信息类型
+interface Recruit {
+  id: string
+  requirements: string
+  contact: string
+  created_at: string
+  rank_requirement?: string
+  positions?: string[]
+  online_time?: string
+  recruit_count?: number
+  deadline?: string
+  status?: string
+}
+
 // 战队招募信息组件
 const TeamRecruits: React.FC<{ teamId: string | undefined }> = ({ teamId }) => {
-  const [recruits, setRecruits] = useState<any[]>([])
+  const [recruits, setRecruits] = useState<Recruit[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const { user } = useAuth()
 
   useEffect(() => {
     const fetchTeamRecruits = async () => {

@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [])
 
   // 创建用户资料
-  const createUserProfile = async (user: any) => {
+  const createUserProfile = async (user: { id: string; email?: string }) => {
     try {
       // 检查用户资料是否存在
       const { data: existingProfile } = await supabase
@@ -142,16 +142,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // 暂时跳过手动创建，避免RLS策略错误
       console.log('注册成功，用户ID:', data.user?.id);
       console.log('用户邮箱:', data.user?.email);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('注册失败:', error)
       // 提供更详细的错误信息
-      if (error.code === 'auth/email-already-exists') {
+      const err = error as { code?: string; message?: string }
+      if (err.code === 'auth/email-already-exists') {
         throw new Error('该邮箱已被注册，请使用其他邮箱')
-      } else if (error.code === 'auth/invalid-email') {
+      } else if (err.code === 'auth/invalid-email') {
         throw new Error('邮箱格式不正确，请检查输入')
-      } else if (error.code === 'auth/weak-password') {
+      } else if (err.code === 'auth/weak-password') {
         throw new Error('密码强度不足，请设置更强的密码')
-      } else if (error.message.includes('Database error saving new user')) {
+      } else if (err.message?.includes('Database error saving new user')) {
         throw new Error('数据库错误，请稍后重试或联系管理员')
       } else {
         throw new Error('注册失败，请稍后重试')
