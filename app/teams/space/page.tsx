@@ -177,6 +177,14 @@ export default function TeamSpacePage() {
               <div className="text-2xl mb-2">🏋️‍♂️</div>
               <div className="font-medium text-gray-800">训练安排</div>
             </Link>
+            <Link href={`/teams/${team?.id}/profile`} className="glass-card p-4 text-center hover:scale-105 transition-transform">
+              <div className="text-2xl mb-2">🎮</div>
+              <div className="font-medium text-gray-800">游戏资料</div>
+            </Link>
+            <Link href={`/teams/${team?.id}/grouping`} className="glass-card p-4 text-center hover:scale-105 transition-transform">
+              <div className="text-2xl mb-2">👥</div>
+              <div className="font-medium text-gray-800">战队分组</div>
+            </Link>
           </div>
         </div>
         
