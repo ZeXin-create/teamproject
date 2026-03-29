@@ -117,7 +117,7 @@ export class TeamDataService {
   }
   
   // 队员资料相关
-  static async updatePlayerProfile(user_id: string, team_id: string, data: PlayerProfileUpdate): Promise<any> {
+  static async updatePlayerProfile(user_id: string, team_id: string, data: PlayerProfileUpdate): Promise<PlayerProfileUpdate | null> {
     try {
       const { data: updatedProfile, error } = await supabase
         .from('player_profiles')
@@ -289,7 +289,13 @@ export class TeamDataService {
   }
   
   // 数据统计相关
-  static async getTeamStatistics(teamId: string): Promise<any> {
+  static async getTeamStatistics(teamId: string): Promise<{
+    totalMatches: number;
+    wins: number;
+    winRate: string;
+    statusDistribution: Record<string, number>;
+    rankDistribution: Record<string, number>;
+  }> {
     try {
       // 获取比赛统计
       const { data: matchStats } = await supabase
@@ -309,7 +315,7 @@ export class TeamDataService {
         .eq('team_id', teamId);
       
       // 统计状态分布
-      const statusDistribution = playerStats?.reduce((acc: any, player: any) => {
+      const statusDistribution = playerStats?.reduce((acc: Record<string, number>, player: { current_status?: string }) => {
         if (player.current_status) {
           acc[player.current_status] = (acc[player.current_status] || 0) + 1;
         }
@@ -317,7 +323,7 @@ export class TeamDataService {
       }, {}) || {};
       
       // 统计段位分布
-      const rankDistribution = playerStats?.reduce((acc: any, player: any) => {
+      const rankDistribution = playerStats?.reduce((acc: Record<string, number>, player: { current_rank?: string }) => {
         if (player.current_rank) {
           acc[player.current_rank] = (acc[player.current_rank] || 0) + 1;
         }

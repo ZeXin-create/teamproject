@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { TeamDataService, TeamInfo } from '../../../services/teamDataService'
 import { supabase } from '../../../lib/supabase'
@@ -26,20 +26,14 @@ export default function TeamInfoPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => {
-    if (user) {
-      getTeamId()
-    } else {
-      router.push('/auth/login')
-    }
-  }, [user, router, getTeamId])
-
-  const getTeamId = async () => {
+  const getTeamId = useCallback(async () => {
+    if (!user?.id) return
+    
     try {
       const { data, error } = await supabase
         .from('team_members')
         .select('team_id')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .eq('status', 'active')
         .single()
 
@@ -48,7 +42,7 @@ export default function TeamInfoPage() {
         setLoading(false)
       } else if (data) {
         setTeamId(data.team_id)
-        setTeamInfo({ ...teamInfo, team_id: data.team_id })
+        setTeamInfo(prev => ({ ...prev, team_id: data.team_id }))
         fetchTeamInfo(data.team_id)
       }
     } catch (err) {
@@ -56,7 +50,15 @@ export default function TeamInfoPage() {
       setError('发生错误')
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      getTeamId()
+    } else {
+      router.push('/auth/login')
+    }
+  }, [user, router, getTeamId])
 
   const fetchTeamInfo = async (teamId: string) => {
     try {

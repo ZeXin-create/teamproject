@@ -1,39 +1,39 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../../context/AuthContext'
-import { TeamDataService } from '../../../services/teamDataService'
+import { TeamDataService, MatchRecord } from '../../../services/teamDataService'
+import { supabase } from '../../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Navbar from '../../../components/Navbar'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement, LineElement } from 'chart.js'
-import { Pie, Bar, Line } from 'react-chartjs-2'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement } from 'chart.js'
+import { Pie, Bar } from 'react-chartjs-2'
 
 // 注册Chart.js组件
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement, LineElement)
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement)
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const [teamId, setTeamId] = useState('')
-  const [teamStats, setTeamStats] = useState<any>(null)
-  const [matchRecords, setMatchRecords] = useState<any[]>([])
+  const [teamStats, setTeamStats] = useState<{
+    totalMatches: number;
+    wins: number;
+    winRate: string;
+    statusDistribution: Record<string, number>;
+    rankDistribution: Record<string, number>;
+  } | null>(null)
+  const [matchRecords, setMatchRecords] = useState<MatchRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (user) {
-      getTeamId()
-    } else {
-      router.push('/auth/login')
-    }
-  }, [user, router])
-
-  const getTeamId = async () => {
+  const getTeamId = useCallback(async () => {
+    if (!user?.id) return
+    
     try {
-      const { data, error } = await window.supabase
+      const { data, error } = await supabase
         .from('team_members')
         .select('team_id')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .eq('status', 'active')
         .single()
 
@@ -41,14 +41,22 @@ export default function AnalyticsPage() {
         setError('获取战队信息失败')
         setLoading(false)
       } else if (data) {
-        setTeamId(data.team_id)
         fetchTeamData(data.team_id)
       }
     } catch (err) {
+      console.error('获取战队ID失败:', err)
       setError('发生错误')
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      getTeamId()
+    } else {
+      router.push('/auth/login')
+    }
+  }, [user, router, getTeamId])
 
   const fetchTeamData = async (teamId: string) => {
     try {

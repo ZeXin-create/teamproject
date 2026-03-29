@@ -570,7 +570,7 @@ export const validateGroupBalance = (group: PlayerProfile[]) => {
   const isRatingBalanced = ratingVariance < 100; // 评分方差小于100视为均衡
 
   // 检查状态分布
-  const statusDistribution = group.reduce((acc: any, player) => {
+  const statusDistribution = group.reduce((acc: Record<string, number>, player) => {
     if (player.current_status) {
       acc[player.current_status] = (acc[player.current_status] || 0) + 1;
     }

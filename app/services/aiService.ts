@@ -59,7 +59,7 @@ const generateOptimalGroups = (players: PlayerProfile[], groupSize: number = 5) 
   }
   
   // 分配队员，确保段位均衡
-  sortedPlayers.forEach((player, index) => {
+  sortedPlayers.forEach((player) => {
     // 找到当前人数最少的分组
     const targetGroup = groups.reduce((min, group) => 
       group.length < min.length ? group : min, groups[0]);
@@ -94,11 +94,6 @@ const generateOptimalGroups = (players: PlayerProfile[], groupSize: number = 5) 
 // 调用智谱AI API
 async function callZhipuAI(prompt: string, context: string): Promise<string> {
   try {
-    // 检查API密钥是否配置
-    if (ZHIPU_API_KEY === 'your_zhipu_api_key') {
-      return '请先在aiService.ts文件中配置智谱AI API密钥。';
-    }
-    
     const response = await fetch(ZHIPU_API_URL, {
       method: 'POST',
       headers: {
@@ -256,7 +251,7 @@ export class AIService {
   static async getTeamMembersData(teamId: string, userId: string): Promise<string> {
     try {
       // 检查用户是否是战队成员
-      const { data: teamMember, error: memberError } = await supabase
+      const { error: memberError } = await supabase
         .from('team_members')
         .select('id')
         .eq('user_id', userId)
@@ -313,6 +308,7 @@ export class AIService {
       
       return response;
     } catch (error) {
+      console.error('获取战队成员数据失败:', error);
       return '查询战队成员数据时发生错误。';
     }
   }
@@ -397,7 +393,6 @@ export class AIService {
         
         group.forEach((player, playerIndex) => {
           const nickname = player.user?.nickname || '未知用户';
-          const rating = player.recent_rating || 0;
           const positions = player.main_positions?.join('、') || '未设置';
           const rank = player.current_rank || '未设置';
           const status = player.current_status || '未设置';
@@ -416,6 +411,7 @@ export class AIService {
       
       return response;
     } catch (error) {
+      console.error('生成分组失败:', error);
       return '生成分组时发生错误。';
     }
   }
@@ -424,7 +420,7 @@ export class AIService {
   static async recommendFormation(teamId: string, userId: string): Promise<string> {
     try {
       // 检查用户是否是战队成员
-      const { data: teamMember, error: memberError } = await supabase
+      const { error: memberError } = await supabase
         .from('team_members')
         .select('id')
         .eq('user_id', userId)
@@ -454,7 +450,7 @@ export class AIService {
       let response = `最佳阵容推荐：\n\n`;
       
       // 按位置分组队员
-      const positionGroups: Record<string, any[]> = {
+      const positionGroups: Record<string, PlayerProfile[]> = {
         '上单': [],
         '打野': [],
         '中单': [],
@@ -471,7 +467,7 @@ export class AIService {
         
         profile.user = userData || { id: profile.user_id, nickname: '未知用户' };
         
-        profile.main_positions.forEach(pos => {
+        profile.main_positions.forEach((pos: string) => {
           if (positionGroups[pos]) {
             positionGroups[pos].push(profile);
           }
@@ -488,7 +484,7 @@ export class AIService {
       };
       
       // 检查是否所有位置都有队员
-      const missingPositions = Object.keys(formation).filter(pos => !formation[pos]);
+      const missingPositions = Object.keys(formation).filter((pos) => !formation[pos as keyof typeof formation]);
       if (missingPositions.length > 0) {
         return `缺少以下位置的队员：${missingPositions.join('、')}，无法推荐完整阵容。`;
       }
@@ -507,6 +503,7 @@ export class AIService {
       
       return response;
     } catch (error) {
+      console.error('推荐阵容失败:', error);
       return '推荐阵容时发生错误。';
     }
   }
@@ -515,7 +512,7 @@ export class AIService {
   static async getRankImprovementSuggestions(teamId: string, userId: string): Promise<string> {
     try {
       // 检查用户是否是战队成员
-      const { data: teamMember, error: memberError } = await supabase
+      const { error: memberError } = await supabase
         .from('team_members')
         .select('id')
         .eq('user_id', userId)
@@ -595,6 +592,7 @@ export class AIService {
       
       return response;
     } catch (error) {
+      console.error('获取段位提升建议失败:', error);
       return '获取段位提升建议时发生错误。';
     }
   }
@@ -646,7 +644,7 @@ export class AIService {
           styleDistribution[profile.game_style] = (styleDistribution[profile.game_style] || 0) + 1;
         }
         if (profile.main_positions) {
-          profile.main_positions.forEach(pos => {
+          profile.main_positions.forEach((pos: string) => {
             positionDistribution[pos] = (positionDistribution[pos] || 0) + 1;
           });
         }
@@ -694,8 +692,8 @@ export class AIService {
       }
       
       // 状态调整建议
-      const低迷人数 = statusDistribution['低迷'] || 0;
-      if (低迷人数 > 0) {
+      const lowPerformers = statusDistribution['低迷'] || 0;
+      if (lowPerformers > 0) {
         response += `2. 关注状态低迷的队员，了解原因并提供支持\n`;
       }
       
@@ -723,6 +721,7 @@ export class AIService {
       
       return response;
     } catch (error) {
+      console.error('获取团队建设建议失败:', error);
       return '获取团队建设建议时发生错误。';
     }
   }
@@ -731,7 +730,7 @@ export class AIService {
   static async predictMatchResult(teamId: string, userId: string, opponent: string): Promise<string> {
     try {
       // 检查用户是否是战队成员
-      const { data: teamMember, error: memberError } = await supabase
+      const { error: memberError } = await supabase
         .from('team_members')
         .select('id')
         .eq('user_id', userId)
@@ -797,6 +796,7 @@ export class AIService {
       
       return response;
     } catch (error) {
+      console.error('预测比赛结果失败:', error);
       return '预测比赛结果时发生错误。';
     }
   }

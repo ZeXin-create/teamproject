@@ -35,6 +35,7 @@ const AIChat: React.FC<AIChatProps> = ({ teamId }) => {
       // 添加AI回复
       setMessages(prev => [...prev, { role: 'ai' as const, content: response }])
     } catch (error) {
+      console.error('AI聊天错误:', error)
       setMessages(prev => [...prev, { role: 'ai' as const, content: '抱歉，处理您的请求时发生错误，请稍后重试。' }])
     } finally {
       setIsLoading(false)
