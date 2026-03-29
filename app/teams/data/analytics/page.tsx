@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { TeamDataService, MatchRecord } from '../../../services/teamDataService'
 import { supabase } from '../../../lib/supabase'
@@ -26,53 +26,35 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const getTeamId = useCallback(async () => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
     if (!user?.id) return
     
-    try {
-      const { data, error } = await supabase
-        .from('team_members')
-        .select('team_id')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single()
+    const fetchData = async () => {
+      try {
+        const { data } = await supabase
+          .from('team_members')
+          .select('team_id')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single()
 
-      if (error) {
-        setError('获取战队信息失败')
+        if (data) {
+          const stats = await TeamDataService.getTeamStatistics(data.team_id)
+          setTeamStats(stats)
+          const records = await TeamDataService.getMatchRecords(data.team_id)
+          setMatchRecords(records)
+        }
+      } catch (err) {
+        console.error('获取数据失败:', err)
+        setError('发生错误')
+      } finally {
         setLoading(false)
-      } else if (data) {
-        fetchTeamData(data.team_id)
       }
-    } catch (err) {
-      console.error('获取战队ID失败:', err)
-      setError('发生错误')
-      setLoading(false)
     }
+
+    fetchData()
   }, [user])
-
-  useEffect(() => {
-    if (user) {
-      getTeamId()
-    } else {
-      router.push('/auth/login')
-    }
-  }, [user, router, getTeamId])
-
-  const fetchTeamData = async (teamId: string) => {
-    try {
-      // 获取战队统计数据
-      const stats = await TeamDataService.getTeamStatistics(teamId)
-      setTeamStats(stats)
-
-      // 获取比赛记录
-      const records = await TeamDataService.getMatchRecords(teamId)
-      setMatchRecords(records)
-    } catch (err) {
-      console.error('获取战队数据失败:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   // 准备图表数据
   const getStatusDistributionData = () => {
