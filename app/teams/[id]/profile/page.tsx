@@ -79,6 +79,7 @@ export default function PlayerProfilePage() {
         }
       }
     } catch (err) {
+      console.error('获取数据失败:', err)
       setError(err instanceof Error ? err.message : '获取数据失败')
     } finally {
       setLoading(false)
@@ -223,6 +224,7 @@ export default function PlayerProfilePage() {
 
       setSuccess('资料保存成功！')
     } catch (err) {
+      console.error('保存资料失败:', err)
       setError(err instanceof Error ? err.message : '保存失败，请稍后重试')
     } finally {
       setLoading(false)

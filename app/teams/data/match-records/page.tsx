@@ -32,7 +32,7 @@ export default function MatchRecordsPage() {
     } else {
       router.push('/auth/login')
     }
-  }, [user, router])
+  }, [user, router, getTeamId])
 
   const getTeamId = async () => {
     try {
@@ -52,6 +52,7 @@ export default function MatchRecordsPage() {
         fetchMatchRecords(data.team_id)
       }
     } catch (err) {
+      console.error('获取战队ID失败:', err)
       setError('发生错误')
       setLoading(false)
     }

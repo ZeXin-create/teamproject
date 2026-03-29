@@ -35,7 +35,7 @@ export default function TrainingPlansPage() {
     } else {
       router.push('/auth/login')
     }
-  }, [user, router])
+  }, [user, router, getTeamId])
 
   const getTeamId = async () => {
     try {
@@ -56,6 +56,7 @@ export default function TrainingPlansPage() {
         fetchTrainingPlans(data.team_id)
       }
     } catch (err) {
+      console.error('获取战队ID失败:', err)
       setError('发生错误')
       setLoading(false)
     }
@@ -63,7 +64,7 @@ export default function TrainingPlansPage() {
 
   const fetchTeamMembers = async (teamId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('team_members')
         .select('user_id')
         .eq('team_id', teamId)
