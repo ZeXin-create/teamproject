@@ -7,145 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Navbar from '../../components/Navbar'
-
-// 招募信息类型
-interface Recruit {
-  id: string
-  requirements: string
-  contact: string
-  created_at: string
-  rank_requirement?: string
-  positions?: string[]
-  online_time?: string
-  recruit_count?: number
-  deadline?: string
-  status?: string
-}
-
-// 战队招募信息组件
-const TeamRecruits: React.FC<{ teamId: string | undefined }> = ({ teamId }) => {
-  const [recruits, setRecruits] = useState<Recruit[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    const fetchTeamRecruits = async () => {
-      if (!teamId) return
-
-      setLoading(true)
-      try {
-        const { data, error } = await supabase
-          .from('team_recruits')
-          .select(`
-            id,
-            requirements,
-            contact,
-            created_at,
-            rank_requirement,
-            positions,
-            online_time,
-            recruit_count,
-            deadline,
-            status
-          `)
-          .eq('team_id', teamId)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-
-        if (error) {
-          throw error
-        }
-
-        setRecruits(data || [])
-      } catch (err: unknown) {
-        console.error('获取招募信息失败:', err)
-        setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '获取招募信息失败，请稍后重试')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchTeamRecruits()
-  }, [teamId])
-
-  if (loading) {
-    return (
-      <div className="glass-card p-6">
-        <div className="animate-pulse text-pink-500 text-lg">加载中...</div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="glass-card p-6">
-      {error && (
-        <div className="mb-4 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
-          {error}
-        </div>
-      )}
-
-      {recruits.length === 0 ? (
-        <div className="text-center py-8">
-          <div className="text-4xl mb-4">🎮</div>
-          <p className="text-gray-600 text-lg">暂无招募信息</p>
-          <p className="text-gray-400 mt-2">队长可以发布招募信息吸引新队员</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {recruits.map((recruit) => (
-            <div key={recruit.id} className="p-4 bg-gray-50 rounded-xl">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-lg font-bold text-gray-800">招募信息</h3>
-                <span className="text-sm text-gray-400">
-                  {new Date(recruit.created_at).toLocaleDateString()}
-                </span>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                {recruit.rank_requirement && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-pink-500">🏆</span>
-                    <span className="text-gray-700">段位要求：{recruit.rank_requirement}</span>
-                  </div>
-                )}
-
-                {recruit.positions && recruit.positions.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-pink-500">🎯</span>
-                    <span className="text-gray-700">擅长位置：{recruit.positions.join('、')}</span>
-                  </div>
-                )}
-
-                {recruit.online_time && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-pink-500">⏰</span>
-                    <span className="text-gray-700">在线时间：{recruit.online_time}</span>
-                  </div>
-                )}
-
-                {recruit.recruit_count && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-pink-500">👥</span>
-                    <span className="text-gray-700">招募人数：{recruit.recruit_count}人</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 mb-4">
-                <p className="text-gray-700 leading-relaxed">{recruit.requirements}</p>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-100 rounded-xl p-3">
-                <span className="text-pink-400">📞</span>
-                <span>联系方式：{recruit.contact}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+import AIChat from '../../components/AIChat'
 
 interface Team {
   id: string
@@ -308,36 +170,37 @@ export default function TeamSpacePage() {
               <div className="text-2xl mb-2">📋</div>
               <div className="font-medium text-gray-800">申请管理</div>
             </Link>
-            <Link href="/teams/matches" className="glass-card p-4 text-center hover:scale-105 transition-transform">
+            <Link href="/teams/data/match-records" className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">🏆</div>
-              <div className="font-medium text-gray-800">战队赛记录</div>
+              <div className="font-medium text-gray-800">比赛记录</div>
             </Link>
-            <Link href="/teams/training" className="glass-card p-4 text-center hover:scale-105 transition-transform">
+            <Link href="/teams/data/training-plans" className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">🏋️‍♂️</div>
               <div className="font-medium text-gray-800">训练安排</div>
             </Link>
             <Link href={`/teams/${team?.id}/profile`} className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">🎮</div>
-              <div className="font-medium text-gray-800">游戏资料</div>
+              <div className="font-medium text-gray-800">个人游戏资料</div>
             </Link>
-            <Link href={`/teams/${team?.id}/grouping`} className="glass-card p-4 text-center hover:scale-105 transition-transform">
-              <div className="text-2xl mb-2">👥</div>
-              <div className="font-medium text-gray-800">战队分组</div>
+            <Link href="/teams/data/team-info" className="glass-card p-4 text-center hover:scale-105 transition-transform">
+              <div className="text-2xl mb-2">📊</div>
+              <div className="font-medium text-gray-800">战队信息</div>
             </Link>
-          </div>
-
-          {/* 战队招募信息 */}
-          <div className="mt-8">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <span>🎯</span> 战队招募信息
-            </h2>
-            <TeamRecruits teamId={team?.id} />
+            <Link href="/teams/data/analytics" className="glass-card p-4 text-center hover:scale-105 transition-transform">
+              <div className="text-2xl mb-2">📈</div>
+              <div className="font-medium text-gray-800">数据可视化</div>
+            </Link>
+            <div className="glass-card p-4 text-center hover:scale-105 transition-transform cursor-pointer" onClick={() => document.getElementById('ai-chat')?.scrollIntoView({ behavior: 'smooth' })}>
+              <div className="text-2xl mb-2">🤖</div>
+              <div className="font-medium text-gray-800">AI助手</div>
+            </div>
           </div>
         </div>
 
-
-
-
+        {/* AI聊天组件 */}
+        <div id="ai-chat" className="mt-8">
+          <AIChat teamId={team?.id || ''} />
+        </div>
       </div>
     </div>
   )

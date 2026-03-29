@@ -26,6 +26,11 @@ export interface PlayerProfile {
   recent_rating: number;
   available_time: AvailableTime[];
   accept_position_adjustment: boolean;
+  game_style?: string;
+  current_status?: string;
+  current_rank?: string;
+  rank_updated_at?: string;
+  status_updated_at?: string;
   created_at: string;
   updated_at: string;
   user?: {

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '../../../context/AuthContext'
 import { getHeroes, getPlayerProfile, createOrUpdatePlayerProfile } from '../../../services/teamGroupingService'
+import { TeamDataService } from '../../../services/teamDataService'
 import { Position, Hero, AvailableTime } from '../../../types/teamGrouping'
 import Navbar from '../../../components/Navbar'
 
@@ -12,38 +13,53 @@ export default function PlayerProfilePage() {
   const params = useParams()
   const teamId = params.id as string
   const { user } = useAuth()
-  
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [heroes, setHeroes] = useState<Hero[]>([])
   const [selectedHeroes, setSelectedHeroes] = useState<number[]>([])
   // 已移除未使用的profile状态
-  
-  const [formData, setFormData] = useState({
+
+  const [formData, setFormData] = useState<{
+    mainPositions: Position[];
+    historicalRating: number | string;
+    recentRating: number | string;
+    availableTime: AvailableTime[];
+    acceptPositionAdjustment: boolean;
+    gameStyle: string;
+    currentStatus: string;
+    currentRank: string;
+  }>({
     mainPositions: [] as Position[],
-    historicalRating: 0,
-    recentRating: 0,
+    historicalRating: '',
+    recentRating: '',
     availableTime: [] as AvailableTime[],
-    acceptPositionAdjustment: false
+    acceptPositionAdjustment: false,
+    gameStyle: '',
+    currentStatus: '',
+    currentRank: ''
   })
-  
+
   const [newTimeSlot, setNewTimeSlot] = useState({
-    day: '周一',
-    startTime: '00:00',
-    endTime: '23:59'
+    day: '周五',
+    startTime: '12:00',
+    endTime: '24:00'
   })
-  
+
   const positions: Position[] = ['上单', '打野', '中单', '射手', '辅助']
-  const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-  
+  const days = ['周五', '周六', '周日']
+  const gameStyles = ['激进', '保守', '全面', '发育', '游走', '辅助']
+  const statuses = ['良好', '一般', '低迷']
+  const ranks = ['青铜', '白银', '黄金', '铂金', '钻石', '星耀', '王者', '荣耀王者']
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       // 获取英雄库
       const heroesData = await getHeroes()
       setHeroes(heroesData)
-      
+
       // 获取队员资料
       const profileData = await getPlayerProfile(user!.id, teamId)
       if (profileData) {
@@ -52,7 +68,10 @@ export default function PlayerProfilePage() {
           historicalRating: profileData.historical_rating || 0,
           recentRating: profileData.recent_rating || 0,
           availableTime: profileData.available_time || [],
-          acceptPositionAdjustment: profileData.accept_position_adjustment || false
+          acceptPositionAdjustment: profileData.accept_position_adjustment || false,
+          gameStyle: profileData.game_style || '',
+          currentStatus: profileData.current_status || '',
+          currentRank: profileData.current_rank || ''
         })
         // 设置已选择的英雄
         if (profileData.heroes) {
@@ -65,13 +84,13 @@ export default function PlayerProfilePage() {
       setLoading(false)
     }
   }, [teamId, user])
-  
+
   useEffect(() => {
     if (user && teamId) {
       fetchData()
     }
   }, [user, teamId, fetchData])
-  
+
   const handlePositionChange = (position: Position) => {
     setFormData(prev => {
       const currentPositions = [...prev.mainPositions]
@@ -88,7 +107,7 @@ export default function PlayerProfilePage() {
       }
     })
   }
-  
+
   const handleHeroChange = (heroId: number) => {
     setSelectedHeroes(prev => {
       if (prev.includes(heroId)) {
@@ -110,14 +129,14 @@ export default function PlayerProfilePage() {
       }
     })
   }
-  
+
   const handleTimeSlotChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, field: string) => {
     setNewTimeSlot(prev => ({
       ...prev,
       [field]: e.target.value
     }))
   }
-  
+
   const addTimeSlot = () => {
     setFormData(prev => ({
       ...prev,
@@ -134,45 +153,74 @@ export default function PlayerProfilePage() {
       endTime: '23:59'
     })
   }
-  
+
   const removeTimeSlot = (index: number) => {
     setFormData(prev => ({
       ...prev,
       availableTime: prev.availableTime.filter((_, i) => i !== index)
     }))
   }
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
-    
+
     // 表单验证
     if (formData.mainPositions.length === 0) {
       setError('请至少选择一个常用位置')
       return
     }
-    
+
     if (formData.availableTime.length === 0) {
       setError('请至少添加一个可比赛时间段')
       return
     }
-    
+
     if (selectedHeroes.length === 0) {
       setError('请至少选择一个擅长英雄')
       return
     }
-    
+
+    // 验证评分
+    const historicalRating = typeof formData.historicalRating === 'string'
+      ? parseInt(formData.historicalRating)
+      : formData.historicalRating
+    const recentRating = typeof formData.recentRating === 'string'
+      ? parseInt(formData.recentRating)
+      : formData.recentRating
+
+    if (!historicalRating || historicalRating < 0 || historicalRating > 100) {
+      setError('请输入有效的历史评分（0-100）')
+      return
+    }
+
+    if (!recentRating || recentRating < 0 || recentRating > 100) {
+      setError('请输入有效的近期评分（0-100）')
+      return
+    }
+
     setLoading(true)
     try {
+      // 保存游戏资料
       await createOrUpdatePlayerProfile(user!.id, teamId, {
         main_positions: formData.mainPositions,
-        historical_rating: formData.historicalRating,
-        recent_rating: formData.recentRating,
+        historical_rating: historicalRating,
+        recent_rating: recentRating,
         available_time: formData.availableTime,
         accept_position_adjustment: formData.acceptPositionAdjustment,
         hero_ids: selectedHeroes
       })
+
+      // 保存个人数据
+      await TeamDataService.updatePlayerProfile(user!.id, teamId, {
+        game_style: formData.gameStyle,
+        current_status: formData.currentStatus,
+        current_rank: formData.currentRank,
+        rank_updated_at: new Date().toISOString(),
+        status_updated_at: new Date().toISOString()
+      })
+
       setSuccess('资料保存成功！')
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败，请稍后重试')
@@ -180,7 +228,7 @@ export default function PlayerProfilePage() {
       setLoading(false)
     }
   }
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -188,26 +236,26 @@ export default function PlayerProfilePage() {
       </div>
     )
   }
-  
+
   return (
     <div className="min-h-screen">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
         <div className="glass-card p-8 max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold gradient-text mb-6 text-center">填写游戏资料</h1>
-          
+
           {error && (
             <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
               {error}
             </div>
           )}
-          
+
           {success && (
             <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200">
               {success}
             </div>
           )}
-          
+
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* 常用位置 */}
             <div>
@@ -227,7 +275,7 @@ export default function PlayerProfilePage() {
                 ))}
               </div>
             </div>
-            
+
             {/* 擅长英雄 */}
             <div>
               <label className="block text-gray-700 font-medium mb-3">
@@ -254,7 +302,7 @@ export default function PlayerProfilePage() {
                 )
               })}
             </div>
-            
+
             {/* 评分 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -265,11 +313,18 @@ export default function PlayerProfilePage() {
                   type="number"
                   id="historicalRating"
                   value={formData.historicalRating}
-                  onChange={(e) => setFormData(prev => ({ ...prev, historicalRating: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      historicalRating: value === '' ? '' : parseInt(value)
+                    }));
+                  }}
                   min="0"
                   max="100"
                   className="glass-input w-full px-4 py-3"
                   required
+                  placeholder="请输入历史评分"
                 />
               </div>
               <div>
@@ -280,15 +335,80 @@ export default function PlayerProfilePage() {
                   type="number"
                   id="recentRating"
                   value={formData.recentRating}
-                  onChange={(e) => setFormData(prev => ({ ...prev, recentRating: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      recentRating: value === '' ? '' : parseInt(value)
+                    }));
+                  }}
                   min="0"
                   max="100"
                   className="glass-input w-full px-4 py-3"
                   required
+                  placeholder="请输入近期评分"
                 />
               </div>
             </div>
-            
+
+            {/* 个人数据 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label htmlFor="gameStyle" className="block text-gray-700 font-medium mb-2">
+                  游戏风格
+                </label>
+                <select
+                  id="gameStyle"
+                  value={formData.gameStyle}
+                  onChange={(e) => setFormData(prev => ({ ...prev, gameStyle: e.target.value }))}
+                  className="glass-input w-full px-4 py-3"
+                >
+                  <option value="">选择游戏风格</option>
+                  {gameStyles.map((style) => (
+                    <option key={style} value={style}>
+                      {style}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="currentStatus" className="block text-gray-700 font-medium mb-2">
+                  近期状态
+                </label>
+                <select
+                  id="currentStatus"
+                  value={formData.currentStatus}
+                  onChange={(e) => setFormData(prev => ({ ...prev, currentStatus: e.target.value }))}
+                  className="glass-input w-full px-4 py-3"
+                >
+                  <option value="">选择近期状态</option>
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="currentRank" className="block text-gray-700 font-medium mb-2">
+                  当前段位
+                </label>
+                <select
+                  id="currentRank"
+                  value={formData.currentRank}
+                  onChange={(e) => setFormData(prev => ({ ...prev, currentRank: e.target.value }))}
+                  className="glass-input w-full px-4 py-3"
+                >
+                  <option value="">选择当前段位</option>
+                  {ranks.map((rank) => (
+                    <option key={rank} value={rank}>
+                      {rank}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* 可比赛时间段 */}
             <div>
               <label className="block text-gray-700 font-medium mb-3">
@@ -343,7 +463,7 @@ export default function PlayerProfilePage() {
                 </div>
               </div>
             </div>
-            
+
             {/* 是否接受位置微调 */}
             <div>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -356,7 +476,7 @@ export default function PlayerProfilePage() {
                 <span className="text-gray-700">接受位置微调</span>
               </label>
             </div>
-            
+
             <div className="flex justify-end gap-4">
               <button
                 type="button"

@@ -72,10 +72,13 @@ export const getPlayerProfile = async (user_id: string, team_id: string): Promis
     .single();
 
   if (profileError) {
-    if (profileError.code === 'PGRST116') {
+    // PGRST116: 记录不存在
+    // 406: Not Acceptable - 记录不存在或请求格式问题
+    if (profileError.code === 'PGRST116' || profileError.code === '406') {
       return null;
     }
-    throw new Error('获取队员资料失败');
+    console.error('获取队员资料失败:', profileError);
+    throw new Error('获取队员资料失败: ' + profileError.message);
   }
 
   // 获取用户信息
@@ -294,6 +297,38 @@ const calculateAverageRating = (group: PlayerProfile[]): number => {
   return totalRating / group.length;
 };
 
+// 段位到数值的映射
+const rankToValue = (rank: string): number => {
+  const rankValues: Record<string, number> = {
+    '青铜': 1,
+    '白银': 2,
+    '黄金': 3,
+    '铂金': 4,
+    '钻石': 5,
+    '星耀': 6,
+    '王者': 7,
+    '荣耀王者': 8
+  };
+  return rankValues[rank] || 0;
+};
+
+// 计算小组的平均段位
+const calculateAverageRank = (group: PlayerProfile[]): number => {
+  if (group.length === 0) return 0;
+  const totalRankValue = group.reduce((sum, player) => sum + rankToValue(player.current_rank || ''), 0);
+  return totalRankValue / group.length;
+};
+
+// 检查小组段位差距
+const checkRankDifference = (group: PlayerProfile[]): boolean => {
+  if (group.length < 2) return true;
+  const ranks = group.map(player => rankToValue(player.current_rank || '')).filter(value => value > 0);
+  if (ranks.length === 0) return true;
+  const maxRank = Math.max(...ranks);
+  const minRank = Math.min(...ranks);
+  return maxRank - minRank <= 5;
+};
+
 // 生成分组
 export const createGroups = async (user_id: string, data: CreateGroupsRequest): Promise<TeamGroup[]> => {
   // 检查用户是否是战队队长
@@ -310,6 +345,16 @@ export const createGroups = async (user_id: string, data: CreateGroupsRequest): 
     profile.main_positions.length > 0 &&
     profile.available_time.length > 0
   );
+
+  // 按段位和状态排序
+  eligiblePlayers.sort((a, b) => {
+    // 先按段位排序
+    const rankDiff = rankToValue(b.current_rank || '') - rankToValue(a.current_rank || '');
+    if (rankDiff !== 0) return rankDiff;
+    // 再按状态排序
+    const statusValues: Record<string, number> = { '良好': 3, '一般': 2, '低迷': 1 };
+    return (statusValues[b.current_status || ''] || 0) - (statusValues[a.current_status || ''] || 0);
+  });
 
   if (eligiblePlayers.length === 0) {
     throw new Error('没有足够的队员资料');
@@ -511,6 +556,8 @@ export const updateGroupMembers = async (user_id: string, data: UpdateGroupMembe
 export const validateGroupBalance = (group: PlayerProfile[]) => {
   const positionDistribution = calculatePositionDistribution(group);
   const averageRating = calculateAverageRating(group);
+  const averageRank = calculateAverageRank(group);
+  const rankDifferenceValid = checkRankDifference(group);
 
   // 检查位置分布
   const hasAllPositions = Object.values(positionDistribution).every(count => count > 0);
@@ -522,10 +569,21 @@ export const validateGroupBalance = (group: PlayerProfile[]) => {
 
   const isRatingBalanced = ratingVariance < 100; // 评分方差小于100视为均衡
 
+  // 检查状态分布
+  const statusDistribution = group.reduce((acc: any, player) => {
+    if (player.current_status) {
+      acc[player.current_status] = (acc[player.current_status] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
   return {
     hasAllPositions,
     isRatingBalanced,
+    rankDifferenceValid,
     positionDistribution,
-    averageRating
+    statusDistribution,
+    averageRating,
+    averageRank
   };
 };

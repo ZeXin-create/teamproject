@@ -27,11 +27,9 @@ export default function RecruitPage() {
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [userTeamId, setUserTeamId] = useState<string | null>(null)
-  const [isCaptain, setIsCaptain] = useState(false)
+  
 
-
-
+  
   // 发布招募信息
   const [showRecruitForm, setShowRecruitForm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -43,45 +41,14 @@ export default function RecruitPage() {
     requirements: '',
     contact: ''
   })
-
+  
   // 编辑招募信息
   const [editingRecruit, setEditingRecruit] = useState<Recruit | null>(null)
-
+  
   const { user } = useAuth()
   const router = useRouter()
-
-  // 获取用户战队信息
-  const getUserTeamInfo = useCallback(async () => {
-    if (!user) return
-
-    try {
-      const { data: teamMember, error } = await supabase
-        .from('team_members')
-        .select('team_id, role')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single()
-
-      if (error) {
-        console.error('获取用户战队信息失败:', error)
-        return
-      }
-
-      if (teamMember) {
-        setUserTeamId(teamMember.team_id)
-        setIsCaptain(teamMember.role === '队长')
-      }
-    } catch (err) {
-      console.error('获取用户战队信息失败:', err)
-    }
-  }, [user])
-
+  
   const getRecruits = useCallback(async () => {
-    if (!userTeamId) {
-      setLoading(false)
-      return
-    }
-
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -104,19 +71,18 @@ export default function RecruitPage() {
           )
         `)
         .eq('status', 'active')
-        .eq('team_id', userTeamId)  // 只显示当前用户战队的招募信息
         .order('created_at', { ascending: false })
-
+      
       if (error) {
         throw error
       }
-
+      
       // 处理 team 字段的类型问题
       const processedData: Recruit[] = (data || []).map(item => ({
         ...item,
         team: Array.isArray(item.team) ? item.team[0] : item.team
       }))
-
+      
       setRecruits(processedData)
     } catch (err: unknown) {
       console.error('获取招募信息失败:', err)
@@ -124,51 +90,42 @@ export default function RecruitPage() {
     } finally {
       setLoading(false)
     }
-  }, [userTeamId])
-
-  useEffect(() => {
-    getUserTeamInfo()
-  }, [getUserTeamInfo])
-
+  }, [])
+  
   useEffect(() => {
     getRecruits()
   }, [getRecruits])
-
+  
   // 发布招募信息
   const handleRecruitSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
+    
     if (!user) {
       setError('请先登录')
       return
     }
-
+    
     if (!recruitForm.requirements || !recruitForm.contact) {
       setError('请填写招募要求和联系方式')
       return
     }
-
+    
     setIsSubmitting(true)
     try {
-      // 获取用户所在的战队及角色
+      // 获取用户所在的战队
       const { data: teamMember, error: teamMemberError } = await supabase
         .from('team_members')
-        .select('team_id, role')
+        .select('team_id')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .single()
-
+      
       if (teamMemberError) {
         throw new Error('您还没有加入战队')
       }
-
-      // 检查是否是队长
-      if (teamMember.role !== '队长') {
-        throw new Error('只有队长才能发布招募信息')
-      }
-
+      
       const teamId = teamMember.team_id
-
+      
       // 创建招募信息
       const { data: newRecruit, error: recruitError } = await supabase
         .from('team_recruits')
@@ -200,20 +157,20 @@ export default function RecruitPage() {
           )
         `)
         .single()
-
+      
       if (recruitError) {
         throw recruitError
       }
-
+      
       // 处理 team 字段的类型问题
       const processedRecruit: Recruit = {
         ...newRecruit,
         team: Array.isArray(newRecruit.team) ? newRecruit.team[0] : newRecruit.team
       }
-
+      
       // 更新招募列表
       setRecruits(prev => [processedRecruit, ...prev])
-
+      
       // 重置表单
       setRecruitForm({
         rank_requirement: '',
@@ -223,10 +180,10 @@ export default function RecruitPage() {
         requirements: '',
         contact: ''
       })
-
+      
       // 关闭表单
       setShowRecruitForm(false)
-
+      
       // 显示成功消息
       setError('')
     } catch (err: unknown) {
@@ -236,21 +193,21 @@ export default function RecruitPage() {
       setIsSubmitting(false)
     }
   }
-
+  
   // 编辑招募信息
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
+    
     if (!user || !editingRecruit) {
       setError('请先登录')
       return
     }
-
+    
     if (!recruitForm.requirements || !recruitForm.contact) {
       setError('请填写招募要求和联系方式')
       return
     }
-
+    
     setIsSubmitting(true)
     try {
       // 更新招募信息
@@ -283,24 +240,24 @@ export default function RecruitPage() {
           )
         `)
         .single()
-
+      
       if (recruitError) {
         throw recruitError
       }
-
+      
       // 处理 team 字段的类型问题
       const processedRecruit: Recruit = {
         ...updatedRecruit,
         team: Array.isArray(updatedRecruit.team) ? updatedRecruit.team[0] : updatedRecruit.team
       }
-
+      
       // 更新招募列表
       setRecruits(prev => prev.map(recruit => recruit.id === editingRecruit.id ? processedRecruit : recruit))
-
+      
       // 关闭表单
       setShowRecruitForm(false)
       setEditingRecruit(null)
-
+      
       // 显示成功消息
       setError('')
     } catch (err: unknown) {
@@ -310,45 +267,31 @@ export default function RecruitPage() {
       setIsSubmitting(false)
     }
   }
-
+  
   // 删除招募信息
   const handleDeleteRecruit = async (recruitId: string) => {
     if (!user) {
       setError('请先登录')
       return
     }
-
-    // 获取招募信息的战队ID
-    const recruit = recruits.find(r => r.id === recruitId)
-    if (!recruit) {
-      setError('招募信息不存在')
-      return
-    }
-
-    // 检查权限
-    const hasPermission = await checkRecruitPermission(recruit.team_id)
-    if (!hasPermission) {
-      setError('您没有权限删除这条招募信息')
-      return
-    }
-
+    
     if (!confirm('确定要删除这条招募信息吗？')) {
       return
     }
-
+    
     try {
       const { error } = await supabase
         .from('team_recruits')
         .update({ status: 'inactive' })
         .eq('id', recruitId)
-
+      
       if (error) {
         throw error
       }
-
+      
       // 更新招募列表
       setRecruits(prev => prev.filter(recruit => recruit.id !== recruitId))
-
+      
       // 显示成功消息
       setError('')
     } catch (err: unknown) {
@@ -356,34 +299,9 @@ export default function RecruitPage() {
       setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '删除招募信息失败，请稍后重试')
     }
   }
-
-  // 检查用户是否有权限操作招募信息
-  const checkRecruitPermission = async (teamId: string): Promise<boolean> => {
-    if (!user) return false
-
-    try {
-      const { data: teamMember, error } = await supabase
-        .from('team_members')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('team_id', teamId)
-        .eq('status', 'active')
-        .single()
-
-      return !error && teamMember !== null
-    } catch {
-      return false
-    }
-  }
-
+  
   // 编辑招募信息
-  const handleEditRecruit = async (recruit: Recruit) => {
-    const hasPermission = await checkRecruitPermission(recruit.team_id)
-    if (!hasPermission) {
-      setError('您没有权限编辑这条招募信息')
-      return
-    }
-
+  const handleEditRecruit = (recruit: Recruit) => {
     setEditingRecruit(recruit)
     setRecruitForm({
       rank_requirement: recruit.rank_requirement || '',
@@ -395,7 +313,7 @@ export default function RecruitPage() {
     })
     setShowRecruitForm(true)
   }
-
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -405,12 +323,12 @@ export default function RecruitPage() {
       </div>
     )
   }
-
+  
   return (
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center mb-6">
-          <button
+          <button 
             className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2 mr-4"
             onClick={() => router.back()}
           >
@@ -420,10 +338,10 @@ export default function RecruitPage() {
             <span>🎯</span> 招募队员
           </h1>
         </div>
-
-        {isCaptain && (
+        
+        {user && (
           <div className="mb-6">
-            <button
+            <button 
               className="glass-button px-6 py-3 text-white font-medium"
               onClick={() => {
                 setEditingRecruit(null)
@@ -442,7 +360,7 @@ export default function RecruitPage() {
             </button>
           </div>
         )}
-
+        
         {/* 发布/编辑招募信息表单 */}
         {showRecruitForm && (
           <div className="glass-card p-6 mb-6 max-w-2xl">
@@ -467,7 +385,7 @@ export default function RecruitPage() {
                   <option value="青铜">青铜</option>
                 </select>
               </div>
-
+              
               <div>
                 <label className="block text-gray-700 font-medium mb-2">🎯 擅长位置</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -490,7 +408,7 @@ export default function RecruitPage() {
                   ))}
                 </div>
               </div>
-
+              
               <div>
                 <label className="block text-gray-700 font-medium mb-2">⏰ 在线时间</label>
                 <select
@@ -505,7 +423,7 @@ export default function RecruitPage() {
                   <option value="全天">全天</option>
                 </select>
               </div>
-
+              
               <div>
                 <label className="block text-gray-700 font-medium mb-2">👥 招募人数</label>
                 <input
@@ -518,7 +436,7 @@ export default function RecruitPage() {
                   max="5"
                 />
               </div>
-
+              
               <div>
                 <label className="block text-gray-700 font-medium mb-2">📝 招募要求</label>
                 <textarea
@@ -529,7 +447,7 @@ export default function RecruitPage() {
                   rows={3}
                 />
               </div>
-
+              
               <div>
                 <label className="block text-gray-700 font-medium mb-2">📞 联系方式</label>
                 <input
@@ -540,17 +458,17 @@ export default function RecruitPage() {
                   placeholder="请输入联系方式（QQ、微信等）"
                 />
               </div>
-
+              
               <div className="flex space-x-4">
-                <button
-                  type="submit"
+                <button 
+                  type="submit" 
                   className="glass-button px-6 py-2 text-white font-medium flex-1"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? '提交中...' : editingRecruit ? '更新招募' : '发布招募'}
                 </button>
-                <button
-                  type="button"
+                <button 
+                  type="button" 
                   className="px-6 py-2 rounded-2xl bg-white/50 text-gray-700 hover:bg-white/80 transition-all font-medium"
                   onClick={() => {
                     setShowRecruitForm(false)
@@ -563,15 +481,15 @@ export default function RecruitPage() {
             </form>
           </div>
         )}
-
+        
         {error && (
           <div className="mb-4 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
             {error}
           </div>
         )}
+        
 
-
-
+        
         {/* 招募信息列表 */}
         <div className="space-y-4">
           {recruits.length === 0 ? (
@@ -596,15 +514,15 @@ export default function RecruitPage() {
                     <span className="text-sm text-gray-400">
                       {new Date(recruit.created_at).toLocaleDateString()}
                     </span>
-                    {isCaptain && (
+                    {user && (
                       <div className="flex items-center gap-2">
-                        <button
+                        <button 
                           className="text-sm text-blue-500 hover:text-blue-700"
                           onClick={() => handleEditRecruit(recruit)}
                         >
                           编辑
                         </button>
-                        <button
+                        <button 
                           className="text-sm text-red-500 hover:text-red-700"
                           onClick={() => handleDeleteRecruit(recruit.id)}
                         >
@@ -614,7 +532,7 @@ export default function RecruitPage() {
                     )}
                   </div>
                 </div>
-
+                
                 <div className="space-y-2 mb-4">
                   {recruit.rank_requirement && (
                     <div className="flex items-center gap-2">
@@ -622,21 +540,21 @@ export default function RecruitPage() {
                       <span className="text-gray-700">段位要求：{recruit.rank_requirement}</span>
                     </div>
                   )}
-
+                  
                   {recruit.positions && recruit.positions.length > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="text-pink-500">🎯</span>
                       <span className="text-gray-700">擅长位置：{recruit.positions.join('、')}</span>
                     </div>
                   )}
-
+                  
                   {recruit.online_time && (
                     <div className="flex items-center gap-2">
                       <span className="text-pink-500">⏰</span>
                       <span className="text-gray-700">在线时间：{recruit.online_time}</span>
                     </div>
                   )}
-
+                  
                   {recruit.recruit_count && (
                     <div className="flex items-center gap-2">
                       <span className="text-pink-500">👥</span>
@@ -644,11 +562,11 @@ export default function RecruitPage() {
                     </div>
                   )}
                 </div>
-
+                
                 <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 mb-4">
                   <p className="text-gray-700 leading-relaxed">{recruit.requirements}</p>
                 </div>
-
+                
                 <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-xl p-3">
                   <span className="text-pink-400">📞</span>
                   <span>联系方式：{recruit.contact}</span>

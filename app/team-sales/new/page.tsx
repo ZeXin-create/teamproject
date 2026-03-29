@@ -12,13 +12,22 @@ export default function CreateTeamSalePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
-  const [formData, setFormData] = useState<CreateTeamSaleRequest>({
+  const [formData, setFormData] = useState<{
+    goods_type: GoodsType;
+    server_area: ServerArea;
+    price: number | string;
+    description: string;
+    contact: string;
+    team_size: number | string;
+    team_badge: TeamBadge;
+    id_name: string;
+  }>({
     goods_type: GoodsType.TEAM,
     server_area: ServerArea.IOS_QQ,
-    price: 0,
+    price: '',
     description: '',
     contact: '',
-    team_size: 100,
+    team_size: '',
     team_badge: TeamBadge.NONE,
     id_name: ''
   });
@@ -27,7 +36,7 @@ export default function CreateTeamSalePage() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'price' || name === 'team_size' ? Number(value) : value
+      [name]: value
     }));
   };
 
@@ -35,10 +44,36 @@ export default function CreateTeamSalePage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    // 验证价格
+    const price = typeof formData.price === 'string' ? parseFloat(formData.price) : formData.price;
+    if (!price || price <= 0) {
+      setError('请输入有效的价格（必须大于0）');
+      return;
+    }
+
+    // 验证战队人数
+    const teamSize = typeof formData.team_size === 'string' ? parseInt(formData.team_size) : formData.team_size;
+    if ((formData.goods_type === GoodsType.TEAM || formData.goods_type === GoodsType.TEAM_AND_ID) && (!teamSize || teamSize <= 0)) {
+      setError('请输入有效的战队人数（必须大于0）');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await createTeamSale(formData);
+      const submitData: CreateTeamSaleRequest = {
+        goods_type: formData.goods_type,
+        server_area: formData.server_area,
+        price: price,
+        description: formData.description,
+        contact: formData.contact,
+        team_size: teamSize || 0,
+        team_badge: formData.team_badge,
+        id_name: formData.id_name
+      };
+      
+      await createTeamSale(submitData);
       setSuccess('商品发布成功！');
       // 3秒后跳转到商品列表页
       setTimeout(() => {
