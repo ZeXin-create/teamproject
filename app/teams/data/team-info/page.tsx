@@ -58,7 +58,7 @@ export default function TeamInfoPage() {
     } else {
       router.push('/auth/login')
     }
-  }, [user, router])
+  }, [user, router, getTeamId])
 
   const fetchTeamInfo = async (teamId: string) => {
     try {

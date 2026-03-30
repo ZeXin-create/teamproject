@@ -31,29 +31,7 @@ export default function RecruitPage() {
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [userTeamIds, setUserTeamIds] = useState<string[]>([])
 
-  // 获取用户所在的战队ID列表
-  const fetchUserTeams = useCallback(async () => {
-    if (!user) return
-
-    try {
-      const { data, error } = await supabase
-        .from('team_members')
-        .select('team_id')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-
-      if (error) {
-        console.error('获取用户战队失败:', error)
-        return
-      }
-
-      setUserTeamIds(data?.map(item => item.team_id) || [])
-    } catch (err) {
-      console.error('获取用户战队失败:', err)
-    }
-  }, [user])
 
   // 检查用户是否有权限编辑/删除招募信息
   const canManageRecruit = useCallback((recruit: Recruit): boolean => {

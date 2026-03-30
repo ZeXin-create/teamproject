@@ -62,7 +62,7 @@ export default function TrainingPlansPage() {
     } else {
       router.push('/auth/login')
     }
-  }, [user, router])
+  }, [user, router, getTeamId])
 
   const fetchTeamMembers = async (teamId: string) => {
     try {

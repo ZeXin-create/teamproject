@@ -29,13 +29,7 @@ interface Team {
   name: string
 }
 
-const ROLE_HIERARCHY: Record<string, number> = {
-  '队长': 4,
-  '副队长': 3,
-  '领队': 2,
-  '精英': 1,
-  '成员': 0
-}
+
 
 const AVAILABLE_ROLES: Record<string, string[]> = {
   '队长': ['副队长', '领队', '精英', '成员'],

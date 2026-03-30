@@ -58,7 +58,7 @@ export default function MatchRecordsPage() {
     } else {
       router.push('/auth/login')
     }
-  }, [user, router])
+  }, [user, router, getTeamId])
 
   const fetchMatchRecords = async (teamId: string) => {
     try {
