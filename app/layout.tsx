@@ -3,9 +3,9 @@
 import './globals.css'
 import { AuthProvider } from './context/AuthContext'
 import { useEffect } from 'react'
-import PWARegister from './components/PWARegister'
+
 import OnboardingGuide from './components/OnboardingGuide'
-  import VersionUpdateModal from './components/VersionUpdateModal'
+import VersionUpdateModal from './components/VersionUpdateModal'
 import { APP_VERSION } from './utils/version'
 
 export default function RootLayout({
@@ -37,7 +37,6 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           {children}
-          <PWARegister />
           <OnboardingGuide />
           <VersionUpdateModal 
             version={APP_VERSION} 

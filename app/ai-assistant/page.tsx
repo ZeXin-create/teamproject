@@ -222,28 +222,29 @@ export default function AIChatPage() {
                 : msg
             ))
           },
-          onComplete: () => {
+          onComplete: (response: string) => {
             // 完成时移除流式标记
             setMessages(prev => prev.map(msg =>
               msg.id === aiMessageId
-                ? { ...msg, isStreaming: false }
+                ? { ...msg, content: response, isStreaming: false }
                 : msg
             ))
+            // 保存完整的AI回复
+            saveMessage('ai', response)
           },
           onError: (error: Error) => {
             console.error('流式响应错误:', error)
+            const errorMessage = '抱歉，AI服务暂时不可用，请稍后重试。'
             setMessages(prev => prev.map(msg =>
               msg.id === aiMessageId
-                ? { ...msg, content: '抱歉，AI服务暂时不可用，请稍后重试。', isStreaming: false }
+                ? { ...msg, content: errorMessage, isStreaming: false }
                 : msg
             ))
+            // 保存错误消息
+            saveMessage('ai', errorMessage)
           }
         }
       )
-
-      // 保存完整的AI回复
-      const aiResponse = messages.find(msg => msg.id === aiMessageId)?.content || ''
-      await saveMessage('ai', aiResponse)
 
     } catch (error) {
       console.error('AI聊天错误:', error)
