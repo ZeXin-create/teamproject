@@ -446,9 +446,9 @@ export default function AIChatPage() {
             </div>
           )}
 
-          <div className="flex gap-3 items-end">
+          <div className="flex gap-2 items-end">
             {/* 图片上传按钮 */}
-            <label className="cursor-pointer p-3 hover:bg-gray-100 rounded-lg transition-colors">
+            <label className="cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <input
                 type="file"
                 accept="image/*"
@@ -456,7 +456,7 @@ export default function AIChatPage() {
                 onChange={handleImageUpload}
                 className="hidden"
               />
-              <span className="text-2xl">🖼️</span>
+              <span className="text-xl">🖼️</span>
             </label>
 
             <textarea
@@ -466,13 +466,13 @@ export default function AIChatPage() {
               onKeyDown={handleKeyDown}
               placeholder="输入你的问题... (Shift+Enter换行)"
               rows={1}
-              className="flex-1 px-4 py-3 bg-gray-50 rounded-xl resize-none outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+              className="flex-1 px-3 py-2 bg-gray-50 rounded-xl resize-none outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
               style={{ maxHeight: '120px' }}
             />
             <button
               onClick={handleSend}
               disabled={isLoading || (!input.trim() && uploadedImages.length === 0)}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity shadow-md flex items-center gap-2"
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity shadow-md flex items-center gap-1 sm:px-6 sm:py-3 sm:gap-2"
             >
               {isLoading ? (
                 <>
@@ -480,11 +480,11 @@ export default function AIChatPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  发送
+                  <span className="hidden sm:inline">发送</span>
                 </>
               ) : (
                 <>
-                  发送
+                  <span className="hidden sm:inline">发送</span>
                   <span>→</span>
                 </>
               )}
