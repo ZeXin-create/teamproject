@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { AIService } from '../services/aiService'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 
 interface Message {
@@ -433,8 +434,14 @@ export default function AIChatPage() {
           {uploadedImages.length > 0 && (
             <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
               {uploadedImages.map((img, index) => (
-                <div key={index} className="relative flex-shrink-0">
-                  <img src={img} alt="上传图片" className="w-20 h-20 object-cover rounded-lg" />
+                <div key={index} className="relative flex-shrink-0 w-20 h-20">
+                  <Image
+                    src={img}
+                    alt="上传图片"
+                    width={80}
+                    height={80}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
                   <button
                     onClick={() => setUploadedImages(prev => prev.filter((_, i) => i !== index))}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"

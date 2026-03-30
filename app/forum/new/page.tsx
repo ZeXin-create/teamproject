@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../context/AuthContext'
 import { PostCategory, getCategoryLabel } from '../../types/forum'
@@ -17,14 +17,14 @@ interface Team {
 export default function NewPostPage() {
   const router = useRouter()
   const { user } = useAuth()
-  
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [teams, setTeams] = useState<Team[]>([])
   const [images, setImages] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
-  
+
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -32,13 +32,7 @@ export default function NewPostPage() {
     team_id: ''
   })
 
-  useEffect(() => {
-    if (user) {
-      fetchUserTeams()
-    }
-  }, [user])
-
-  const fetchUserTeams = async () => {
+  const fetchUserTeams = useCallback(async () => {
     try {
       // 获取用户所在的战队
       const { data: memberData } = await supabase
@@ -53,7 +47,7 @@ export default function NewPostPage() {
           .from('teams')
           .select('id, name')
           .in('id', teamIds)
-        
+
         if (teamsData) {
           setTeams(teamsData)
         }
@@ -61,7 +55,13 @@ export default function NewPostPage() {
     } catch (err) {
       console.error('获取战队失败:', err)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchUserTeams()
+    }
+  }, [user, fetchUserTeams])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -73,14 +73,14 @@ export default function NewPostPage() {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    
+
     if (files.length > 0) {
       // 限制最多3张图片
       const remainingSlots = 3 - images.length
       const newFiles = files.slice(0, remainingSlots)
-      
+
       setImages(prev => [...prev, ...newFiles])
-      
+
       // 生成预览
       newFiles.forEach(file => {
         const reader = new FileReader()
@@ -102,12 +102,12 @@ export default function NewPostPage() {
 
   const uploadImages = async (postId: string): Promise<string[]> => {
     const uploadedUrls: string[] = []
-    
+
     for (const image of images) {
       try {
         const safeFileName = `${Date.now()}-${image.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
         const filePath = `forum_posts/${postId}/${safeFileName}`
-        
+
         const { data, error: uploadError } = await supabase
           .storage
           .from('forum-attachments')
@@ -115,22 +115,22 @@ export default function NewPostPage() {
             cacheControl: '3600',
             upsert: true
           })
-        
+
         if (uploadError) {
           throw uploadError
         }
-        
+
         const { data: urlData } = supabase
           .storage
           .from('forum-attachments')
           .getPublicUrl(data.path)
-        
+
         uploadedUrls.push(urlData.publicUrl)
       } catch (error) {
         console.error('上传图片失败:', error)
       }
     }
-    
+
     return uploadedUrls
   }
 
@@ -152,16 +152,16 @@ export default function NewPostPage() {
         author_id: user.id,
         team_id: formData.team_id || undefined
       }
-      
+
       const newPost = await createPost(data)
-      
+
       // 上传图片
       if (images.length > 0) {
         await uploadImages(newPost.id)
       }
-      
+
       setSuccess('帖子发布成功！')
-      
+
       setTimeout(() => {
         router.push('/forum')
       }, 1500)
@@ -180,19 +180,19 @@ export default function NewPostPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="glass-card p-8 max-w-3xl mx-auto">
           <h1 className="text-3xl font-bold gradient-text mb-6 text-center">发布帖子</h1>
-          
+
           {error && (
             <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
               {error}
             </div>
           )}
-          
+
           {success && (
             <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200">
               {success}
             </div>
           )}
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 帖子标题 */}
             <div>
@@ -212,7 +212,7 @@ export default function NewPostPage() {
                 maxLength={100}
               />
             </div>
-            
+
             {/* 帖子分类 */}
             <div>
               <label htmlFor="category" className="block text-gray-700 font-medium mb-2">
@@ -233,7 +233,7 @@ export default function NewPostPage() {
                 ))}
               </select>
             </div>
-            
+
             {/* 关联战队 */}
             {teams.length > 0 && (
               <div>
@@ -256,7 +256,7 @@ export default function NewPostPage() {
                 </select>
               </div>
             )}
-            
+
             {/* 帖子内容 */}
             <div>
               <label htmlFor="content" className="block text-gray-700 font-medium mb-2">
@@ -274,7 +274,7 @@ export default function NewPostPage() {
                 minLength={10}
               />
             </div>
-            
+
             {/* 图片上传 */}
             <div>
               <label className="block text-gray-700 font-medium mb-2">
@@ -284,8 +284,8 @@ export default function NewPostPage() {
                 {imagePreviews.map((preview, index) => (
                   <div key={index} className="relative">
                     <div className="w-full aspect-square rounded-lg overflow-hidden border-2 border-white/50">
-                      <Image 
-                        src={preview} 
+                      <Image
+                        src={preview}
                         alt={`图片 ${index + 1}`}
                         width={150}
                         height={150}
@@ -320,7 +320,7 @@ export default function NewPostPage() {
                 )}
               </div>
             </div>
-            
+
             <div className="flex justify-end gap-4">
               <button
                 type="button"

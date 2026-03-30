@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '../../context/AuthContext'
 import { ForumPost, ForumComment, getCategoryLabel, getCategoryColor } from '../../types/forum'
@@ -24,7 +24,7 @@ export default function PostDetailPage() {
   const [replyContent, setReplyContent] = useState('')
   const [postImages, setPostImages] = useState<string[]>([])
 
-  const fetchPostImages = async (postId: string) => {
+  const fetchPostImages = useCallback(async (postId: string) => {
     try {
       const { data, error } = await supabase
         .storage
@@ -52,9 +52,9 @@ export default function PostDetailPage() {
       console.error('获取图片失败:', err)
       return []
     }
-  }
+  }, [])
 
-  const fetchPost = async () => {
+  const fetchPost = useCallback(async () => {
     setLoading(true)
     try {
       const postData = await getPostById(postId, user?.id)
@@ -71,13 +71,13 @@ export default function PostDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [postId, user, fetchPostImages])
 
   useEffect(() => {
     if (postId) {
       fetchPost()
     }
-  }, [postId, user])
+  }, [postId, user, fetchPost])
 
   const handlePostLike = async () => {
     if (!user || !post) return
@@ -253,8 +253,8 @@ export default function PostDetailPage() {
             <button
               onClick={handlePostLike}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${post.is_liked
-                  ? 'bg-red-100 text-red-600'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-red-100 text-red-600'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
             >
               <span>{post.is_liked ? '❤️' : '🤍'}</span>

@@ -136,16 +136,7 @@ export default function PWARegister() {
     )
   }
 
-  // 手动触发安装提示
-  const handleManualInstall = () => {
-    if (typeof window === 'undefined') return
-    if (deferredPrompt) {
-      deferredPrompt.prompt()
-      console.log('[PWA] 手动触发安装提示')
-    } else {
-      console.log('[PWA] 没有可用的安装提示事件')
-    }
-  }
+
 
   if (isStandalone()) {
     return null

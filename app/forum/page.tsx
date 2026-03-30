@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../context/AuthContext'
 import { PostCategory, ForumPost, PostQueryParams, getCategoryLabel, getCategoryColor } from '../types/forum'
@@ -14,7 +14,7 @@ export default function ForumPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [posts, setPosts] = useState<ForumPost[]>([])
-  
+
   const [filters, setFilters] = useState<PostQueryParams>({
     category: undefined,
     sort_by: 'created_at',
@@ -22,10 +22,10 @@ export default function ForumPage() {
     page: 1,
     limit: 20
   })
-  
+
   const [searchQuery, setSearchQuery] = useState('')
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     setLoading(true)
     try {
       const data = await getPosts(filters)
@@ -35,11 +35,11 @@ export default function ForumPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters])
 
   useEffect(() => {
     fetchPosts()
-  }, [filters])
+  }, [filters, fetchPosts])
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -72,7 +72,7 @@ export default function ForumPage() {
             发布帖子
           </button>
         </div>
-        
+
         {/* 筛选条件 */}
         <div className="glass-card p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -126,13 +126,13 @@ export default function ForumPage() {
             </div>
           </div>
         </div>
-        
+
         {error && (
           <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
             {error}
           </div>
         )}
-        
+
         {loading ? (
           <div className="glass-card p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
@@ -147,8 +147,8 @@ export default function ForumPage() {
         ) : (
           <div className="space-y-4">
             {posts.map(post => (
-              <div 
-                key={post.id} 
+              <div
+                key={post.id}
                 className="glass-card p-6 hover:scale-[1.01] transition-transform cursor-pointer"
                 onClick={() => router.push(`/forum/${post.id}`)}
               >
@@ -157,8 +157,8 @@ export default function ForumPage() {
                   <div className="flex-shrink-0">
                     {post.author?.avatar ? (
                       <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/50">
-                        <Image 
-                          src={post.author.avatar} 
+                        <Image
+                          src={post.author.avatar}
                           alt={post.author.nickname || '用户'}
                           width={48}
                           height={48}
@@ -166,7 +166,7 @@ export default function ForumPage() {
                         />
                       </div>
                     ) : (
-                      <div 
+                      <div
                         className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold"
                         style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
                       >
@@ -174,7 +174,7 @@ export default function ForumPage() {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* 帖子内容 */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
@@ -192,15 +192,15 @@ export default function ForumPage() {
                         </span>
                       )}
                     </div>
-                    
+
                     <h3 className="text-lg font-bold text-gray-800 mb-2 truncate">
                       {post.title}
                     </h3>
-                    
+
                     <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                       {post.content}
                     </p>
-                    
+
                     <div className="flex items-center justify-between text-sm text-gray-500">
                       <div className="flex items-center gap-4">
                         <span>{post.author?.nickname || '匿名用户'}</span>
