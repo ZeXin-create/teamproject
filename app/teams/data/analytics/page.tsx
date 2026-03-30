@@ -79,7 +79,7 @@ export default function AnalyticsPage() {
       return { labels: [], datasets: [] }
     }
 
-    const ranks = ['青铜', '白银', '黄金', '铂金', '钻石', '星耀', '王者', '荣耀王者']
+    const ranks = ['青铜', '白银', '黄金', '铂金', '钻石', '星耀', '王者', '王者1-30星', '王者30-50星', '王者50-80星', '王者80-100星', '王者100-120星', '王者120-140星', '王者140-200星', '荣耀王者']
     const data = ranks.map(rank => teamStats.rankDistribution[rank] || 0)
 
     return {

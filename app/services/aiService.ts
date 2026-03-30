@@ -5,11 +5,11 @@ import { PlayerProfile } from '../types/teamGrouping';
 const ZHIPU_API_KEY = '242547db85954199ae6decacda106ddd.PSNp9my5FoajqbyA'; // 请替换为实际的API密钥
 const ZHIPU_API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 
-// 王者荣耀战队赛规则知识库
+// 王者荣耀战队赛规则知识库（重要：战队赛只在周五、周六、周日开放）
 const 王者荣耀知识库 = {
   规则: `
   王者荣耀战队赛规则：
-  1. 战队赛每周开放时间：周一至周日的12:00-24:00
+  1. 战队赛每周开放时间：每周五、周六、周日的12:00-24:00（共3天，每天12小时）
   2. 每个战队每周最多可参加5场战队赛
   3. 每场比赛需要至少3名队员参与
   4. 战队赛采用5v5模式，地图为王者峡谷
@@ -155,6 +155,121 @@ ${context}`
 
 // AI服务类
 export class AIService {
+  // 获取用户所在的战队ID
+  static async getUserTeamId(userId: string): Promise<string | null> {
+    try {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('team_id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single()
+
+      if (error || !data) {
+        return null
+      }
+      return data.team_id
+    } catch (error) {
+      console.error('获取用户战队ID失败:', error)
+      return null
+    }
+  }
+
+  // 处理用户查询（支持上下文记忆和战队数据）
+  static async processQueryWithContext(
+    query: string, 
+    historyMessages: Array<{ role: string; content: string }>,
+    userId: string
+  ): Promise<string> {
+    try {
+      // 获取用户战队数据
+      const teamId = await this.getUserTeamId(userId)
+      let teamContext = ''
+      
+      if (teamId) {
+        teamContext = await this.getTeamContext(teamId, userId)
+      } else {
+        teamContext = '用户尚未加入任何战队，无法提供战队相关数据。'
+      }
+      
+      // 构建消息历史
+      const messages: Array<{ role: string; content: string }> = [
+        {
+          role: 'system',
+          content: `你是一个王者荣耀战队管理助手，专门回答关于战队赛、队员管理、分组策略等问题。
+
+重要提醒：
+1. 战队赛只在每周周五、周六、周日的12:00-24:00开放，不是周一到周日！
+2. 如果用户之前告诉过你某些信息，请记住并在后续对话中使用
+3. 请根据用户战队的实际数据来回答问题，不要凭空编造数据
+
+战队数据（重要）：
+${teamContext}
+
+知识库：
+${王者荣耀知识库.规则}
+
+${王者荣耀知识库.加分扣分}
+
+${王者荣耀知识库.贡献计算}
+
+${王者荣耀知识库.胜率提升}
+
+请记住用户告诉你的任何信息，并在后续对话中准确使用。`
+        }
+      ];
+      
+      // 添加历史消息
+      historyMessages.forEach(msg => {
+        messages.push({
+          role: msg.role === 'ai' ? 'assistant' : msg.role,
+          content: msg.content
+        });
+      });
+      
+      // 添加当前问题
+      messages.push({
+        role: 'user',
+        content: query
+      });
+      
+      // 调用智谱AI
+      const response = await fetch(ZHIPU_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ZHIPU_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'glm-4',
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 1500
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API请求失败: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data || !data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+        throw new Error('API响应格式不正确');
+      }
+      
+      const choice = data.choices[0];
+      if (!choice || !choice.message || !choice.message.content) {
+        throw new Error('API响应缺少必要字段');
+      }
+      
+      return choice.message.content;
+    } catch (error) {
+      console.error('处理查询失败:', error);
+      return '抱歉，处理您的请求时发生错误，请稍后重试。';
+    }
+  }
+  
   // 处理用户查询
   static async processQuery(query: string, teamId: string, userId: string): Promise<string> {
     try {
@@ -549,45 +664,71 @@ export class AIService {
       
       // 根据段位提供不同的建议
       const rank = profile.current_rank || '';
-      switch (rank) {
-        case '青铜':
-        case '白银':
-          response += '提升建议：\n';
-          response += '1. 熟悉游戏基本操作和地图机制\n';
-          response += '2. 选择1-2个英雄进行专精练习\n';
-          response += '3. 学习基本的团队配合和推塔意识\n';
-          response += '4. 关注小地图，避免单独行动\n';
-          break;
-        case '黄金':
-        case '铂金':
-          response += '提升建议：\n';
-          response += '1. 深入了解英雄技能和克制关系\n';
-          response += '2. 学习经济分配和团队节奏\n';
-          response += '3. 提高团战意识和位置选择\n';
-          response += '4. 练习不同位置的英雄，提高适应性\n';
-          break;
-        case '钻石':
-        case '星耀':
-          response += '提升建议：\n';
-          response += '1. 研究版本强势英雄和阵容\n';
-          response += '2. 提高视野控制和团队沟通\n';
-          response += '3. 学习逆风局处理和运营技巧\n';
-          response += '4. 分析自己的失误，针对性改进\n';
-          break;
-        case '王者':
-        case '荣耀王者':
-          response += '提升建议：\n';
-          response += '1. 保持高水平的操作和意识\n';
-          response += '2. 研究对手打法，制定针对性策略\n';
-          response += '3. 带领团队节奏，发挥领袖作用\n';
+      
+      // 判断段位类型
+      const isLowRank = ['青铜', '白银'].includes(rank);
+      const isMidRank = ['黄金', '铂金'].includes(rank);
+      const isHighRank = ['钻石', '星耀'].includes(rank);
+      const isKingRank = rank === '王者' || rank.startsWith('王者');
+      const isGloryKing = rank === '荣耀王者';
+      
+      if (isLowRank) {
+        response += '提升建议：\n';
+        response += '1. 熟悉游戏基本操作和地图机制\n';
+        response += '2. 选择1-2个英雄进行专精练习\n';
+        response += '3. 学习基本的团队配合和推塔意识\n';
+        response += '4. 关注小地图，避免单独行动\n';
+      } else if (isMidRank) {
+        response += '提升建议：\n';
+        response += '1. 深入了解英雄技能和克制关系\n';
+        response += '2. 学习经济分配和团队节奏\n';
+        response += '3. 提高团战意识和位置选择\n';
+        response += '4. 练习不同位置的英雄，提高适应性\n';
+      } else if (isHighRank) {
+        response += '提升建议：\n';
+        response += '1. 研究版本强势英雄和阵容\n';
+        response += '2. 提高视野控制和团队沟通\n';
+        response += '3. 学习逆风局处理和运营技巧\n';
+        response += '4. 分析自己的失误，针对性改进\n';
+      } else if (isKingRank) {
+        // 根据王者星数提供不同建议
+        if (rank === '王者' || rank === '王者1-30星') {
+          response += '提升建议（王者初阶）：\n';
+          response += '1. 巩固基础操作，减少失误\n';
+          response += '2. 学习高端局节奏控制\n';
+          response += '3. 扩大英雄池，适应不同阵容\n';
+          response += '4. 培养全局观和指挥能力\n';
+        } else if (rank === '王者30-50星' || rank === '王者50-80星') {
+          response += '提升建议（王者中阶）：\n';
+          response += '1. 精进细节操作，提高上限\n';
+          response += '2. 深入研究版本meta和强势组合\n';
+          response += '3. 提升指挥和团队协调能力\n';
+          response += '4. 针对性练习弱势对局\n';
+        } else if (rank === '王者80-100星' || rank === '王者100-120星') {
+          response += '提升建议（王者高阶）：\n';
+          response += '1. 保持稳定的竞技状态\n';
+          response += '2. 研究顶尖选手的打法思路\n';
+          response += '3. 提升临场应变和决策能力\n';
+          response += '4. 带领团队，发挥核心作用\n';
+        } else {
+          response += '提升建议（王者顶尖）：\n';
+          response += '1. 冲击荣耀王者，挑战极限\n';
+          response += '2. 保持高水平操作和意识\n';
+          response += '3. 研究对手打法，制定针对性策略\n';
           response += '4. 不断学习和适应版本变化\n';
-          break;
-        default:
-          response += '提升建议：\n';
-          response += '1. 完善个人游戏资料，便于获取更精准的建议\n';
-          response += '2. 多参与战队赛，提高团队配合\n';
-          response += '3. 观看高水平比赛，学习先进战术\n';
-          response += '4. 保持积极心态，享受游戏过程\n';
+        }
+      } else if (isGloryKing) {
+        response += '提升建议（荣耀王者）：\n';
+        response += '1. 保持巅峰竞技状态\n';
+        response += '2. 挑战更高星数，冲击国服\n';
+        response += '3. 研究职业比赛，学习顶尖战术\n';
+        response += '4. 成为战队核心，带领团队进步\n';
+      } else {
+        response += '提升建议：\n';
+        response += '1. 完善个人游戏资料，便于获取更精准的建议\n';
+        response += '2. 多参与战队赛，提高团队配合\n';
+        response += '3. 观看高水平比赛，学习先进战术\n';
+        response += '4. 保持积极心态，享受游戏过程\n';
       }
       
       return response;
@@ -798,6 +939,141 @@ export class AIService {
     } catch (error) {
       console.error('预测比赛结果失败:', error);
       return '预测比赛结果时发生错误。';
+    }
+  }
+
+  // 处理用户查询（支持流式响应）
+  static async processQueryWithContextStream(
+    query: string,
+    historyMessages: Array<{ role: string; content: string }>,
+    userId: string,
+    callbacks: {
+      onChunk: (chunk: string) => void;
+      onComplete: (fullResponse: string) => void;
+      onError: (error: Error) => void;
+    }
+  ): Promise<void> {
+    try {
+      // 获取用户战队数据
+      const teamId = await this.getUserTeamId(userId)
+      let teamContext = ''
+      
+      if (teamId) {
+        teamContext = await this.getTeamContext(teamId, userId)
+      } else {
+        teamContext = '用户尚未加入任何战队，无法提供战队相关数据。'
+      }
+      
+      // 构建消息历史
+      const messages: Array<{ role: string; content: string }> = [
+        {
+          role: 'system',
+          content: `你是一个王者荣耀战队管理助手，专门回答关于战队赛、队员管理、分组策略等问题。
+
+重要提醒：
+1. 战队赛只在每周周五、周六、周日的12:00-24:00开放，不是周一到周日！
+2. 如果用户之前告诉过你某些信息，请记住并在后续对话中使用
+3. 请根据用户战队的实际数据来回答问题，不要凭空编造数据
+
+战队数据（重要）：
+${teamContext}
+
+知识库：
+${王者荣耀知识库.规则}
+
+${王者荣耀知识库.加分扣分}
+
+${王者荣耀知识库.贡献计算}
+
+${王者荣耀知识库.胜率提升}
+
+请记住用户告诉你的任何信息，并在后续对话中准确使用。`
+        }
+      ];
+      
+      // 添加历史消息
+      historyMessages.forEach(msg => {
+        messages.push({
+          role: msg.role === 'ai' ? 'assistant' : msg.role,
+          content: msg.content
+        });
+      });
+      
+      // 添加当前问题
+      messages.push({
+        role: 'user',
+        content: query
+      });
+      
+      // 调用智谱AI流式接口
+      const response = await fetch(ZHIPU_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ZHIPU_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'glm-4',
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 1500,
+          stream: true
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API请求失败: ${response.status}`);
+      }
+      
+      if (!response.body) {
+        throw new Error('响应体为空');
+      }
+      
+      // 读取流式响应
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let fullResponse = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          callbacks.onComplete(fullResponse);
+          break;
+        }
+        
+        // 解码收到的数据
+        const chunk = decoder.decode(value, { stream: true });
+        
+        // 解析SSE格式的数据
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            
+            if (data === '[DONE]') {
+              callbacks.onComplete(fullResponse);
+              return;
+            }
+            
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
+                const content = parsed.choices[0].delta.content || '';
+                if (content) {
+                  fullResponse += content;
+                  callbacks.onChunk(content);
+                }
+              }
+            } catch {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('流式处理查询失败:', error);
+      callbacks.onError(error instanceof Error ? error : new Error('未知错误'));
     }
   }
 }

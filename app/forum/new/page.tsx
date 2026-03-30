@@ -141,10 +141,15 @@ export default function NewPostPage() {
     setLoading(true)
 
     try {
+      if (!user) {
+        throw new Error('请先登录')
+      }
+
       const data = {
         title: formData.title,
         content: formData.content,
         category: formData.category,
+        author_id: user.id,
         team_id: formData.team_id || undefined
       }
       

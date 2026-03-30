@@ -12,7 +12,7 @@ import {
 // 创建帖子
 export const createPost = async (data: CreatePostRequest): Promise<ForumPost> => {
   // 验证必填字段
-  if (!data.title || !data.content || !data.category) {
+  if (!data.title || !data.content || !data.category || !data.author_id) {
     throw new Error('缺少必填字段');
   }
 
@@ -30,7 +30,11 @@ export const createPost = async (data: CreatePostRequest): Promise<ForumPost> =>
   const { data: newPost, error } = await supabase
     .from('forum_posts')
     .insert({
-      ...data,
+      title: data.title,
+      content: data.content,
+      category: data.category,
+      author_id: data.author_id,
+      team_id: data.team_id || null,
       view_count: 0,
       like_count: 0,
       comment_count: 0,

@@ -51,7 +51,23 @@ export default function PlayerProfilePage() {
   const days = ['周五', '周六', '周日']
   const gameStyles = ['激进', '保守', '全面', '发育', '游走', '辅助']
   const statuses = ['良好', '一般', '低迷']
-  const ranks = ['青铜', '白银', '黄金', '铂金', '钻石', '星耀', '王者', '荣耀王者']
+  const ranks = [
+    '青铜',
+    '白银',
+    '黄金',
+    '铂金',
+    '钻石',
+    '星耀',
+    '王者',
+    '王者1-30星',
+    '王者30-50星',
+    '王者50-80星',
+    '王者80-100星',
+    '王者100-120星',
+    '王者120-140星',
+    '王者140-200星',
+    '荣耀王者'
+  ]
 
   const fetchData = useCallback(async () => {
     setLoading(true)

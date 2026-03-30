@@ -7,7 +7,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Navbar from '../../components/Navbar'
-import AIChat from '../../components/AIChat'
 
 interface Team {
   id: string
@@ -190,16 +189,11 @@ export default function TeamSpacePage() {
               <div className="text-2xl mb-2">📈</div>
               <div className="font-medium text-gray-800">数据可视化</div>
             </Link>
-            <div className="glass-card p-4 text-center hover:scale-105 transition-transform cursor-pointer" onClick={() => document.getElementById('ai-chat')?.scrollIntoView({ behavior: 'smooth' })}>
+            <Link href="/ai-assistant" className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">🤖</div>
-              <div className="font-medium text-gray-800">AI助手</div>
-            </div>
+              <div className="font-medium text-gray-800">智能助手</div>
+            </Link>
           </div>
-        </div>
-
-        {/* AI聊天组件 */}
-        <div id="ai-chat" className="mt-8">
-          <AIChat teamId={team?.id || ''} />
         </div>
       </div>
     </div>

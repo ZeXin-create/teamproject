@@ -60,6 +60,7 @@ export interface CreatePostRequest {
   content: string;
   category: PostCategory;
   team_id?: string;
+  author_id: string;
 }
 
 // 创建评论请求类型
