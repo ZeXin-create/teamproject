@@ -6,7 +6,7 @@ import TabContent from './components/TabContent'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState(0)
-  
+
   useEffect(() => {
     // 检查是否是首次访问
     const hasVisited = localStorage.getItem('hasVisited')
@@ -17,7 +17,7 @@ export default function Home() {
       window.location.reload()
     }
   }, [])
-  
+
   const tabs = [
     '招募大厅',
     '战队列表',
@@ -25,7 +25,7 @@ export default function Home() {
     '战队/ID出售',
     '贴吧社区'
   ]
-  
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -34,7 +34,7 @@ export default function Home() {
           {tabs.map((tab, index) => (
             <button
               key={index}
-              className={`px-6 py-3 font-medium whitespace-nowrap ${activeTab === index ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600 hover:text-blue-500'}`}
+              className={`px-6 py-3 font-medium whitespace-nowrap transition-all duration-300 transform hover:scale-105 hover:shadow-md ${activeTab === index ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600 hover:text-blue-500'}`}
               onClick={() => setActiveTab(index)}
             >
               {tab}

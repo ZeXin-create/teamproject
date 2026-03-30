@@ -24,35 +24,7 @@ export default function ProfilePage() {
   const [avatar, setAvatar] = useState<File | null>(null)
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null)
-  const [userBlacklistItems, setUserBlacklistItems] = useState<Array<{
-    id: string
-    team_id: string
-    reason: string
-    evidence?: string
-    created_at: string
-    custom_team?: string
-    region?: string
-    team?: {
-      name: string
-      region?: string
-    }
-  }>>([])
-  const [loadingBlacklist, setLoadingBlacklist] = useState(false)
-  const [editingItem, setEditingItem] = useState<{
-    id: string
-    team_id: string
-    reason: string
-    evidence?: string
-    created_at: string
-    custom_team?: string
-    region?: string
-    team?: {
-      name: string
-      region?: string
-    }
-  } | null>(null)
-  const [showEditModal, setShowEditModal] = useState(false)
-  
+
   // 用户等级信息
   const [userLevel, setUserLevel] = useState({
     experience: 0,
@@ -124,7 +96,7 @@ export default function ProfilePage() {
             region?: string
           }
         }> = []
-        
+
         for (const item of data) {
           const processedItem: {
             id: string
@@ -147,7 +119,7 @@ export default function ProfilePage() {
             custom_team: item.custom_team,
             region: item.region
           }
-          
+
           // 首先检查是否有自定义战队名称
           if (processedItem.custom_team) {
             processedItem.team = {
@@ -178,10 +150,10 @@ export default function ProfilePage() {
               }
             }
           }
-          
+
           processedData.push(processedItem)
         }
-        
+
         setUserBlacklistItems(processedData)
       } else {
         setUserBlacklistItems([])
@@ -247,81 +219,27 @@ export default function ProfilePage() {
       }, 0)
     } else {
       fetchUserProfile()
-      fetchUserBlacklistItems()
       fetchUserLevel()
-    }
-  }, [user, router, fetchUserProfile, fetchUserBlacklistItems, fetchUserLevel])
 
-  // 删除避雷条
-  const deleteBlacklistItem = async (id: string) => {
-    if (!confirm('确定要删除这条避雷信息吗？')) return
-
-    try {
-      const { error } = await supabase
-        .from('避雷榜单')
-        .delete()
-        .eq('id', id)
-        .eq('reporter_id', user?.id)
-
-      if (error) {
-        throw error
-      }
-
-      // 重新获取避雷条列表
-      fetchUserBlacklistItems()
-      setSuccess('删除成功！')
-    } catch (err: unknown) {
-      console.error('删除避雷条失败:', err)
-      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '删除失败，请稍后重试')
-    }
-  }
-
-  // 编辑避雷条
-  const editBlacklistItem = (item: {
-    id: string
-    team_id: string
-    reason: string
-    evidence?: string
-    created_at: string
-    custom_team?: string
-    region?: string
-    team?: {
-      name: string
-      region?: string
-    }
-  }) => {
-    setEditingItem(item)
-    setShowEditModal(true)
-  }
-
-  // 保存编辑的避雷条
-  const saveEditedBlacklistItem = async () => {
-    if (!editingItem) return
-
-    try {
-      const { error } = await supabase
-        .from('避雷榜单')
-        .update({
-          reason: editingItem.reason,
-          evidence: editingItem.evidence,
-          updated_at: new Date().toISOString()
+      // 设置实时订阅，监听用户数据变化
+      const subscription = supabase
+        .channel('public:team_members')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'team_members',
+          filter: `user_id=eq.${user.id}`
+        }, () => {
+          // 当战队成员状态变化时，刷新页面
+          router.refresh()
         })
-        .eq('id', editingItem.id)
-        .eq('reporter_id', user?.id)
+        .subscribe()
 
-      if (error) {
-        throw error
+      return () => {
+        supabase.removeChannel(subscription)
       }
-
-      setShowEditModal(false)
-      setEditingItem(null)
-      fetchUserBlacklistItems()
-      setSuccess('修改成功！')
-    } catch (err: unknown) {
-      console.error('修改避雷条失败:', err)
-      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '修改失败，请稍后重试')
     }
-  }
+  }, [user, router, fetchUserProfile, fetchUserLevel])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -358,7 +276,7 @@ export default function ProfilePage() {
           .select('avatar')
           .eq('id', user?.id)
           .single()
-        
+
         if (profileData && profileData.avatar) {
           avatarUrl = profileData.avatar
         }
@@ -487,7 +405,7 @@ export default function ProfilePage() {
       setSuccess('头像更新成功！')
       setShowAvatarModal(false)
       setPreviewAvatar(null)
-      
+
       setTimeout(() => {
         router.refresh()
       }, 1000)
@@ -512,7 +430,7 @@ export default function ProfilePage() {
       <div className="container mx-auto px-4 max-w-4xl">
         {/* 返回按钮 */}
         <div className="flex items-center mb-8">
-          <button 
+          <button
             className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2"
             onClick={() => router.back()}
           >
@@ -536,19 +454,20 @@ export default function ProfilePage() {
         {/* 个人信息卡片 */}
         <div className="glass-card p-8 mb-8">
           <h1 className="text-2xl font-bold gradient-text mb-6 text-center">👤 个人资料</h1>
-          
+
           <form onSubmit={handleSubmit}>
             {/* 头像区域 */}
             <div className="flex flex-col items-center mb-8">
               <div className="relative mb-4">
                 {userInfo.avatar ? (
                   <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-white/50 shadow-lg cursor-pointer hover:scale-105 transition-transform">
-                    <Image 
-                      src={userInfo.avatar} 
+                    <Image
+                      src={userInfo.avatar}
                       alt="用户头像"
                       width={112}
                       height={112}
                       className="object-cover"
+                      priority // 首屏图片，设置优先级
                       onClick={handleAvatarClick}
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
@@ -557,7 +476,7 @@ export default function ProfilePage() {
                     />
                   </div>
                 ) : null}
-                <div 
+                <div
                   className={`w-28 h-28 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-lg cursor-pointer hover:scale-105 transition-transform ${userInfo.avatar ? 'hidden' : ''}`}
                   style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
                   onClick={handleAvatarClick}
@@ -570,7 +489,7 @@ export default function ProfilePage() {
               </div>
               <p className="text-sm text-gray-500">点击头像查看或编辑</p>
               <h2 className="text-xl font-bold text-gray-800 mt-2">{userInfo.nickname || userInfo.email}</h2>
-              
+
               {/* 用户等级信息 */}
               <div className="mt-4 w-full max-w-xs">
                 <div className="glass-card p-4 rounded-2xl">
@@ -584,15 +503,15 @@ export default function ProfilePage() {
                       经验值: {userLevel.experience}
                     </div>
                   </div>
-                  
+
                   {/* 等级进度条 */}
                   <div className="w-full h-2 bg-gray-200 rounded-full mb-4">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-pink-400 to-purple-500 rounded-full transition-all duration-500"
                       style={{ width: `${getLevelProgress(userLevel.level, userLevel.experience)}%` }}
                     ></div>
                   </div>
-                  
+
                   {/* 活跃度和贡献度 */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="text-center">
@@ -676,25 +595,13 @@ export default function ProfilePage() {
 
         {/* 功能导航 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Link href="/teams" 
-            className="glass-card p-6 text-center hover:scale-105 transition-transform group">
-            <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🏆</div>
-            <h3 className="font-bold text-gray-800">我的战队</h3>
-            <p className="text-sm text-gray-500 mt-1">查看和管理战队</p>
-          </Link>
-          <Link href="/friends" 
+          <Link href="/friends"
             className="glass-card p-6 text-center hover:scale-105 transition-transform group">
             <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">👥</div>
             <h3 className="font-bold text-gray-800">我的好友</h3>
             <p className="text-sm text-gray-500 mt-1">添加和管理好友</p>
           </Link>
-          <Link href="/tournaments" 
-            className="glass-card p-6 text-center hover:scale-105 transition-transform group">
-            <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🏅</div>
-            <h3 className="font-bold text-gray-800">赛事管理</h3>
-            <p className="text-sm text-gray-500 mt-1">查看和参与赛事</p>
-          </Link>
-          <Link href="/forum" 
+          <Link href="/forum"
             className="glass-card p-6 text-center hover:scale-105 transition-transform group">
             <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">💬</div>
             <h3 className="font-bold text-gray-800">论坛</h3>
@@ -702,156 +609,25 @@ export default function ProfilePage() {
           </Link>
         </div>
 
-        {/* 我的避雷条 */}
-        <div className="glass-card p-8">
-          <h2 className="text-2xl font-bold gradient-text mb-6 flex items-center gap-2">
-            <span>⚡</span> 我的避雷条
-          </h2>
-          
-          {loadingBlacklist ? (
-            <div className="text-center py-8">
-              <div className="animate-pulse text-pink-500 text-lg">✨ 加载中...</div>
-            </div>
-          ) : userBlacklistItems.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">🌸</div>
-              <p className="text-gray-600 text-lg">暂无发布的避雷条</p>
-              <p className="text-gray-400 text-sm mt-2">去主页面发布你的第一条避雷信息吧~</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {userBlacklistItems.map((item) => (
-                <div key={item.id} className="glass-card p-6 hover:scale-[1.02] transition-transform">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <span className="text-pink-500">⚠️</span> {item.team?.name || '未知战队'}
-                      </h3>
-                      {item.team?.region && (
-                        <span className="text-xs text-pink-500 mt-1 inline-block px-2 py-1 bg-pink-100 rounded-full">
-                          {item.team.region}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        className="px-4 py-2 bg-gradient-to-r from-blue-400 to-blue-500 text-white rounded-xl text-sm hover:shadow-lg transition-all"
-                        onClick={() => editBlacklistItem(item)}
-                      >
-                        ✏️ 编辑
-                      </button>
-                      <button
-                        className="px-4 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-xl text-sm hover:shadow-lg transition-all"
-                        onClick={() => deleteBlacklistItem(item.id)}
-                      >
-                        🗑️ 删除
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 mb-4">
-                    <p className="text-gray-700 leading-relaxed">{item.reason}</p>
-                  </div>
-                  
-                  {item.evidence && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-xl p-3">
-                      <span className="text-pink-400">📎</span>
-                      <span>{item.evidence}</span>
-                    </div>
-                  )}
-                  
-                  <p className="text-sm text-gray-400 mt-4">
-                    发布时间：{new Date(item.created_at).toLocaleString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 编辑避雷条模态框 */}
-        {showEditModal && editingItem && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="glass-card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold gradient-text">✏️ 编辑避雷信息</h3>
-                <button 
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                  onClick={() => setShowEditModal(false)}
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">战队名称</label>
-                  <input 
-                    type="text" 
-                    className="glass-input w-full px-4 py-3"
-                    value={editingItem.team?.name || ''}
-                    readOnly
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">避雷原因</label>
-                  <textarea 
-                    className="glass-input w-full px-4 py-3"
-                    rows={4}
-                    value={editingItem.reason}
-                    onChange={(e) => setEditingItem({...editingItem, reason: e.target.value})}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">证据</label>
-                  <textarea 
-                    className="glass-input w-full px-4 py-3"
-                    rows={2}
-                    value={editingItem.evidence || ''}
-                    onChange={(e) => setEditingItem({...editingItem, evidence: e.target.value})}
-                  />
-                </div>
-                
-                <div className="flex justify-end gap-4">
-                  <button 
-                    className="px-6 py-3 rounded-2xl text-gray-600 hover:text-gray-800 hover:bg-white/50 transition-all"
-                    onClick={() => setShowEditModal(false)}
-                  >
-                    取消
-                  </button>
-                  <button 
-                    className="glass-button px-8 py-3 text-white font-medium"
-                    onClick={saveEditedBlacklistItem}
-                  >
-                    💾 保存修改
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* 头像编辑模态框 */}
         {showAvatarModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="glass-card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold gradient-text">✨ 编辑头像</h3>
-                <button 
+                <button
                   className="text-gray-400 hover:text-gray-600 text-2xl"
                   onClick={handleCloseModal}
                 >
                   ×
                 </button>
               </div>
-              
+
               <div className="flex flex-col items-center mb-6">
                 {previewAvatar || userInfo.avatar ? (
                   <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white/50 shadow-lg mb-4">
-                    <Image 
-                      src={previewAvatar || userInfo.avatar} 
+                    <Image
+                      src={previewAvatar || userInfo.avatar}
                       alt="头像预览"
                       width={128}
                       height={128}
@@ -859,7 +635,7 @@ export default function ProfilePage() {
                     />
                   </div>
                 ) : (
-                  <div 
+                  <div
                     className="w-32 h-32 rounded-full flex items-center justify-center text-white text-5xl font-bold shadow-lg mb-4"
                     style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
                   >
@@ -873,7 +649,7 @@ export default function ProfilePage() {
                   onChange={handleAvatarChange}
                 />
               </div>
-              
+
               <div className="flex justify-end gap-4">
                 <button
                   type="button"

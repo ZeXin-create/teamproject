@@ -77,19 +77,36 @@ export default function OnboardingGuide() {
     const checkOnboardingStatus = async () => {
       if (!user) return
       
+      // 首先检查localStorage
+      const hasCompletedOnboarding = localStorage.getItem(`onboarding_completed_${user.id}`)
+      if (hasCompletedOnboarding === 'true') {
+        return
+      }
+      
       try {
         // 检查用户是否已完成新手引导
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('profiles')
           .select('onboarding_completed')
           .eq('id', user.id)
           .single()
         
+        if (error) {
+          // 如果字段不存在或其他错误，默认显示引导
+          setShowGuide(true)
+          return
+        }
+        
         if (data && !data.onboarding_completed) {
           setShowGuide(true)
+        } else if (data && data.onboarding_completed) {
+          // 存储到localStorage
+          localStorage.setItem(`onboarding_completed_${user.id}`, 'true')
         }
       } catch (error) {
         console.error('检查新手引导状态失败:', error)
+        // 出错时默认显示引导
+        setShowGuide(true)
       }
     }
     
@@ -120,12 +137,21 @@ export default function OnboardingGuide() {
         .update({ onboarding_completed: true })
         .eq('id', user.id)
       
+      // 存储到localStorage
+      localStorage.setItem(`onboarding_completed_${user.id}`, 'true')
+      
       setIsCompleted(true)
       setTimeout(() => {
         setShowGuide(false)
       }, 2000)
     } catch (error) {
       console.error('完成新手引导失败:', error)
+      // 即使API失败，也存储到localStorage
+      localStorage.setItem(`onboarding_completed_${user.id}`, 'true')
+      setIsCompleted(true)
+      setTimeout(() => {
+        setShowGuide(false)
+      }, 2000)
     }
   }
 
@@ -138,9 +164,15 @@ export default function OnboardingGuide() {
         .update({ onboarding_completed: true })
         .eq('id', user.id)
       
+      // 存储到localStorage
+      localStorage.setItem(`onboarding_completed_${user.id}`, 'true')
+      
       setShowGuide(false)
     } catch (error) {
       console.error('跳过新手引导失败:', error)
+      // 即使API失败，也存储到localStorage
+      localStorage.setItem(`onboarding_completed_${user.id}`, 'true')
+      setShowGuide(false)
     }
   }
 

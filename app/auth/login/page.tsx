@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { APP_VERSION } from '../../utils/version'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -11,11 +12,11 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const { login, isLoading, successMessage, setSuccessMessage } = useAuth()
   const router = useRouter()
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    
+
     try {
       await login(email, password)
       setSuccessMessage('登录成功！欢迎回来')
@@ -27,7 +28,7 @@ export default function LoginPage() {
       setError('登录失败，请检查邮箱和密码')
     }
   }
-  
+
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4">
       <div className="glass-card p-8 w-full max-w-md">
@@ -36,19 +37,19 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold gradient-text">欢迎回来</h1>
           <p className="text-gray-500 mt-2">登录您的战队管理账号</p>
         </div>
-        
+
         {error && (
           <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200 text-center">
             {error}
           </div>
         )}
-        
+
         {successMessage && (
           <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200 text-center">
             {successMessage}
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
@@ -64,7 +65,7 @@ export default function LoginPage() {
               required
             />
           </div>
-          
+
           <div>
             <label htmlFor="password" className="block text-gray-700 font-medium mb-2">
               🔒 密码
@@ -79,7 +80,7 @@ export default function LoginPage() {
               required
             />
           </div>
-          
+
           <button
             type="submit"
             className="w-full glass-button py-3 text-white font-medium text-lg"
@@ -96,7 +97,7 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-        
+
         <div className="mt-8 text-center">
           <p className="text-gray-600">
             还没有账号？{' '}
@@ -104,7 +105,7 @@ export default function LoginPage() {
               立即注册 ✨
             </Link>
           </p>
-          <p className="text-gray-400 text-xs mt-4">当前版本 1.1</p>
+          <p className="text-gray-400 text-xs mt-4">当前版本 {APP_VERSION}</p>
         </div>
       </div>
     </div>

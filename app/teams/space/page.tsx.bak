@@ -38,17 +38,16 @@ export default function TeamSpacePage() {
         .select('team_id')
         .eq('user_id', user?.id)
         .eq('status', 'active')
+        .single()
 
       if (error) {
         console.error('查询战队失败:', error)
         setHasTeam(false)
-      } else if (data && data.length > 0) {
-        // 处理多个战队的情况，取第一个战队
-        const teamId = data[0].team_id
+      } else if (data) {
         const { data: teamData, error: teamError } = await supabase
           .from('teams')
           .select('*')
-          .eq('id', teamId)
+          .eq('id', data.team_id)
           .single()
 
         if (teamError) {
@@ -72,24 +71,6 @@ export default function TeamSpacePage() {
   useEffect(() => {
     if (user) {
       checkUserTeam()
-
-      // 设置实时订阅，监听战队成员状态变化
-      const subscription = supabase
-        .channel('public:team_members')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'team_members',
-          filter: `user_id=eq.${user.id}`
-        }, () => {
-          // 当战队成员状态变化时，重新检查用户战队
-          checkUserTeam()
-        })
-        .subscribe()
-
-      return () => {
-        supabase.removeChannel(subscription)
-      }
     } else {
       setLoading(false)
     }
@@ -151,7 +132,8 @@ export default function TeamSpacePage() {
                     width={80}
                     height={80}
                     className="object-cover"
-                    priority // 首屏图片，设置优先级
+                    loading="lazy" // 启用懒加载
+                    priority={false} // 非首屏图片不需要优先级
                   />
                 </div>
               ) : (
@@ -179,35 +161,35 @@ export default function TeamSpacePage() {
 
           {/* 功能导航 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-            <Link href="/teams/edit" className="glass-card p-4 text-center hover:scale-105 transition-all duration-300 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+            <Link href="/teams/edit" className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">✏️</div>
               <div className="font-medium text-gray-800">编辑资料</div>
             </Link>
-            <Link href="/teams/applications" className="glass-card p-4 text-center hover:scale-105 transition-all duration-300 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            <Link href="/teams/applications" className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">📋</div>
               <div className="font-medium text-gray-800">申请管理</div>
             </Link>
-            <Link href="/teams/data/match-records" className="glass-card p-4 text-center hover:scale-105 transition-all duration-300 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+            <Link href="/teams/data/match-records" className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">🏆</div>
               <div className="font-medium text-gray-800">比赛记录</div>
             </Link>
-            <Link href="/teams/data/training-plans" className="glass-card p-4 text-center hover:scale-105 transition-all duration-300 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+            <Link href="/teams/data/training-plans" className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">🏋️‍♂️</div>
               <div className="font-medium text-gray-800">训练安排</div>
             </Link>
-            <Link href={`/teams/${team?.id}/profile`} className="glass-card p-4 text-center hover:scale-105 transition-all duration-300 animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
+            <Link href={`/teams/${team?.id}/profile`} className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">🎮</div>
               <div className="font-medium text-gray-800">个人游戏资料</div>
             </Link>
-            <Link href="/teams/data/team-info" className="glass-card p-4 text-center hover:scale-105 transition-all duration-300 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+            <Link href="/teams/data/team-info" className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">📊</div>
               <div className="font-medium text-gray-800">战队信息</div>
             </Link>
-            <Link href="/teams/data/analytics" className="glass-card p-4 text-center hover:scale-105 transition-all duration-300 animate-fade-in-up" style={{ animationDelay: '0.7s' }}>
+            <Link href="/teams/data/analytics" className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">📈</div>
               <div className="font-medium text-gray-800">数据可视化</div>
             </Link>
-            <Link href="/ai-assistant" className="glass-card p-4 text-center hover:scale-105 transition-all duration-300 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
+            <Link href="/ai-assistant" className="glass-card p-4 text-center hover:scale-105 transition-transform">
               <div className="text-2xl mb-2">🤖</div>
               <div className="font-medium text-gray-800">智能助手</div>
             </Link>

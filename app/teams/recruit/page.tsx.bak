@@ -58,9 +58,9 @@ export default function RecruitPage() {
   // 检查用户是否有权限编辑/删除招募信息
   const canManageRecruit = useCallback((recruit: Recruit): boolean => {
     if (!user) return false
-    // 用户是该招募信息的创建者
-    return recruit.created_by === user.id
-  }, [user])
+    // 用户是该招募所属战队的成员
+    return userTeamIds.includes(recruit.team_id)
+  }, [user, userTeamIds])
 
   // 发布招募信息
   const [showRecruitForm, setShowRecruitForm] = useState(false)
@@ -78,11 +78,6 @@ export default function RecruitPage() {
   const [editingRecruit, setEditingRecruit] = useState<Recruit | null>(null)
 
   const getRecruits = useCallback(async () => {
-    if (!user) {
-      setLoading(false)
-      return
-    }
-
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -99,21 +94,17 @@ export default function RecruitPage() {
           recruit_count,
           deadline,
           status,
-          created_by,
           team:teams(
             name,
             region
           )
         `)
         .eq('status', 'active')
-        .eq('created_by', user.id)
         .order('created_at', { ascending: false })
 
       if (error) {
         throw error
       }
-
-      console.log('获取到的招募信息:', data)
 
       // 处理 team 字段的类型问题
       const processedData: Recruit[] = (data || []).map(item => ({
@@ -121,7 +112,6 @@ export default function RecruitPage() {
         team: Array.isArray(item.team) ? item.team[0] : item.team
       }))
 
-      console.log('处理后的招募信息:', processedData)
       setRecruits(processedData)
     } catch (err: unknown) {
       console.error('获取招募信息失败:', err)
@@ -129,11 +119,12 @@ export default function RecruitPage() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [])
 
   useEffect(() => {
     getRecruits()
-  }, [getRecruits])
+    fetchUserTeams()
+  }, [getRecruits, fetchUserTeams])
 
   // 发布招募信息
   const handleRecruitSubmit = async (e: React.FormEvent) => {
@@ -176,8 +167,7 @@ export default function RecruitPage() {
           positions: recruitForm.positions,
           online_time: recruitForm.online_time,
           recruit_count: recruitForm.recruit_count,
-          status: 'active',
-          created_by: user.id
+          status: 'active'
         })
         .select(`
           id,
@@ -191,7 +181,6 @@ export default function RecruitPage() {
           recruit_count,
           deadline,
           status,
-          created_by,
           team:teams(
             name,
             region
@@ -281,7 +270,6 @@ export default function RecruitPage() {
           recruit_count,
           deadline,
           status,
-          created_by,
           team:teams(
             name,
             region
@@ -403,7 +391,7 @@ export default function RecruitPage() {
         {user && (
           <div className="mb-6">
             <button
-              className="glass-button px-6 py-3 text-white font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg animate-breathe"
+              className="glass-button px-6 py-3 text-white font-medium"
               onClick={() => {
                 setEditingRecruit(null)
                 setRecruitForm({
@@ -560,8 +548,8 @@ export default function RecruitPage() {
               <p className="text-gray-400 text-sm mt-2">点击上方按钮发布招募信息</p>
             </div>
           ) : (
-            recruits.map((recruit, index) => (
-              <div key={recruit.id} className="glass-card p-6 hover:scale-[1.02] transition-all duration-300 animate-fade-in-up" style={{ animationDelay: `${index * 0.1}s` }}>
+            recruits.map((recruit) => (
+              <div key={recruit.id} className="glass-card p-6 hover:scale-[1.02] transition-transform duration-300">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="text-lg font-bold text-gray-800">{recruit.team?.name || '未知战队'}</h3>

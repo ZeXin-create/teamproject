@@ -27,7 +27,7 @@ interface Recruit {
 
 export default function TabContent({ activeTab }: TabContentProps) {
   const router = useRouter()
-  
+
   // 当切换到出售标签时，重定向到出售页面
   useEffect(() => {
     if (activeTab === 3) {
@@ -73,7 +73,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
               .select('id')
               .eq('team_id', team.id)
               .eq('status', 'active')
-            
+
             return {
               ...team,
               city: team.city || team.province || team.district || '未知城市',
@@ -144,17 +144,17 @@ export default function TabContent({ activeTab }: TabContentProps) {
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
-      
+
       if (error) {
         throw error
       }
-      
+
       // 处理 team 字段的类型问题
       const processedData: Recruit[] = (data || []).map(item => ({
         ...item,
         team: Array.isArray(item.team) ? item.team[0] : item.team
       }))
-      
+
       setRecruits(processedData)
     } catch (err: unknown) {
       console.error('获取招募信息失败:', err)
@@ -182,7 +182,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
               <span>🎯</span> 招募大厅
             </h2>
             <p className="text-gray-600 mb-6">这里展示所有队长发布的招募信息</p>
-            
+
             {loading ? (
               <div className="glass-card p-12 text-center">
                 <div className="animate-pulse text-pink-500 text-lg">✨ 加载中...</div>
@@ -210,7 +210,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                         {new Date(recruit.created_at).toLocaleDateString()}
                       </span>
                     </div>
-                    
+
                     <div className="space-y-2 mb-4">
                       {recruit.rank_requirement && (
                         <div className="flex items-center gap-2">
@@ -218,21 +218,21 @@ export default function TabContent({ activeTab }: TabContentProps) {
                           <span className="text-gray-700">段位要求：{recruit.rank_requirement}</span>
                         </div>
                       )}
-                      
+
                       {recruit.positions && recruit.positions.length > 0 && (
                         <div className="flex items-center gap-2">
                           <span className="text-pink-500">🎯</span>
                           <span className="text-gray-700">擅长位置：{recruit.positions.join('、')}</span>
                         </div>
                       )}
-                      
+
                       {recruit.online_time && (
                         <div className="flex items-center gap-2">
                           <span className="text-pink-500">⏰</span>
                           <span className="text-gray-700">在线时间：{recruit.online_time}</span>
                         </div>
                       )}
-                      
+
                       {recruit.recruit_count && (
                         <div className="flex items-center gap-2">
                           <span className="text-pink-500">👥</span>
@@ -240,11 +240,11 @@ export default function TabContent({ activeTab }: TabContentProps) {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 mb-4">
                       <p className="text-gray-700 leading-relaxed">{recruit.requirements}</p>
                     </div>
-                    
+
                     <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-xl p-3">
                       <span className="text-pink-400">📞</span>
                       <span>联系方式：{recruit.contact}</span>
@@ -261,7 +261,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
             <h2 className="text-2xl font-bold gradient-text mb-6 flex items-center gap-2">
               <span>🏆</span> 战队列表
             </h2>
-            
+
             {/* 搜索功能 */}
             <div className="mb-6">
               <form onSubmit={(e) => { e.preventDefault(); fetchTeams(); }} className="flex gap-2">
@@ -291,7 +291,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                 </button>
               </form>
             </div>
-            
+
             {loading ? (
               <div className="glass-card p-12 text-center">
                 <div className="animate-pulse text-pink-500 text-lg">✨ 加载中...</div>
@@ -309,12 +309,13 @@ export default function TabContent({ activeTab }: TabContentProps) {
                     <div className="flex items-center gap-4">
                       {team.avatar_url ? (
                         <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-white/50">
-                          <Image 
+                          <Image
                             src={team.avatar_url?.replace(/[`]/g, '') || ''}
                             alt={team.name}
                             width={64}
                             height={64}
                             className="object-cover"
+                            priority // 首屏图片，设置优先级
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = 'none';
                               (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
@@ -322,7 +323,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                           />
                         </div>
                       ) : null}
-                      <div 
+                      <div
                         className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold ${team.avatar_url ? 'hidden' : ''}`}
                         style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
                       >
@@ -352,25 +353,25 @@ export default function TabContent({ activeTab }: TabContentProps) {
                 ))}
               </div>
             )}
-            
+
             {/* 战队详情模态框 */}
             {selectedTeam && (
               <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <div className="glass-card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold gradient-text">战队详情</h3>
-                    <button 
+                    <button
                       className="text-gray-400 hover:text-gray-600 text-2xl"
                       onClick={() => setSelectedTeam(null)}
                     >
                       ×
                     </button>
                   </div>
-                  
+
                   <div className="flex flex-col items-center mb-6">
                     {selectedTeam.avatar_url ? (
                       <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-4 border-white/50 shadow-lg mb-4">
-                        <Image 
+                        <Image
                           src={selectedTeam.avatar_url?.replace(/[`]/g, '') || ''}
                           alt={selectedTeam.name}
                           width={96}
@@ -379,7 +380,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                         />
                       </div>
                     ) : (
-                      <div 
+                      <div
                         className="w-24 h-24 rounded-2xl flex items-center justify-center text-white text-4xl font-bold shadow-lg mb-4"
                         style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
                       >
@@ -399,7 +400,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                       </span>
                     </div>
                   </div>
-                  
+
                   {selectedTeam.declaration && (
                     <div className="mb-6">
                       <h4 className="font-bold text-gray-800 mb-2">战队宣言</h4>
@@ -408,7 +409,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* 战队图片 */}
                   {selectedTeam.images && selectedTeam.images.length > 0 && (
                     <div className="mb-6">
@@ -416,7 +417,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {selectedTeam.images.map((image, index) => (
                           <div key={index} className="relative rounded-xl overflow-hidden aspect-square">
-                            <Image 
+                            <Image
                               src={image}
                               alt={`战队图片 ${index + 1}`}
                               width={200}
@@ -428,9 +429,9 @@ export default function TabContent({ activeTab }: TabContentProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="flex justify-end">
-                    <button 
+                    <button
                       className="glass-button px-6 py-3 text-white font-medium"
                       onClick={() => setSelectedTeam(null)}
                     >
@@ -478,19 +479,18 @@ export default function TabContent({ activeTab }: TabContentProps) {
                 {rankedTeams.map((team) => (
                   <div key={team.id} className="glass-card p-4 flex items-center justify-between hover:scale-[1.01] transition-transform">
                     <div className="flex items-center gap-4">
-                      <div 
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl font-bold ${
-                          team.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-orange-500' :
-                          team.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400' :
-                          team.rank === 3 ? 'bg-gradient-to-br from-orange-300 to-orange-400' :
-                          'bg-gradient-to-br from-blue-400 to-blue-500'
-                        }`}
+                      <div
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl font-bold ${team.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-orange-500' :
+                            team.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400' :
+                              team.rank === 3 ? 'bg-gradient-to-br from-orange-300 to-orange-400' :
+                                'bg-gradient-to-br from-blue-400 to-blue-500'
+                          }`}
                       >
                         {team.rank === 1 ? '👑' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : team.rank}
                       </div>
                       {team.avatar_url ? (
                         <div className="relative w-12 h-12 rounded-2xl overflow-hidden border-2 border-white/50">
-                          <Image 
+                          <Image
                             src={team.avatar_url?.replace(/[`]/g, '') || ''}
                             alt={team.name}
                             width={48}
@@ -499,7 +499,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                           />
                         </div>
                       ) : (
-                        <div 
+                        <div
                           className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl font-bold"
                           style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
                         >
@@ -526,6 +526,6 @@ export default function TabContent({ activeTab }: TabContentProps) {
         return null
     }
   }
-  
+
   return renderContent()
 }

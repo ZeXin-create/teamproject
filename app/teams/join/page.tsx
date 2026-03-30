@@ -22,24 +22,24 @@ export default function JoinTeamPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  
+
   const { user } = useAuth()
-  
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSearching(true)
     setError('')
-    
+
     try {
       const { data, error } = await supabase
         .from('teams')
         .select('*')
         .ilike('name', `%${searchQuery}%`)
-      
+
       if (error) {
         throw error
       }
-      
+
       setTeams(data)
     } catch (err: unknown) {
       console.error('搜索战队失败:', err)
@@ -48,27 +48,32 @@ export default function JoinTeamPage() {
       setIsSearching(false)
     }
   }
-  
+
   const handleJoin = async (teamId: string) => {
     if (!user) {
       setError('请先登录')
       return
     }
-    
+
     try {
       // 检查是否已经在战队中
       const { data: existingMember } = await supabase
         .from('team_members')
-        .select('id')
+        .select('id, role')
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .single()
-      
-      if (existingMember) {
-        setError('您已经加入了一个战队')
+
+      if (existingMember && existingMember.length > 0) {
+        // 检查是否是队长
+        const isCaptain = existingMember.some(member => member.role === '队长')
+        if (isCaptain) {
+          setError('您是一个战队的队长，不能加入其他战队')
+        } else {
+          setError('您已经加入了一个战队')
+        }
         return
       }
-      
+
       // 检查是否已经申请过
       const { data: existingApplication } = await supabase
         .from('team_applications')
@@ -77,12 +82,12 @@ export default function JoinTeamPage() {
         .eq('team_id', teamId)
         .eq('status', 'pending')
         .single()
-      
+
       if (existingApplication) {
         setError('您已经申请过这个战队')
         return
       }
-      
+
       // 提交申请
       await supabase
         .from('team_applications')
@@ -90,31 +95,31 @@ export default function JoinTeamPage() {
           user_id: user.id,
           team_id: teamId
         })
-      
+
       setSuccess('申请加入战队成功！等待队长审批')
     } catch (err: unknown) {
       console.error('申请加入战队失败:', err)
       setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '申请加入战队失败，请稍后重试')
     }
   }
-  
+
   return (
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold mb-6">加入战队</h1>
-        
+
         {error && (
           <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
             {error}
           </div>
         )}
-        
+
         {success && (
           <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">
             {success}
           </div>
         )}
-        
+
         <form onSubmit={handleSearch} className="mb-6">
           <div className="flex gap-2">
             <input
@@ -133,14 +138,14 @@ export default function JoinTeamPage() {
             </button>
           </div>
         </form>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {teams.map((team) => (
             <div key={team.id} className="bg-white p-4 rounded-lg shadow-md">
               <div className="flex items-center gap-4 mb-4">
                 <div className="relative w-16 h-16 rounded-full overflow-hidden">
-                  <Image 
-                    src={team.avatar_url || 'https://via.placeholder.com/100'} 
+                  <Image
+                    src={team.avatar_url || 'https://via.placeholder.com/100'}
                     alt={team.name}
                     width={64}
                     height={64}

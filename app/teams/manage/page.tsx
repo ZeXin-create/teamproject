@@ -62,26 +62,31 @@ export default function TeamManagePage() {
   const fetchTeamData = useCallback(async () => {
     setLoading(true)
     try {
-      // 获取用户所在战队
+      // 获取用户所在的所有战队
       const { data: memberData, error: memberError } = await supabase
         .from('team_members')
         .select('team_id, role')
         .eq('user_id', user?.id)
         .eq('status', 'active')
-        .single()
 
-      if (memberError || !memberData) {
+      if (memberError || !memberData || memberData.length === 0) {
         router.push('/teams/space')
         return
       }
 
-      setUserRole(memberData.role)
+      // 查找用户作为队长的战队
+      const captainTeam = memberData.find(member => member.role === '队长')
+
+      // 如果有队长战队，优先使用队长战队
+      // 否则使用第一个战队
+      const targetTeam = captainTeam || memberData[0]
+      setUserRole(targetTeam.role)
 
       // 获取战队信息
       const { data: teamData } = await supabase
         .from('teams')
         .select('id, name')
-        .eq('id', memberData.team_id)
+        .eq('id', targetTeam.team_id)
         .single()
 
       if (teamData) {
@@ -89,7 +94,7 @@ export default function TeamManagePage() {
       }
 
       // 获取战队成员
-      await fetchMembers(memberData.team_id)
+      await fetchMembers(targetTeam.team_id)
     } catch (error) {
       console.error('获取战队数据失败:', error)
     } finally {
@@ -110,7 +115,7 @@ export default function TeamManagePage() {
 
       if (data) {
         const processedMembers: Member[] = []
-        
+
         for (const item of data) {
           const member: Member = {
             id: item.id,
@@ -120,7 +125,7 @@ export default function TeamManagePage() {
             status: item.status,
             joined_at: item.joined_at
           }
-          
+
           try {
             const { data: profileData } = await supabase
               .from('profiles')
@@ -156,10 +161,10 @@ export default function TeamManagePage() {
               }
             }
           }
-          
+
           processedMembers.push(member)
         }
-        
+
         setMembers(processedMembers)
       } else {
         setMembers([])
@@ -178,9 +183,7 @@ export default function TeamManagePage() {
   const handleMemberClick = (member: Member) => {
     // 不能对自己操作
     if (member.user_id === user?.id) return
-    // 只能管理比自己职位低的成员
-    if (ROLE_HIERARCHY[member.role] >= ROLE_HIERARCHY[userRole]) return
-    
+
     setSelectedMember(member)
     setShowActionModal(true)
   }
@@ -264,7 +267,7 @@ export default function TeamManagePage() {
       <div className="container mx-auto px-4 max-w-4xl">
         {/* 返回按钮 */}
         <div className="flex items-center mb-8">
-          <button 
+          <button
             className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2"
             onClick={() => router.back()}
           >
@@ -291,21 +294,20 @@ export default function TeamManagePage() {
 
           <div className="space-y-3">
             {members.map((member) => {
-              const canManage = member.user_id !== user?.id && 
-                               ROLE_HIERARCHY[member.role] < ROLE_HIERARCHY[userRole]
-              
+              // 简化权限检查，只要不是自己就可以管理
+              const canManage = member.user_id !== user?.id
+
               return (
-                <div 
+                <div
                   key={member.id}
                   onClick={() => canManage && handleMemberClick(member)}
-                  className={`glass-card p-4 flex items-center gap-4 ${
-                    canManage ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''
-                  }`}
+                  className={`glass-card p-4 flex items-center gap-4 ${canManage ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''
+                    }`}
                 >
                   {/* 头像 */}
                   {member.user?.user_metadata?.avatar ? (
                     <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-white/50">
-                      <Image 
+                      <Image
                         src={member.user.user_metadata.avatar}
                         alt="头像"
                         width={56}
@@ -314,7 +316,7 @@ export default function TeamManagePage() {
                       />
                     </div>
                   ) : (
-                    <div 
+                    <div
                       className="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold"
                       style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
                     >
@@ -359,7 +361,7 @@ export default function TeamManagePage() {
               <div className="text-center mb-6">
                 {selectedMember.user?.user_metadata?.avatar ? (
                   <div className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-white/50 mx-auto mb-4">
-                    <Image 
+                    <Image
                       src={selectedMember.user.user_metadata.avatar}
                       alt="头像"
                       width={80}
@@ -368,7 +370,7 @@ export default function TeamManagePage() {
                     />
                   </div>
                 ) : (
-                  <div 
+                  <div
                     className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4"
                     style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
                   >
@@ -388,7 +390,7 @@ export default function TeamManagePage() {
                   onClick={handleViewProfile}
                   className="w-full glass-card p-4 text-left hover:bg-white/60 transition-all flex items-center gap-3"
                 >
-                  <span className="text-2xl">👤</span>
+                  <span className="text-2xl">�</span>
                   <div>
                     <div className="font-medium text-gray-800">查看资料</div>
                     <div className="text-sm text-gray-400">查看该成员的详细信息</div>
@@ -436,7 +438,7 @@ export default function TeamManagePage() {
             <div className="glass-card p-8 w-full max-w-md">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold gradient-text">👤 成员资料</h3>
-                <button 
+                <button
                   className="text-gray-400 hover:text-gray-600 text-2xl"
                   onClick={() => setShowProfileModal(false)}
                 >
@@ -447,7 +449,7 @@ export default function TeamManagePage() {
               <div className="text-center mb-6">
                 {selectedMember.user?.user_metadata?.avatar ? (
                   <div className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-white/50 mx-auto mb-4">
-                    <Image 
+                    <Image
                       src={selectedMember.user.user_metadata.avatar}
                       alt="头像"
                       width={96}
@@ -456,7 +458,7 @@ export default function TeamManagePage() {
                     />
                   </div>
                 ) : (
-                  <div 
+                  <div
                     className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold mx-auto mb-4"
                     style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
                   >
@@ -481,8 +483,8 @@ export default function TeamManagePage() {
                   <div className="glass-card p-4">
                     <div className="text-sm text-gray-400 mb-1">🌸 性别</div>
                     <div className="font-medium text-gray-800">
-                      {selectedMember.user.user_metadata.gender === '男' ? '👦' : 
-                       selectedMember.user.user_metadata.gender === '女' ? '👧' : '✨'} 
+                      {selectedMember.user.user_metadata.gender === '男' ? '👦' :
+                        selectedMember.user.user_metadata.gender === '女' ? '👧' : '✨'}
                       {selectedMember.user.user_metadata.gender}
                     </div>
                   </div>
@@ -531,14 +533,12 @@ export default function TeamManagePage() {
                   <button
                     key={role}
                     onClick={() => setNewRole(role)}
-                    className={`w-full glass-card p-4 text-left transition-all ${
-                      newRole === role ? 'ring-2 ring-pink-400 bg-pink-50' : 'hover:bg-white/60'
-                    }`}
+                    className={`w-full glass-card p-4 text-left transition-all ${newRole === role ? 'ring-2 ring-pink-400 bg-pink-50' : 'hover:bg-white/60'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`w-4 h-4 rounded-full border-2 ${
-                        newRole === role ? 'bg-pink-400 border-pink-400' : 'border-gray-300'
-                      }`} />
+                      <span className={`w-4 h-4 rounded-full border-2 ${newRole === role ? 'bg-pink-400 border-pink-400' : 'border-gray-300'
+                        }`} />
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleColor(role)}`}>
                         {role}
                       </span>

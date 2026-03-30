@@ -16,52 +16,65 @@ export default function CreateTeamPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  
+
   const { user } = useAuth()
   const router = useRouter()
-  
+
   const regions = [
     'iOS QQ',
     '安卓QQ',
     '微信iOS',
     '微信安卓'
   ]
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
     setLoading(true)
-    
+
     if (!teamName || !region || !province || !city) {
       setError('请填写所有必填字段')
       setLoading(false)
       return
     }
-    
+
     try {
+      // 检查用户是否已经加入或创建了战队
+      const { data: existingMembers } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('user_id', user?.id)
+        .eq('status', 'active')
+
+      if (existingMembers && existingMembers.length > 0) {
+        setError('您已经加入了一个战队，不能再创建新战队')
+        setLoading(false)
+        return
+      }
+
       let avatarUrl: string | undefined
-      
+
       // 上传战队图标
       if (avatar) {
         const { data, error: uploadError } = await supabase
           .storage
           .from('team-avatars')
           .upload(`${Date.now()}-${avatar.name}`, avatar)
-        
+
         if (uploadError) {
           throw uploadError
         }
-        
+
         // 获取图片 URL
         const { data: urlData } = supabase
           .storage
           .from('team-avatars')
           .getPublicUrl(data.path)
-        
+
         avatarUrl = urlData.publicUrl
       }
-      
+
       // 创建战队
       const { data: team, error: teamError } = await supabase
         .from('teams')
@@ -76,11 +89,11 @@ export default function CreateTeamPage() {
         })
         .select()
         .single()
-      
+
       if (teamError) {
         throw teamError
       }
-      
+
       // 将创建者添加为队长
       await supabase
         .from('team_members')
@@ -89,7 +102,7 @@ export default function CreateTeamPage() {
           team_id: team.id,
           role: '队长'
         })
-      
+
       setSuccess('战队创建成功！')
       setTimeout(() => {
         router.push('/teams/space')
@@ -101,30 +114,30 @@ export default function CreateTeamPage() {
       setLoading(false)
     }
   }
-  
+
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setAvatar(e.target.files[0])
     }
   }
-  
+
   return (
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold mb-6">创建战队</h1>
-        
+
         {error && (
           <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
             {error}
           </div>
         )}
-        
+
         {success && (
           <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">
             {success}
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
           <div className="mb-4">
             <label htmlFor="teamName" className="block text-gray-700 mb-2">
@@ -139,7 +152,7 @@ export default function CreateTeamPage() {
               required
             />
           </div>
-          
+
           <div className="mb-4">
             <label htmlFor="region" className="block text-gray-700 mb-2">
               大区 *
@@ -157,7 +170,7 @@ export default function CreateTeamPage() {
               ))}
             </select>
           </div>
-          
+
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label htmlFor="province" className="block text-gray-700 mb-2">
@@ -198,7 +211,7 @@ export default function CreateTeamPage() {
               />
             </div>
           </div>
-          
+
           <div className="mb-4">
             <label htmlFor="declaration" className="block text-gray-700 mb-2">
               战队宣言
@@ -211,7 +224,7 @@ export default function CreateTeamPage() {
               onChange={(e) => setDeclaration(e.target.value)}
             />
           </div>
-          
+
           <div className="mb-6">
             <label htmlFor="avatar" className="block text-gray-700 mb-2">
               战队图标
@@ -223,7 +236,7 @@ export default function CreateTeamPage() {
               onChange={handleAvatarChange}
             />
           </div>
-          
+
           <button
             type="submit"
             className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
