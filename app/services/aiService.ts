@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { PlayerProfile } from '../types/teamGrouping';
+import { PlayerProfile, AvailableTime } from '../types/teamGrouping';
 
 // 智谱AI API配置
 const ZHIPU_API_KEY = '242547db85954199ae6decacda106ddd.PSNp9my5FoajqbyA'; // 请替换为实际的API密钥
@@ -46,47 +46,90 @@ const 王者荣耀知识库 = {
   `
 };
 
+// 计算时间重叠度
+const calculateTimeOverlap = (player1: PlayerProfile, player2: PlayerProfile): number => {
+  let overlapCount = 0;
+  
+  // 简单计算时间重叠：相同天且时间范围有重叠
+  player1.available_time.forEach(time1 => {
+    player2.available_time.forEach(time2 => {
+      if (time1.day === time2.day) {
+        const start1 = parseInt(time1.start_time.replace(':', ''));
+        const end1 = parseInt(time1.end_time.replace(':', ''));
+        const start2 = parseInt(time2.start_time.replace(':', ''));
+        const end2 = parseInt(time2.end_time.replace(':', ''));
+        
+        if (Math.max(start1, start2) < Math.min(end1, end2)) {
+          overlapCount++;
+        }
+      }
+    });
+  });
+  
+  return overlapCount;
+};
+
+// 计算位置多样性分数
+const calculatePositionDiversity = (group: PlayerProfile[]): number => {
+  const positionSet = new Set<string>();
+  group.forEach(player => {
+    player.main_positions.forEach(pos => positionSet.add(pos));
+  });
+  return positionSet.size;
+};
+
+
+
 // 智能分组算法
 const generateOptimalGroups = (players: PlayerProfile[], groupSize: number = 5) => {
-  // 按段位排序
-  const sortedPlayers = [...players].sort((a, b) => (b.recent_rating || 0) - (a.recent_rating || 0));
-  
   const groups: PlayerProfile[][] = [];
+  const remainingPlayers = [...players];
   
   // 初始化分组
-  for (let i = 0; i < Math.ceil(players.length / groupSize); i++) {
+  const totalGroups = Math.ceil(players.length / groupSize);
+  for (let i = 0; i < totalGroups; i++) {
     groups.push([]);
   }
   
-  // 分配队员，确保段位均衡
-  sortedPlayers.forEach((player) => {
-    // 找到当前人数最少的分组
-    const targetGroup = groups.reduce((min, group) => 
-      group.length < min.length ? group : min, groups[0]);
-    targetGroup.push(player);
-  });
+  // 第一轮：优先分配核心队员到各组
+  const sortedPlayers = [...players].sort((a, b) => (b.recent_rating || 0) - (a.recent_rating || 0));
+  for (let i = 0; i < totalGroups && i < sortedPlayers.length; i++) {
+    groups[i].push(sortedPlayers[i]);
+    remainingPlayers.splice(remainingPlayers.findIndex(p => p.id === sortedPlayers[i].id), 1);
+  }
   
-  // 检查并调整分组，确保位置齐全
-  groups.forEach(group => {
-    const positionCounts = {
-      '上单': 0,
-      '打野': 0,
-      '中单': 0,
-      '射手': 0,
-      '辅助': 0
-    };
+  // 第二轮：为每个组分配位置互补的队员
+  remainingPlayers.forEach(player => {
+    let bestGroupIndex = 0;
+    let bestScore = -Infinity;
     
-    // 统计当前分组位置
-    group.forEach(player => {
-      player.main_positions.forEach(pos => {
-        if (positionCounts[pos as keyof typeof positionCounts] !== undefined) {
-          positionCounts[pos as keyof typeof positionCounts]++;
-        }
+    groups.forEach((group, index) => {
+      if (group.length >= groupSize) return;
+      
+      // 计算加入该组后的位置多样性
+      const tempGroup = [...group, player];
+      const positionDiversity = calculatePositionDiversity(tempGroup);
+      
+      // 计算时间重叠度
+      let totalTimeOverlap = 0;
+      group.forEach(groupPlayer => {
+        totalTimeOverlap += calculateTimeOverlap(player, groupPlayer);
       });
+      
+      // 计算综合分数
+      const score = positionDiversity * 10 + totalTimeOverlap * 5;
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestGroupIndex = index;
+      }
     });
     
-    // 这里可以添加更复杂的位置调整逻辑
+    groups[bestGroupIndex].push(player);
   });
+  
+  // 第三轮：微调分组，确保各组实力均衡
+  // 这里可以添加更复杂的调整逻辑，例如交换队员以平衡实力
   
   return groups;
 };
@@ -332,10 +375,56 @@ ${王者荣耀知识库.胜率提升}
           
           const nickname = userData?.nickname || '未知用户';
           context += `${nickname}：\n`;
+          
+          // 尝试从本地存储获取完整资料
+          let gameId = profile.game_id || '未设置';
+          let positionStats = profile.position_stats;
+          
+          // 从本地存储获取资料
+          try {
+            if (typeof window !== 'undefined') {
+              const storedProfile = localStorage.getItem(`playerProfile_${profile.user_id}_${teamId}`);
+              if (storedProfile) {
+                const parsedProfile = JSON.parse(storedProfile);
+                gameId = parsedProfile.gameId || gameId;
+                positionStats = parsedProfile.positionStats;
+              }
+            }
+          } catch (localStorageError) {
+            console.error('从本地存储获取资料失败:', localStorageError);
+          }
+          
+          // 获取用户擅长英雄
+          const { data: heroData } = await supabase
+            .from('player_heroes')
+            .select('hero:hero_id(id, name, position, image_url)')
+            .eq('player_profile_id', profile.id);
+          
+          context += `  游戏ID：${gameId}\n`;
           context += `  段位：${profile.current_rank || '未设置'}\n`;
-          context += `  状态：${profile.current_status || '未设置'}\n`;
-          context += `  游戏风格：${profile.game_style || '未设置'}\n`;
-          context += `  擅长位置：${profile.main_positions?.join('、') || '未设置'}\n\n`;
+          context += `  擅长位置：${profile.main_positions?.join('、') || '未设置'}\n`;
+          if (heroData && heroData.length > 0) {
+            context += `  常用英雄：${heroData.map(item => item.hero.name).join('、')}\n`;
+          } else {
+            context += `  常用英雄：未设置\n`;
+          }
+          if (positionStats) {
+            context += `  位置数据：\n`;
+            Object.entries(positionStats).forEach(([position, stats]) => {
+              if (stats.winRate || stats.kda || stats.rating || stats.power) {
+                context += `    ${position}：胜率 ${stats.winRate || '未设置'}，KDA ${stats.kda || '未设置'}，评分 ${stats.rating || '未设置'}，战力 ${stats.power || '未设置'}\n`;
+              }
+            });
+          }
+          if (profile.available_time && profile.available_time.length > 0) {
+            context += `  可比赛时间：\n`;
+            profile.available_time.forEach((time: AvailableTime) => {
+              context += `    ${time.day} ${time.start_time}-${time.end_time}\n`;
+            });
+          } else {
+            context += `  可比赛时间：未设置\n`;
+          }
+          context += `\n`;
         }
       }
       
@@ -410,13 +499,9 @@ ${王者荣耀知识库.胜率提升}
         const rating = profile.recent_rating || 0;
         const positions = profile.main_positions?.join('、') || '未设置';
         const rank = profile.current_rank || '未设置';
-        const status = profile.current_status || '未设置';
-        const style = profile.game_style || '未设置';
         
         response += `${i + 1}. ${nickname}\n`;
         response += `   段位：${rank}\n`;
-        response += `   状态：${status}\n`;
-        response += `   游戏风格：${style}\n`;
         response += `   段位评分：${rating}\n`;
         response += `   擅长位置：${positions}\n\n`;
       }
@@ -458,7 +543,7 @@ ${王者荣耀知识库.胜率提升}
         return '战队成员不足5人，无法生成分组。';
       }
       
-      // 转换为PlayerProfile类型，为每个队员获取用户信息
+      // 转换为PlayerProfile类型，为每个队员获取用户信息和英雄数据
       const players: PlayerProfile[] = [];
       for (const profile of profiles) {
         // 获取用户信息
@@ -468,9 +553,16 @@ ${王者荣耀知识库.胜率提升}
           .eq('id', profile.user_id)
           .single();
         
+        // 获取用户擅长英雄
+        const { data: heroData } = await supabase
+          .from('player_heroes')
+          .select('hero:hero_id(id, name, position, image_url)')
+          .eq('player_profile_id', profile.id);
+        
         players.push({
           ...profile,
-          user: userData || { id: profile.user_id, email: '', nickname: '未知用户' }
+          user: userData || { id: profile.user_id, email: '', nickname: '未知用户' },
+          heroes: heroData ? heroData.map((item) => item.hero) : []
         });
       }
       
@@ -493,26 +585,34 @@ ${王者荣耀知识库.胜率提升}
           });
         });
         
-        // 统计状态分布
-        const statusCounts: Record<string, number> = {};
+        // 统计常用英雄
+        const heroCounts: Record<string, number> = {};
         group.forEach(player => {
-          if (player.current_status) {
-            statusCounts[player.current_status] = (statusCounts[player.current_status] || 0) + 1;
-          }
+          player.heroes?.forEach(hero => {
+            heroCounts[hero.name] = (heroCounts[hero.name] || 0) + 1;
+          });
         });
         
         response += `   平均段位：${avgRating.toFixed(1)}\n`;
         response += `   位置分布：${Object.entries(positionCounts).map(([pos, count]) => `${pos}:${count}`).join('、')}\n`;
-        response += `   状态分布：${Object.entries(statusCounts).map(([status, count]) => `${status}:${count}`).join('、')}\n`;
+        if (Object.keys(heroCounts).length > 0) {
+          response += `   常用英雄：${Object.keys(heroCounts).slice(0, 5).join('、')}\n`;
+        }
+
         response += `   队员：\n`;
         
         group.forEach((player, playerIndex) => {
           const nickname = player.user?.nickname || '未知用户';
           const positions = player.main_positions?.join('、') || '未设置';
           const rank = player.current_rank || '未设置';
-          const status = player.current_status || '未设置';
+          const heroes = player.heroes?.map(h => h.name).join('、') || '未设置';
           
-          response += `     ${playerIndex + 1}. ${nickname} (${rank}) - ${positions} - ${status}\n`;
+          response += `     ${playerIndex + 1}. ${nickname} (${rank})\n`;
+          response += `       位置：${positions}\n`;
+          response += `       常用英雄：${heroes}\n`;
+          if (player.available_time && player.available_time.length > 0) {
+            response += `       可比赛时间：${player.available_time.map(t => `${t.day} ${t.start_time}-${t.end_time}`).join('、')}\n`;
+          }
         });
         
         response += '\n';
@@ -520,8 +620,8 @@ ${王者荣耀知识库.胜率提升}
       
       response += '分组说明：\n';
       response += '- 每组保证段位均衡，段位差不超过5\n';
-      response += '- 尽量确保位置齐全，满足战队赛需求\n';
-      response += '- 考虑队员近期状态，优化分组搭配\n';
+      response += '- 优先匹配位置不重复、可比赛时间重叠的队员\n';
+      response += '- 结合胜率、KDA、评分、战力及常用英雄均衡分组\n';
       response += '- 可根据实际情况进行调整';
       
       return response;
@@ -606,9 +706,7 @@ ${王者荣耀知识库.胜率提升}
       
       // 输出阵容
       Object.entries(formation).forEach(([position, player]) => {
-        response += `${position}：${player.user?.nickname || '未知用户'} (${player.current_rank || '未设置'})\n`;
-        response += `   游戏风格：${player.game_style || '未设置'}\n`;
-        response += `   近期状态：${player.current_status || '未设置'}\n\n`;
+        response += `${position}：${player.user?.nickname || '未知用户'} (${player.current_rank || '未设置'})\n\n`;
       });
       
       response += '阵容分析：\n';
@@ -655,12 +753,21 @@ ${王者荣耀知识库.胜率提升}
         return '您尚未填写游戏资料，请先完善个人信息。';
       }
       
+      // 获取用户擅长英雄
+      const { data: heroData } = await supabase
+        .from('player_heroes')
+        .select('hero:hero_id(id, name, position, image_url)')
+        .eq('player_profile_id', profile.id);
+      
       // 构建响应
       let response = `段位提升建议：\n\n`;
       response += `当前段位：${profile.current_rank || '未设置'}\n`;
-      response += `近期状态：${profile.current_status || '未设置'}\n`;
-      response += `游戏风格：${profile.game_style || '未设置'}\n`;
-      response += `擅长位置：${profile.main_positions?.join('、') || '未设置'}\n\n`;
+      response += `擅长位置：${profile.main_positions?.join('、') || '未设置'}\n`;
+      if (heroData && heroData.length > 0) {
+        response += `常用英雄：${heroData.map(item => item.hero.name).join('、')}\n\n`;
+      } else {
+        response += `常用英雄：未设置\n\n`;
+      }
       
       // 根据段位提供不同的建议
       const rank = profile.current_rank || '';
@@ -770,19 +877,11 @@ ${王者荣耀知识库.胜率提升}
       
       // 分析战队情况
       const rankDistribution: Record<string, number> = {};
-      const statusDistribution: Record<string, number> = {};
       const positionDistribution: Record<string, number> = {};
-      const styleDistribution: Record<string, number> = {};
       
       for (const profile of profiles) {
         if (profile.current_rank) {
           rankDistribution[profile.current_rank] = (rankDistribution[profile.current_rank] || 0) + 1;
-        }
-        if (profile.current_status) {
-          statusDistribution[profile.current_status] = (statusDistribution[profile.current_status] || 0) + 1;
-        }
-        if (profile.game_style) {
-          styleDistribution[profile.game_style] = (styleDistribution[profile.game_style] || 0) + 1;
         }
         if (profile.main_positions) {
           profile.main_positions.forEach((pos: string) => {
@@ -801,24 +900,10 @@ ${王者荣耀知识库.胜率提升}
       });
       response += '\n';
       
-      // 状态分布分析
-      response += '状态分布：\n';
-      Object.entries(statusDistribution).forEach(([status, count]) => {
-        response += `  ${status}：${count}人\n`;
-      });
-      response += '\n';
-      
       // 位置分布分析
       response += '位置分布：\n';
       Object.entries(positionDistribution).forEach(([position, count]) => {
         response += `  ${position}：${count}人\n`;
-      });
-      response += '\n';
-      
-      // 风格分布分析
-      response += '风格分布：\n';
-      Object.entries(styleDistribution).forEach(([style, count]) => {
-        response += `  ${style}：${count}人\n`;
       });
       response += '\n';
       
@@ -832,33 +917,14 @@ ${王者荣耀知识库.胜率提升}
         response += `1. 补充缺少的位置：${missingPositions.join('、')}\n`;
       }
       
-      // 状态调整建议
-      const lowPerformers = statusDistribution['低迷'] || 0;
-      if (lowPerformers > 0) {
-        response += `2. 关注状态低迷的队员，了解原因并提供支持\n`;
-      }
-      
-      // 风格搭配建议
-      const hasAggressive = styleDistribution['激进'] > 0;
-      const hasConservative = styleDistribution['保守'] > 0;
-      const hasBalanced = styleDistribution['全面'] > 0;
-      
-      if (!hasAggressive) {
-        response += `3. 适当增加激进风格的队员，提高团队进攻能力\n`;
-      }
-      if (!hasConservative) {
-        response += `4. 适当增加保守风格的队员，提高团队稳定性\n`;
-      }
-      if (!hasBalanced) {
-        response += `5. 适当增加全面风格的队员，提高团队适应性\n`;
-      }
+
       
       // 其他建议
-      response += `6. 定期组织团队训练，提高默契度\n`;
-      response += `7. 建立良好的沟通机制，及时解决团队问题\n`;
-      response += `8. 设置团队目标，提高队员积极性\n`;
-      response += `9. 分析比赛录像，总结经验教训\n`;
-      response += `10. 组织团队活动，增强团队凝聚力\n`;
+      response += `2. 定期组织团队训练，提高默契度\n`;
+      response += `3. 建立良好的沟通机制，及时解决团队问题\n`;
+      response += `4. 设置团队目标，提高队员积极性\n`;
+      response += `5. 分析比赛录像，总结经验教训\n`;
+      response += `6. 组织团队活动，增强团队凝聚力\n`;
       
       return response;
     } catch (error) {

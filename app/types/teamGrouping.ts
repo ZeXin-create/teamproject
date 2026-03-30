@@ -21,16 +21,15 @@ export interface PlayerProfile {
   id: string;
   user_id: string;
   team_id: string;
+  game_id?: string;
   main_positions: Position[];
-  historical_rating: number;
-  recent_rating: number;
+  historical_rating?: number;
+  recent_rating?: number;
+  position_stats?: Record<string, PositionStats>;
   available_time: AvailableTime[];
   accept_position_adjustment: boolean;
-  game_style?: string;
-  current_status?: string;
   current_rank?: string;
   rank_updated_at?: string;
-  status_updated_at?: string;
   created_at: string;
   updated_at: string;
   user?: {
@@ -62,14 +61,23 @@ export interface TeamGroup {
   }[];
 }
 
+// 位置统计数据类型
+export interface PositionStats {
+  win_rate: string;
+  kda: string;
+  rating: string;
+  heroes: number[];
+}
+
 // 创建/更新队员资料请求类型
 export interface CreatePlayerProfileRequest {
-  main_positions: Position[];
-  historical_rating: number;
-  recent_rating: number;
-  available_time: AvailableTime[];
+  game_id?: string;
+  current_rank?: string;
+  main_positions?: Position[];
+  position_stats?: Record<string, PositionStats>;
+  available_time?: AvailableTime[];
   accept_position_adjustment: boolean;
-  hero_ids: number[];
+  hero_ids?: number[];
 }
 
 // 分组请求类型

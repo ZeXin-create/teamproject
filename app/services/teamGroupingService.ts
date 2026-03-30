@@ -38,6 +38,14 @@ export const checkTeamMembership = async (user_id: string, team_id: string): Pro
     .eq('status', 'active')
     .single();
 
+  // 处理 406 错误和记录不存在的情况
+  if (error) {
+    if (error.code === 'PGRST116' || error.code === '406') {
+      return false;
+    }
+    console.error('检查战队成员失败:', error);
+  }
+
   return !error && data !== null;
 };
 
@@ -114,24 +122,31 @@ export const createOrUpdatePlayerProfile = async (user_id: string, team_id: stri
 
   let profileId: string;
 
+  // 准备更新或创建数据
+  const profileData: Partial<PlayerProfile> = {
+    // 使用空数组作为默认值，以满足数据库的 NOT NULL 约束
+    main_positions: data.main_positions || [],
+    available_time: data.available_time || [],
+    accept_position_adjustment: data.accept_position_adjustment
+  };
+
+  // 添加可选字段
+  if (data.current_rank) profileData.current_rank = data.current_rank;
+
   if (existingProfile) {
     // 更新现有资料
     const { data: updatedProfile, error } = await supabase
       .from('player_profiles')
-      .update({
-        main_positions: data.main_positions,
-        historical_rating: data.historical_rating,
-        recent_rating: data.recent_rating,
-        available_time: data.available_time,
-        accept_position_adjustment: data.accept_position_adjustment
-      })
+      .update(profileData)
       .eq('user_id', user_id)
       .eq('team_id', team_id)
       .select()
       .single();
 
     if (error) {
-      throw new Error('更新队员资料失败');
+      console.error('更新队员资料失败 - 详细错误:', error);
+      console.error('请求数据:', { user_id, team_id, profileData });
+      throw new Error('更新队员资料失败: ' + (error.message || error.code || '未知错误'));
     }
 
     profileId = updatedProfile.id;
@@ -148,24 +163,22 @@ export const createOrUpdatePlayerProfile = async (user_id: string, team_id: stri
       .insert({
         user_id,
         team_id,
-        main_positions: data.main_positions,
-        historical_rating: data.historical_rating,
-        recent_rating: data.recent_rating,
-        available_time: data.available_time,
-        accept_position_adjustment: data.accept_position_adjustment
+        ...profileData
       })
       .select()
       .single();
 
     if (error) {
-      throw new Error('创建队员资料失败');
+      console.error('创建队员资料失败 - 详细错误:', error);
+      console.error('请求数据:', { user_id, team_id, profileData });
+      throw new Error('创建队员资料失败: ' + (error.message || error.code || '未知错误'));
     }
 
     profileId = newProfile.id;
   }
 
   // 添加新的英雄关联
-  if (data.hero_ids.length > 0) {
+  if (data.hero_ids && data.hero_ids.length > 0) {
     const heroInserts = data.hero_ids.map(hero_id => ({
       player_profile_id: profileId,
       hero_id
@@ -179,6 +192,27 @@ export const createOrUpdatePlayerProfile = async (user_id: string, team_id: stri
       throw new Error('关联英雄失败');
     }
   }
+  // 暂时移除 position_stats 字段的处理，以避免 Supabase API 请求失败
+  // } else if (data.position_stats) {
+  //   // 从position_stats中提取英雄ID并关联
+  //   const allHeroes = Object.values(data.position_stats)
+  //     .flatMap(stats => stats.heroes);
+  // 
+  //   if (allHeroes.length > 0) {
+  //     const heroInserts = allHeroes.map(hero_id => ({
+  //       player_profile_id: profileId,
+  //       hero_id
+  //     }));
+  // 
+  //     const { error } = await supabase
+  //       .from('player_heroes')
+  //       .insert(heroInserts);
+  // 
+  //     if (error) {
+  //       throw new Error('关联英雄失败');
+  //     }
+  //   }
+  // }
 
   // 返回更新后的资料
   return await getPlayerProfile(user_id, team_id) as PlayerProfile;
@@ -300,14 +334,13 @@ const calculateAverageRating = (group: PlayerProfile[]): number => {
 // 段位到数值的映射
 const rankToValue = (rank: string): number => {
   const rankValues: Record<string, number> = {
-    '青铜': 1,
-    '白银': 2,
-    '黄金': 3,
-    '铂金': 4,
-    '钻石': 5,
-    '星耀': 6,
-    '王者': 7,
-    '荣耀王者': 8
+    '最强王者': 7,
+    '非凡王者': 8,
+    '无双王者': 9,
+    '绝世王者': 10,
+    '至圣王者': 11,
+    '荣耀王者': 12,
+    '传奇王者': 13
   };
   return rankValues[rank] || 0;
 };
@@ -346,14 +379,12 @@ export const createGroups = async (user_id: string, data: CreateGroupsRequest): 
     profile.available_time.length > 0
   );
 
-  // 按段位和状态排序
+  // 按段位排序
   eligiblePlayers.sort((a, b) => {
-    // 先按段位排序
+    // 按段位排序
     const rankDiff = rankToValue(b.current_rank || '') - rankToValue(a.current_rank || '');
     if (rankDiff !== 0) return rankDiff;
-    // 再按状态排序
-    const statusValues: Record<string, number> = { '良好': 3, '一般': 2, '低迷': 1 };
-    return (statusValues[b.current_status || ''] || 0) - (statusValues[a.current_status || ''] || 0);
+    return 0;
   });
 
   if (eligiblePlayers.length === 0) {
@@ -564,25 +595,16 @@ export const validateGroupBalance = (group: PlayerProfile[]) => {
 
   // 检查评分均衡性（简化版）
   const ratingVariance = group.reduce((sum, player) => {
-    return sum + Math.pow(player.recent_rating - averageRating, 2);
+    return sum + Math.pow((player.recent_rating || 0) - averageRating, 2);
   }, 0) / group.length;
 
   const isRatingBalanced = ratingVariance < 100; // 评分方差小于100视为均衡
-
-  // 检查状态分布
-  const statusDistribution = group.reduce((acc: Record<string, number>, player) => {
-    if (player.current_status) {
-      acc[player.current_status] = (acc[player.current_status] || 0) + 1;
-    }
-    return acc;
-  }, {});
 
   return {
     hasAllPositions,
     isRatingBalanced,
     rankDifferenceValid,
     positionDistribution,
-    statusDistribution,
     averageRating,
     averageRank
   };
