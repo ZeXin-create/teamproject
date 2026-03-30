@@ -404,15 +404,22 @@ ${王者荣耀知识库.胜率提升}
           context += `  段位：${profile.current_rank || '未设置'}\n`;
           context += `  擅长位置：${profile.main_positions?.join('、') || '未设置'}\n`;
           if (heroData && heroData.length > 0) {
-            context += `  常用英雄：${heroData.map(item => item.hero.name).join('、')}\n`;
+            const heroNames = [];
+            for (const item of heroData) {
+              if (item.hero && typeof item.hero === 'object' && 'name' in item.hero) {
+                heroNames.push(item.hero.name);
+              }
+            }
+            context += `  常用英雄：${heroNames.join('、')}\n`;
           } else {
             context += `  常用英雄：未设置\n`;
           }
           if (positionStats) {
             context += `  位置数据：\n`;
             Object.entries(positionStats).forEach(([position, stats]) => {
-              if (stats.winRate || stats.kda || stats.rating || stats.power) {
-                context += `    ${position}：胜率 ${stats.winRate || '未设置'}，KDA ${stats.kda || '未设置'}，评分 ${stats.rating || '未设置'}，战力 ${stats.power || '未设置'}\n`;
+              const typedStats = stats as { winRate?: string; kda?: string; rating?: string; power?: string };
+              if (typedStats.winRate || typedStats.kda || typedStats.rating || typedStats.power) {
+                context += `    ${position}：胜率 ${typedStats.winRate || '未设置'}，KDA ${typedStats.kda || '未设置'}，评分 ${typedStats.rating || '未设置'}，战力 ${typedStats.power || '未设置'}\n`;
               }
             });
           }
@@ -764,7 +771,13 @@ ${王者荣耀知识库.胜率提升}
       response += `当前段位：${profile.current_rank || '未设置'}\n`;
       response += `擅长位置：${profile.main_positions?.join('、') || '未设置'}\n`;
       if (heroData && heroData.length > 0) {
-        response += `常用英雄：${heroData.map(item => item.hero.name).join('、')}\n\n`;
+        const heroNames = [];
+        for (const item of heroData) {
+          if (item.hero && typeof item.hero === 'object' && 'name' in item.hero) {
+            heroNames.push(item.hero.name);
+          }
+        }
+        response += `常用英雄：${heroNames.join('、')}\n\n`;
       } else {
         response += `常用英雄：未设置\n\n`;
       }

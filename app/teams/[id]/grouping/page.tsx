@@ -36,6 +36,7 @@ interface PlayerProfile {
   }>;
   available_time: AvailableTime[];
   accept_position_adjustment: boolean;
+  current_rank?: string;
   created_at: string;
   updated_at: string;
   heroes?: Hero[];

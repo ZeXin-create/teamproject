@@ -66,6 +66,7 @@ export interface PositionStats {
   win_rate: string;
   kda: string;
   rating: string;
+  power?: string;
   heroes: number[];
 }
 
