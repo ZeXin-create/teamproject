@@ -20,9 +20,21 @@ interface Team {
   avatar_url?: string
 }
 
+interface Activity {
+  id?: string
+  type?: string
+  description?: string
+  created_at?: string
+  team_id?: string
+  [key: string]: unknown
+}
 
-
-
+interface TeamStats {
+  memberCount: number
+  matchCount: number
+  winRate: number
+  recentActivities: Activity[]
+}
 
 export default function TeamSpacePage() {
   const { user } = useAuth()
@@ -30,7 +42,7 @@ export default function TeamSpacePage() {
   const [team, setTeam] = useState<Team | null>(null)
   const [userRole, setUserRole] = useState('')
   const [loading, setLoading] = useState(true)
-  const [teamStats, setTeamStats] = useState({
+  const [teamStats, setTeamStats] = useState<TeamStats>({
     memberCount: 0,
     matchCount: 0,
     winRate: 0,
@@ -345,7 +357,7 @@ export default function TeamSpacePage() {
                           <div>
                             <div className="font-medium">{activity.description}</div>
                             <div className="text-sm text-gray-500">
-                              {new Date(activity.created_at).toLocaleString('zh-CN')}
+                              {activity.created_at ? new Date(activity.created_at).toLocaleString('zh-CN') : ''}
                             </div>
                           </div>
                         </div>
