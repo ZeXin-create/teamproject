@@ -8,7 +8,7 @@ interface PWAPromptProps {
 
 export const PWAPrompt: React.FC<PWAPromptProps> = ({ isLoggedIn }) => {
   const [showPrompt, setShowPrompt] = useState(false)
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<Event | null>(null)
 
   useEffect(() => {
     // 检查用户是否已经拒绝过提示

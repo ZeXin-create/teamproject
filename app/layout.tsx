@@ -8,8 +8,7 @@ import { AnimatePresence } from 'framer-motion'
 import OnboardingGuide from './components/OnboardingGuide'
 import VersionUpdateModal from './components/VersionUpdateModal'
 import PageTransition from './components/PageTransition'
-import PWAPrompt from './components/PWAPrompt'
-  import { APP_VERSION } from './utils/version'
+import { APP_VERSION } from './utils/version'
 
 export default function RootLayout({
   children,
