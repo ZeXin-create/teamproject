@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
+import PWAPrompt from '../components/PWAPrompt'
 
 interface User {
   id: string
@@ -37,7 +38,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  
+
   useEffect(() => {
     // 监听用户登录状态变化
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -70,7 +71,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     return () => subscription.unsubscribe()
   }, [])
-  
+
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
@@ -88,7 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false)
     }
   }
-  
+
   const register = async (email: string, password: string) => {
     setIsLoading(true)
     try {
@@ -106,7 +107,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false)
     }
   }
-  
+
   const logout = async () => {
     setIsLoading(true)
     try {
@@ -120,10 +121,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false)
     }
   }
-  
+
   return (
     <AuthContext.Provider value={{ user, isLoading, login, register, logout, successMessage, setSuccessMessage }}>
       {children}
+      <PWAPrompt isLoggedIn={!!user} />
     </AuthContext.Provider>
   )
 }

@@ -158,8 +158,16 @@ export default function AIChatPage() {
       // 保存用户消息
       await saveMessage('user', userMessage.content)
 
+      // 获取用户战队ID
+      const teamId = await AIService.getUserTeamId(user.id)
+
       // 调用AI服务
-      const response = await AIService.processQuery(userMessage.content, '', user.id)
+      let response: string
+      if (teamId) {
+        response = await AIService.processQuery(userMessage.content, teamId, user.id)
+      } else {
+        response = await AIService.processQueryWithContext(userMessage.content, [], user.id)
+      }
 
       // 保存AI回复
       const aiMessage = {

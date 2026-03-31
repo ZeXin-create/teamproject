@@ -5,6 +5,9 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 
+// 定义权限常量
+const RECRUIT_PERMISSIONS = ['队长', '副队']
+
 interface Recruit {
   id: string
   team_id: string
@@ -29,6 +32,7 @@ export default function RecruitPage() {
   const router = useRouter()
 
   const [recruits, setRecruits] = useState<Recruit[]>([])
+  const [userRole, setUserRole] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -39,6 +43,11 @@ export default function RecruitPage() {
     // 用户是该招募信息的创建者
     return recruit.created_by === user.id
   }, [user])
+
+  // 检查用户是否有发布招募信息的权限
+  const hasRecruitPermission = () => {
+    return RECRUIT_PERMISSIONS.includes(userRole)
+  }
 
   // 发布招募信息
   const [showRecruitForm, setShowRecruitForm] = useState(false)
@@ -63,6 +72,20 @@ export default function RecruitPage() {
 
     setLoading(true)
     try {
+      // 获取用户在战队中的角色
+      const { data: teamMember, error: teamMemberError } = await supabase
+        .from('team_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single()
+
+      if (teamMemberError) {
+        console.error('获取用户角色失败:', teamMemberError)
+      } else if (teamMember) {
+        setUserRole(teamMember.role || '')
+      }
+
       const { data, error } = await supabase
         .from('team_recruits')
         .select(`
@@ -119,6 +142,11 @@ export default function RecruitPage() {
 
     if (!user) {
       setError('请先登录')
+      return
+    }
+
+    if (!hasRecruitPermission()) {
+      setError('您没有权限发布招募信息')
       return
     }
 
@@ -378,7 +406,7 @@ export default function RecruitPage() {
           </h1>
         </div>
 
-        {user && (
+        {user && hasRecruitPermission() && (
           <div className="mb-6">
             <button
               className="glass-button px-6 py-3 text-white font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg animate-breathe"
@@ -397,6 +425,11 @@ export default function RecruitPage() {
             >
               ✨ 发布招募信息
             </button>
+          </div>
+        )}
+        {user && !hasRecruitPermission() && (
+          <div className="mb-6 p-4 bg-gray-100 text-gray-600 rounded-lg">
+            <p>您没有权限发布招募信息</p>
           </div>
         )}
 

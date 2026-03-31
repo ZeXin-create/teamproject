@@ -11,7 +11,7 @@ export default function CreateTeamSalePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   const [formData, setFormData] = useState<{
     goods_type: GoodsType;
     server_area: ServerArea;
@@ -72,7 +72,7 @@ export default function CreateTeamSalePage() {
         team_badge: formData.team_badge,
         id_name: formData.id_name
       };
-      
+
       await createTeamSale(submitData);
       setSuccess('商品发布成功！');
       // 3秒后跳转到商品列表页
@@ -109,20 +109,29 @@ export default function CreateTeamSalePage() {
       <Navbar />
       <div className="container mx-auto px-4 py-8">
         <div className="glass-card p-8 max-w-2xl mx-auto">
+          {/* 返回主页面导航 */}
+          <div className="flex items-center mb-6">
+            <button
+              className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2"
+              onClick={() => router.push('/')}
+            >
+              <span>←</span> 返回主页面
+            </button>
+          </div>
           <h1 className="text-3xl font-bold gradient-text mb-6 text-center">发布商品</h1>
-          
+
           {error && (
             <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
               {error}
             </div>
           )}
-          
+
           {success && (
             <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200">
               {success}
             </div>
           )}
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 商品类型 */}
             <div>
@@ -139,7 +148,7 @@ export default function CreateTeamSalePage() {
                 <option value={GoodsType.TEAM_AND_ID}>战队+ID 组合</option>
               </select>
             </div>
-            
+
             {/* 大区 */}
             <div>
               <label className="block text-gray-700 font-medium mb-2">大区 *</label>
@@ -157,7 +166,7 @@ export default function CreateTeamSalePage() {
                 ))}
               </select>
             </div>
-            
+
             {/* 价格 */}
             <div>
               <label className="block text-gray-700 font-medium mb-2">价格（元）*</label>
@@ -173,7 +182,7 @@ export default function CreateTeamSalePage() {
                 required
               />
             </div>
-            
+
             {/* 战队人数（仅战队和组合显示） */}
             {(formData.goods_type === GoodsType.TEAM || formData.goods_type === GoodsType.TEAM_AND_ID) && (
               <div>
@@ -190,7 +199,7 @@ export default function CreateTeamSalePage() {
                 />
               </div>
             )}
-            
+
             {/* 战队标（仅战队和组合显示） */}
             {(formData.goods_type === GoodsType.TEAM || formData.goods_type === GoodsType.TEAM_AND_ID) && (
               <div>
@@ -210,7 +219,7 @@ export default function CreateTeamSalePage() {
                 </select>
               </div>
             )}
-            
+
             {/* ID名称（仅ID和组合显示） */}
             {(formData.goods_type === GoodsType.ID || formData.goods_type === GoodsType.TEAM_AND_ID) && (
               <div>
@@ -226,7 +235,7 @@ export default function CreateTeamSalePage() {
                 />
               </div>
             )}
-            
+
             {/* 商品描述 */}
             <div>
               <label className="block text-gray-700 font-medium mb-2">商品描述 *</label>
@@ -240,7 +249,7 @@ export default function CreateTeamSalePage() {
                 required
               ></textarea>
             </div>
-            
+
             {/* 联系方式 */}
             <div>
               <label className="block text-gray-700 font-medium mb-2">联系方式 *</label>
@@ -254,7 +263,7 @@ export default function CreateTeamSalePage() {
                 required
               />
             </div>
-            
+
             <button
               type="submit"
               className="w-full glass-button py-3 text-white font-medium text-lg"

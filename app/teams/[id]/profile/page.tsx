@@ -1,21 +1,29 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '../../../context/AuthContext'
 import { getHeroes, getPlayerProfile, createOrUpdatePlayerProfile } from '../../../services/teamGroupingService'
 import { TeamDataService } from '../../../services/teamDataService'
 import { Position, Hero, AvailableTime } from '../../../types/teamGrouping'
 import Navbar from '../../../components/Navbar'
+import { ProfileSkeleton } from '../../../components/Skeleton'
+import { useNotification, NotificationContainer } from '../../../components/Notification'
 
 export default function PlayerProfilePage() {
   const params = useParams()
+  const router = useRouter()
   const teamId = params.id as string
   const { user } = useAuth()
+  const { success: showSuccess, error: showError } = useNotification()
+  const showErrorRef = React.useRef(showError)
+
+  // 当showError变化时更新ref
+  useEffect(() => {
+    showErrorRef.current = showError
+  }, [showError])
 
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [heroes, setHeroes] = useState<Hero[]>([])
   const [showProfileCard, setShowProfileCard] = useState(true)
   // 已移除未使用的profile状态
@@ -137,7 +145,7 @@ export default function PlayerProfilePage() {
       }
     } catch (err) {
       console.error('获取数据失败:', err)
-      setError(err instanceof Error ? err.message : '获取数据失败')
+      showErrorRef.current(err instanceof Error ? err.message : '获取数据失败')
     } finally {
       setLoading(false)
     }
@@ -160,7 +168,7 @@ export default function PlayerProfilePage() {
       } else {
         // 限制最多选择2个位置
         if (currentPositions.length >= 2) {
-          setError('最多只能选择2个擅长位置')
+          showError('最多只能选择2个擅长位置')
           return prev
         }
         return {
@@ -192,7 +200,7 @@ export default function PlayerProfilePage() {
       } else {
         // 添加英雄，每个位置最多3个
         if (currentHeroes.length >= 3) {
-          setError('每个位置最多选择3个英雄')
+          showError('每个位置最多选择3个英雄')
           return prev
         }
         return {
@@ -242,27 +250,25 @@ export default function PlayerProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setSuccess('')
 
     // 表单验证
     if (!formData.gameId) {
-      setError('请输入游戏ID')
+      showError('请输入游戏ID')
       return
     }
 
     if (!formData.currentRank) {
-      setError('请选择当前段位')
+      showError('请选择当前段位')
       return
     }
 
     if (formData.mainPositions.length === 0) {
-      setError('请至少选择一个常用位置')
+      showError('请至少选择一个常用位置')
       return
     }
 
     if (formData.availableTime.length === 0) {
-      setError('请至少添加一个可比赛时间段')
+      showError('请至少添加一个可比赛时间段')
       return
     }
 
@@ -270,23 +276,23 @@ export default function PlayerProfilePage() {
     for (const position of formData.mainPositions) {
       const stats = formData.positionStats[position]
       if (stats.heroes.length === 0) {
-        setError(`请为${position}位置选择至少一个常用英雄`)
+        showError(`请为${position}位置选择至少一个常用英雄`)
         return
       }
       if (!stats.winRate) {
-        setError(`请输入${position}位置的胜率`)
+        showError(`请输入${position}位置的胜率`)
         return
       }
       if (!stats.kda) {
-        setError(`请输入${position}位置的KDA`)
+        showError(`请输入${position}位置的KDA`)
         return
       }
       if (!stats.rating) {
-        setError(`请输入${position}位置的评分`)
+        showError(`请输入${position}位置的评分`)
         return
       }
       if (!stats.power) {
-        setError(`请输入${position}位置的战力`)
+        showError(`请输入${position}位置的战力`)
         return
       }
     }
@@ -314,11 +320,11 @@ export default function PlayerProfilePage() {
       // 保存到本地存储
       localStorage.setItem(`playerProfile_${user!.id}_${teamId}`, JSON.stringify(formData))
 
-      setSuccess('资料保存成功！')
+      showSuccess('资料保存成功！')
       setShowProfileCard(true)
     } catch (err) {
       console.error('保存资料失败:', err)
-      setError(err instanceof Error ? err.message : '保存失败，请稍后重试')
+      showError(err instanceof Error ? err.message : '保存失败，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -326,8 +332,13 @@ export default function PlayerProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">加载中...</div>
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <ProfileSkeleton />
+          </div>
+        </div>
       </div>
     )
   }
@@ -337,19 +348,19 @@ export default function PlayerProfilePage() {
       <Navbar />
       <div className="container mx-auto px-4 py-8">
         <div className="glass-card p-8 max-w-4xl mx-auto">
+          {/* 返回主页面导航 */}
+          <div className="flex items-center mb-6">
+            <button
+              className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2"
+              onClick={() => router.push('/')}
+            >
+              <span>←</span> 返回主页面
+            </button>
+          </div>
           <h1 className="text-3xl font-bold gradient-text mb-6 text-center">填写游戏资料</h1>
-
-          {error && (
-            <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
-              {error}
-            </div>
-          )}
 
           {showProfileCard ? (
             <div className="mb-6 space-y-4">
-              <div className="p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200">
-                {success}
-              </div>
               <div className="glass-card p-6 rounded-2xl border border-gray-200">
                 <h2 className="text-2xl font-bold mb-4">游戏资料卡片</h2>
                 <div className="space-y-3">
@@ -427,18 +438,6 @@ export default function PlayerProfilePage() {
             </div>
           ) : (
             <>
-              {error && (
-                <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
-                  {error}
-                </div>
-              )}
-
-              {success && (
-                <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200">
-                  {success}
-                </div>
-              )}
-
               <form onSubmit={handleSubmit} className="space-y-8">
                 {/* 游戏ID */}
                 <div>
@@ -705,6 +704,7 @@ export default function PlayerProfilePage() {
           )}
         </div>
       </div>
+      <NotificationContainer />
     </div>
   )
 }

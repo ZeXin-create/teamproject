@@ -31,7 +31,12 @@ const AIChat: React.FC<AIChatProps> = ({ teamId }) => {
 
     try {
       // 调用AI服务处理查询
-      const response = await AIService.processQuery(input, teamId, user.id)
+      let response: string
+      if (teamId) {
+        response = await AIService.processQuery(input, teamId, user.id)
+      } else {
+        response = await AIService.processQueryWithContext(input, [], user.id)
+      }
       // 添加AI回复
       setMessages(prev => [...prev, { role: 'ai' as const, content: response }])
     } catch (error) {

@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabase'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getLevelProgress, getLevelTitle, getLevelColor } from '../lib/userLevels'
+import Navbar from '../components/Navbar'
+import Sidebar from '../components/Sidebar'
 
 export default function ProfilePage() {
   const { user } = useAuth()
@@ -24,6 +26,7 @@ export default function ProfilePage() {
   const [avatar, setAvatar] = useState<File | null>(null)
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null)
+  const [avatarLoading, setAvatarLoading] = useState(false)
 
   // 用户等级信息
   const [userLevel, setUserLevel] = useState({
@@ -157,6 +160,17 @@ export default function ProfilePage() {
     try {
       let avatarUrl = userInfo.avatar
 
+      // 立即显示预览头像，提供实时反馈
+      if (avatar && previewAvatar) {
+        setUserInfo(prev => ({
+          ...prev,
+          avatar: previewAvatar,
+          nickname: userInfo.nickname,
+          gender: userInfo.gender,
+          birthday: userInfo.birthday
+        }))
+      }
+
       if (avatar) {
         const { data, error: uploadError } = await supabase
           .storage
@@ -221,6 +235,7 @@ export default function ProfilePage() {
         console.error('更新 profiles 表失败:', profileError)
       }
 
+      // 上传完成后更新为实际的头像URL
       setUserInfo(prev => ({
         ...prev,
         avatar: avatarUrl,
@@ -230,12 +245,16 @@ export default function ProfilePage() {
       }))
 
       setSuccess('个人信息更新成功！')
-      setTimeout(() => {
-        router.refresh()
-      }, 1000)
     } catch (err: unknown) {
       console.error('更新个人信息失败:', err)
       setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '更新个人信息失败，请稍后重试')
+      // 出错时恢复原来的状态
+      setUserInfo(prev => ({
+        ...prev,
+        nickname: userInfo.nickname,
+        gender: userInfo.gender,
+        birthday: userInfo.birthday
+      }))
     }
   }
 
@@ -258,7 +277,13 @@ export default function ProfilePage() {
   const handleSaveAvatar = async () => {
     if (!avatar) return
 
+    setAvatarLoading(true)
     try {
+      // 立即显示预览头像，提供实时反馈
+      if (previewAvatar) {
+        setUserInfo({ ...userInfo, avatar: previewAvatar })
+      }
+
       const { data, error: uploadError } = await supabase
         .storage
         .from('user-avatars')
@@ -309,17 +334,18 @@ export default function ProfilePage() {
         console.error('更新 profiles 表失败:', profileError)
       }
 
+      // 上传完成后更新为实际的头像URL
       setUserInfo({ ...userInfo, avatar: avatarUrl })
       setSuccess('头像更新成功！')
       setShowAvatarModal(false)
       setPreviewAvatar(null)
-
-      setTimeout(() => {
-        router.refresh()
-      }, 1000)
     } catch (err: unknown) {
       console.error('更新头像失败:', err)
       setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '更新头像失败，请稍后重试')
+      // 出错时恢复原来的头像
+      setUserInfo({ ...userInfo })
+    } finally {
+      setAvatarLoading(false)
     }
   }
 
@@ -334,187 +360,185 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
-        {/* 返回按钮 */}
-        <div className="flex items-center mb-8">
-          <button
-            className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2"
-            onClick={() => router.back()}
-          >
-            <span>←</span> 返回
-          </button>
-        </div>
-
-        {/* 错误和成功提示 */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
-            {error}
+    <div className="min-h-screen">
+      <Navbar />
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* 侧边栏 */}
+          <div className="hidden lg:block">
+            <Sidebar type="profile" />
           </div>
-        )}
 
-        {success && (
-          <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200">
-            {success}
-          </div>
-        )}
+          {/* 主内容区 */}
+          <div className="flex-1">
+            {/* 错误和成功提示 */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
+                {error}
+              </div>
+            )}
 
-        {/* 个人信息卡片 */}
-        <div className="glass-card p-8 mb-8">
-          <h1 className="text-2xl font-bold gradient-text mb-6 text-center">👤 个人资料</h1>
+            {success && (
+              <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200">
+                {success}
+              </div>
+            )}
 
-          <form onSubmit={handleSubmit}>
-            {/* 头像区域 */}
-            <div className="flex flex-col items-center mb-8">
-              <div className="relative mb-4">
-                {userInfo.avatar ? (
-                  <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-white/50 shadow-lg cursor-pointer hover:scale-105 transition-transform">
-                    <Image
-                      src={userInfo.avatar}
-                      alt="用户头像"
-                      width={112}
-                      height={112}
-                      className="object-cover"
-                      priority // 首屏图片，设置优先级
+            {/* 个人信息卡片 */}
+            <div className="glass-card p-8 mb-8">
+              <h1 className="text-2xl font-bold gradient-text mb-6 text-center">👤 个人资料</h1>
+
+              <form onSubmit={handleSubmit}>
+                {/* 头像区域 */}
+                <div className="flex flex-col items-center mb-8">
+                  <div className="relative mb-4">
+                    {userInfo.avatar ? (
+                      <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-white/50 shadow-lg cursor-pointer hover:scale-105 transition-transform">
+                        <Image
+                          src={userInfo.avatar}
+                          alt="用户头像"
+                          width={112}
+                          height={112}
+                          className="object-cover"
+                          priority // 首屏图片，设置优先级
+                          onClick={handleAvatarClick}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                    <div
+                      className={`w-28 h-28 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-lg cursor-pointer hover:scale-105 transition-transform ${userInfo.avatar ? 'hidden' : ''}`}
+                      style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
                       onClick={handleAvatarClick}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                      }}
+                    >
+                      {(userInfo.nickname || userInfo.email || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-pink-400 rounded-full flex items-center justify-center text-white shadow-md">
+                      ✏️
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500">点击头像查看或编辑</p>
+                  <h2 className="text-xl font-bold text-gray-800 mt-2">{userInfo.nickname || userInfo.email}</h2>
+
+                  {/* 用户等级信息 */}
+                  <div className="mt-4 w-full max-w-xs">
+                    <div className="glass-card p-4 rounded-2xl">
+                      <div className="flex justify-between items-center mb-3">
+                        <div>
+                          <span className={`font-bold ${getLevelColor(userLevel.level)}`}>
+                            Lv.{userLevel.level} {getLevelTitle(userLevel.level)}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          经验值: {userLevel.experience}
+                        </div>
+                      </div>
+
+                      {/* 等级进度条 */}
+                      <div className="w-full h-2 bg-gray-200 rounded-full mb-4">
+                        <div
+                          className="h-full bg-gradient-to-r from-pink-400 to-purple-500 rounded-full transition-all duration-500"
+                          style={{ width: `${getLevelProgress(userLevel.level, userLevel.experience)}%` }}
+                        ></div>
+                      </div>
+
+                      {/* 活跃度和贡献度 */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="text-center">
+                          <div className="text-sm text-gray-500 mb-1">活跃度</div>
+                          <div className="font-bold text-blue-600">{userLevel.activityScore}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-sm text-gray-500 mb-1">贡献度</div>
+                          <div className="font-bold text-pink-600">{userLevel.contributionScore}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 表单字段 */}
+                <div className="space-y-6">
+                  <div>
+                    <label htmlFor="nickname" className="block text-gray-700 font-medium mb-2">
+                      ✨ 昵称
+                    </label>
+                    <input
+                      type="text"
+                      id="nickname"
+                      className="glass-input w-full px-4 py-3 outline-none"
+                      value={userInfo.nickname}
+                      onChange={(e) => setUserInfo({ ...userInfo, nickname: e.target.value })}
+                      placeholder="请输入昵称"
                     />
                   </div>
-                ) : null}
-                <div
-                  className={`w-28 h-28 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-lg cursor-pointer hover:scale-105 transition-transform ${userInfo.avatar ? 'hidden' : ''}`}
-                  style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
-                  onClick={handleAvatarClick}
-                >
-                  {(userInfo.nickname || userInfo.email || 'U').charAt(0).toUpperCase()}
+
+                  <div>
+                    <label htmlFor="gender" className="block text-gray-700 font-medium mb-2">
+                      🌸 性别
+                    </label>
+                    <select
+                      id="gender"
+                      className="glass-input w-full px-4 py-3 outline-none"
+                      value={userInfo.gender}
+                      onChange={(e) => setUserInfo({ ...userInfo, gender: e.target.value })}
+                    >
+                      <option value="">请选择</option>
+                      <option value="男">👦 男</option>
+                      <option value="女">👧 女</option>
+                      <option value="其他">✨ 其他</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="birthday" className="block text-gray-700 font-medium mb-2">
+                      🎂 生日
+                    </label>
+                    <input
+                      type="date"
+                      id="birthday"
+                      className="glass-input w-full px-4 py-3 outline-none"
+                      value={userInfo.birthday}
+                      onChange={(e) => setUserInfo({ ...userInfo, birthday: e.target.value })}
+                    />
+                  </div>
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-pink-400 rounded-full flex items-center justify-center text-white shadow-md">
-                  ✏️
+
+                {/* 按钮 */}
+                <div className="flex justify-end gap-4 mt-8">
+                  <button
+                    type="button"
+                    className="px-6 py-3 rounded-2xl text-gray-600 hover:text-gray-800 hover:bg-white/50 transition-all"
+                    onClick={() => router.push('/')}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="submit"
+                    className="glass-button px-8 py-3 text-white font-medium"
+                  >
+                    💾 保存修改
+                  </button>
                 </div>
-              </div>
-              <p className="text-sm text-gray-500">点击头像查看或编辑</p>
-              <h2 className="text-xl font-bold text-gray-800 mt-2">{userInfo.nickname || userInfo.email}</h2>
+              </form>
+            </div>
 
-              {/* 用户等级信息 */}
-              <div className="mt-4 w-full max-w-xs">
-                <div className="glass-card p-4 rounded-2xl">
-                  <div className="flex justify-between items-center mb-3">
-                    <div>
-                      <span className={`font-bold ${getLevelColor(userLevel.level)}`}>
-                        Lv.{userLevel.level} {getLevelTitle(userLevel.level)}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      经验值: {userLevel.experience}
-                    </div>
-                  </div>
-
-                  {/* 等级进度条 */}
-                  <div className="w-full h-2 bg-gray-200 rounded-full mb-4">
-                    <div
-                      className="h-full bg-gradient-to-r from-pink-400 to-purple-500 rounded-full transition-all duration-500"
-                      style={{ width: `${getLevelProgress(userLevel.level, userLevel.experience)}%` }}
-                    ></div>
-                  </div>
-
-                  {/* 活跃度和贡献度 */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center">
-                      <div className="text-sm text-gray-500 mb-1">活跃度</div>
-                      <div className="font-bold text-blue-600">{userLevel.activityScore}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-gray-500 mb-1">贡献度</div>
-                      <div className="font-bold text-pink-600">{userLevel.contributionScore}</div>
-                    </div>
-                  </div>
+            {/* 移动端导航（仅在小屏幕显示） */}
+            <div className="lg:hidden mb-8">
+              <div className="glass-card p-4">
+                <h3 className="text-lg font-semibold mb-4">快捷导航</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <Link href="/friends" className="glass-card p-3 text-center hover:scale-105 transition-all duration-300">
+                    <div className="text-xl mb-1">👥</div>
+                    <div className="text-sm font-medium text-gray-800">我的好友</div>
+                  </Link>
                 </div>
               </div>
             </div>
-
-            {/* 表单字段 */}
-            <div className="space-y-6">
-              <div>
-                <label htmlFor="nickname" className="block text-gray-700 font-medium mb-2">
-                  ✨ 昵称
-                </label>
-                <input
-                  type="text"
-                  id="nickname"
-                  className="glass-input w-full px-4 py-3 outline-none"
-                  value={userInfo.nickname}
-                  onChange={(e) => setUserInfo({ ...userInfo, nickname: e.target.value })}
-                  placeholder="请输入昵称"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="gender" className="block text-gray-700 font-medium mb-2">
-                  🌸 性别
-                </label>
-                <select
-                  id="gender"
-                  className="glass-input w-full px-4 py-3 outline-none"
-                  value={userInfo.gender}
-                  onChange={(e) => setUserInfo({ ...userInfo, gender: e.target.value })}
-                >
-                  <option value="">请选择</option>
-                  <option value="男">👦 男</option>
-                  <option value="女">👧 女</option>
-                  <option value="其他">✨ 其他</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="birthday" className="block text-gray-700 font-medium mb-2">
-                  🎂 生日
-                </label>
-                <input
-                  type="date"
-                  id="birthday"
-                  className="glass-input w-full px-4 py-3 outline-none"
-                  value={userInfo.birthday}
-                  onChange={(e) => setUserInfo({ ...userInfo, birthday: e.target.value })}
-                />
-              </div>
-            </div>
-
-            {/* 按钮 */}
-            <div className="flex justify-end gap-4 mt-8">
-              <button
-                type="button"
-                className="px-6 py-3 rounded-2xl text-gray-600 hover:text-gray-800 hover:bg-white/50 transition-all"
-                onClick={() => router.back()}
-              >
-                取消
-              </button>
-              <button
-                type="submit"
-                className="glass-button px-8 py-3 text-white font-medium"
-              >
-                💾 保存修改
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* 功能导航 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Link href="/friends"
-            className="glass-card p-6 text-center hover:scale-105 transition-transform group">
-            <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">👥</div>
-            <h3 className="font-bold text-gray-800">我的好友</h3>
-            <p className="text-sm text-gray-500 mt-1">添加和管理好友</p>
-          </Link>
-          <Link href="/forum"
-            className="glass-card p-6 text-center hover:scale-105 transition-transform group">
-            <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">💬</div>
-            <h3 className="font-bold text-gray-800">论坛</h3>
-            <p className="text-sm text-gray-500 mt-1">讨论游戏和战队</p>
-          </Link>
+          </div>
         </div>
 
         {/* 头像编辑模态框 */}
@@ -570,8 +594,9 @@ export default function ProfilePage() {
                   type="button"
                   className="glass-button px-8 py-3 text-white font-medium"
                   onClick={handleSaveAvatar}
+                  disabled={avatarLoading}
                 >
-                  💾 保存头像
+                  {avatarLoading ? '保存中...' : '💾 保存头像'}
                 </button>
               </div>
             </div>

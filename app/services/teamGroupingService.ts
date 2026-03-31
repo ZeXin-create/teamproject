@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase';
 import { Hero, PlayerProfile, TeamGroup, CreatePlayerProfileRequest, CreateGroupsRequest, UpdateGroupMembersRequest } from '../types/teamGrouping';
 
+
+
 // 获取英雄库
 export const getHeroes = async (): Promise<Hero[]> => {
   const { data, error } = await supabase
@@ -90,11 +92,15 @@ export const getPlayerProfile = async (user_id: string, team_id: string): Promis
   }
 
   // 获取用户信息
-  const { data: userData } = await supabase
+  const { data: userData, error: userError } = await supabase
     .from('profiles')
     .select('id, email, nickname, avatar')
     .eq('id', user_id)
     .single();
+
+  if (userError) {
+    console.error('获取用户信息失败:', userError);
+  }
 
   // 获取擅长英雄
   const { data: heroData } = await supabase
@@ -102,10 +108,31 @@ export const getPlayerProfile = async (user_id: string, team_id: string): Promis
     .select('hero:hero_id(id, name, position, image_url)')
     .eq('player_profile_id', profile.id);
 
+  // 获取位置统计数据
+  const { data: positionStatsData } = await supabase
+    .from('player_position_stats')
+    .select('*')
+    .eq('player_profile_id', profile.id);
+
+  // 构建position_stats对象
+  const positionStats: Record<string, { win_rate: string; kda: string; rating: string; power: string; heroes: number[] }> = {};
+  if (positionStatsData) {
+    positionStatsData.forEach(stat => {
+      positionStats[stat.position] = {
+        win_rate: stat.win_rate?.toString() || '',
+        kda: stat.kda?.toString() || '',
+        rating: stat.rating?.toString() || '',
+        power: stat.power?.toString() || '',
+        heroes: [] // 英雄数据通过player_heroes获取
+      };
+    });
+  }
+
   return {
     ...profile,
     user: userData || { id: user_id, email: '', nickname: '未知用户' },
-    heroes: heroData ? heroData.map((item) => item.hero) : []
+    heroes: heroData ? heroData.map((item) => item.hero) : [],
+    position_stats: positionStats
   };
 };
 
@@ -133,89 +160,112 @@ export const createOrUpdatePlayerProfile = async (user_id: string, team_id: stri
   // 添加可选字段
   if (data.current_rank) profileData.current_rank = data.current_rank;
 
-  if (existingProfile) {
-    // 更新现有资料
-    const { data: updatedProfile, error } = await supabase
-      .from('player_profiles')
-      .update(profileData)
-      .eq('user_id', user_id)
-      .eq('team_id', team_id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('更新队员资料失败 - 详细错误:', error);
-      console.error('请求数据:', { user_id, team_id, profileData });
-      throw new Error('更新队员资料失败: ' + (error.message || error.code || '未知错误'));
-    }
-
-    profileId = updatedProfile.id;
-
-    // 删除旧的英雄关联
-    await supabase
-      .from('player_heroes')
-      .delete()
-      .eq('player_profile_id', profileId);
-  } else {
-    // 创建新资料
-    const { data: newProfile, error } = await supabase
-      .from('player_profiles')
-      .insert({
-        user_id,
-        team_id,
-        ...profileData
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('创建队员资料失败 - 详细错误:', error);
-      console.error('请求数据:', { user_id, team_id, profileData });
-      throw new Error('创建队员资料失败: ' + (error.message || error.code || '未知错误'));
-    }
-
-    profileId = newProfile.id;
+  // 开始事务
+  const { error: transactionError } = await supabase.rpc('begin');
+  if (transactionError) {
+    throw new Error('开始事务失败');
   }
 
-  // 添加新的英雄关联
-  if (data.hero_ids && data.hero_ids.length > 0) {
-    const heroInserts = data.hero_ids.map(hero_id => ({
-      player_profile_id: profileId,
-      hero_id
-    }));
+  try {
+    if (existingProfile) {
+      // 更新现有资料
+      const { data: updatedProfile, error } = await supabase
+        .from('player_profiles')
+        .update(profileData)
+        .eq('user_id', user_id)
+        .eq('team_id', team_id)
+        .select()
+        .single();
 
-    const { error } = await supabase
-      .from('player_heroes')
-      .insert(heroInserts);
+      if (error) {
+        throw new Error('更新队员资料失败: ' + (error.message || error.code || '未知错误'));
+      }
 
-    if (error) {
-      throw new Error('关联英雄失败');
+      profileId = updatedProfile.id;
+
+      // 删除旧的英雄关联
+      await supabase
+        .from('player_heroes')
+        .delete()
+        .eq('player_profile_id', profileId);
+
+      // 删除旧的位置统计数据
+      await supabase
+        .from('player_position_stats')
+        .delete()
+        .eq('player_profile_id', profileId);
+    } else {
+      // 创建新资料
+      const { data: newProfile, error } = await supabase
+        .from('player_profiles')
+        .insert({
+          user_id,
+          team_id,
+          ...profileData
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error('创建队员资料失败: ' + (error.message || error.code || '未知错误'));
+      }
+
+      profileId = newProfile.id;
     }
-  }
-  // 暂时移除 position_stats 字段的处理，以避免 Supabase API 请求失败
-  // } else if (data.position_stats) {
-  //   // 从position_stats中提取英雄ID并关联
-  //   const allHeroes = Object.values(data.position_stats)
-  //     .flatMap(stats => stats.heroes);
-  // 
-  //   if (allHeroes.length > 0) {
-  //     const heroInserts = allHeroes.map(hero_id => ({
-  //       player_profile_id: profileId,
-  //       hero_id
-  //     }));
-  // 
-  //     const { error } = await supabase
-  //       .from('player_heroes')
-  //       .insert(heroInserts);
-  // 
-  //     if (error) {
-  //       throw new Error('关联英雄失败');
-  //     }
-  //   }
-  // }
 
-  // 返回更新后的资料
-  return await getPlayerProfile(user_id, team_id) as PlayerProfile;
+    // 添加新的英雄关联
+    if (data.hero_ids && data.hero_ids.length > 0) {
+      const heroInserts = data.hero_ids.map(hero_id => ({
+        player_profile_id: profileId,
+        hero_id,
+        proficiency: 0,
+        usage_frequency: 0
+      }));
+
+      const { error } = await supabase
+        .from('player_heroes')
+        .insert(heroInserts);
+
+      if (error) {
+        throw new Error('关联英雄失败');
+      }
+    }
+
+    // 处理位置统计数据
+    if (data.position_stats) {
+      const positionStatsInserts = Object.entries(data.position_stats).map(([position, stats]) => ({
+        player_profile_id: profileId,
+        position,
+        win_rate: stats.win_rate ? parseFloat(stats.win_rate) : null,
+        kda: stats.kda ? parseFloat(stats.kda) : null,
+        rating: stats.rating ? parseFloat(stats.rating) : null,
+        power: stats.power ? parseInt(stats.power) : null
+      }));
+
+      if (positionStatsInserts.length > 0) {
+        const { error } = await supabase
+          .from('player_position_stats')
+          .insert(positionStatsInserts);
+
+        if (error) {
+          throw new Error('保存位置统计数据失败');
+        }
+      }
+    }
+
+    // 提交事务
+    const { error: commitError } = await supabase.rpc('commit');
+    if (commitError) {
+      throw new Error('提交事务失败');
+    }
+
+    // 返回更新后的资料
+    return await getPlayerProfile(user_id, team_id) as PlayerProfile;
+  } catch (error) {
+    // 回滚事务
+    await supabase.rpc('rollback');
+    throw error;
+  }
 };
 
 // 获取战队所有队员资料
@@ -252,10 +302,31 @@ export const getTeamPlayerProfiles = async (user_id: string, team_id: string): P
         .select('hero:hero_id(id, name, position, image_url)')
         .eq('player_profile_id', profile.id);
 
+      // 获取位置统计数据
+      const { data: positionStatsData } = await supabase
+        .from('player_position_stats')
+        .select('*')
+        .eq('player_profile_id', profile.id);
+
+      // 构建position_stats对象
+      const positionStats: Record<string, { win_rate: string; kda: string; rating: string; power: string; heroes: number[] }> = {};
+      if (positionStatsData) {
+        positionStatsData.forEach(stat => {
+          positionStats[stat.position] = {
+            win_rate: stat.win_rate?.toString() || '',
+            kda: stat.kda?.toString() || '',
+            rating: stat.rating?.toString() || '',
+            power: stat.power?.toString() || '',
+            heroes: [] // 英雄数据通过player_heroes获取
+          };
+        });
+      }
+
       return {
         ...profile,
         user: userData || { id: profile.user_id, email: '', nickname: '未知用户' },
-        heroes: heroData ? heroData.map((item) => item.hero) : []
+        heroes: heroData ? heroData.map((item) => item.hero) : [],
+        position_stats: positionStats
       };
     })
   );
@@ -418,7 +489,10 @@ export const createGroups = async (user_id: string, data: CreateGroupsRequest): 
       .from('team_groups')
       .insert({
         team_id: data.team_id,
-        group_name: groupName
+        group_name: groupName,
+        group_type: 'training',
+        creator_id: user_id,
+        valid_until: null
       })
       .select()
       .single();
@@ -431,7 +505,8 @@ export const createGroups = async (user_id: string, data: CreateGroupsRequest): 
     if (groups[i].length > 0) {
       const memberInserts = groups[i].map(player => ({
         group_id: newGroup.id,
-        user_id: player.user_id
+        user_id: player.user_id,
+        role: 'member'
       }));
 
       const { error: memberError } = await supabase

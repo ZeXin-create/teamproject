@@ -64,7 +64,15 @@ export default function ForumPage() {
       <Navbar />
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold gradient-text">王者荣耀贴吧</h1>
+          <div className="flex items-center gap-4">
+            <button
+              className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2"
+              onClick={() => router.push('/')}
+            >
+              <span>←</span> 返回主页面
+            </button>
+            <h1 className="text-3xl font-bold gradient-text">王者荣耀贴吧</h1>
+          </div>
           <button
             onClick={() => router.push(user ? '/forum/new' : '/auth/login')}
             className="glass-button px-6 py-3 text-white font-medium"

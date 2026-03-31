@@ -7,10 +7,14 @@ import { supabase } from '../../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Navbar from '../../../components/Navbar'
 
+// 定义权限常量
+const TEAM_INFO_PERMISSIONS = ['队长', '副队']
+
 export default function TeamInfoPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [teamId, setTeamId] = useState('')
+  const [userRole, setUserRole] = useState('')
   const [teamInfo, setTeamInfo] = useState<TeamInfo>({
     team_id: '',
     establishment_date: '',
@@ -32,7 +36,7 @@ export default function TeamInfoPage() {
     try {
       const { data, error } = await supabase
         .from('team_members')
-        .select('team_id')
+        .select('team_id, role')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .single()
@@ -42,6 +46,7 @@ export default function TeamInfoPage() {
         setLoading(false)
       } else if (data) {
         setTeamId(data.team_id)
+        setUserRole(data.role || '')
         setTeamInfo(prev => ({ ...prev, team_id: data.team_id }))
         fetchTeamInfo(data.team_id)
       }
@@ -90,6 +95,11 @@ export default function TeamInfoPage() {
     }
   }
 
+  // 检查用户是否有管理战队信息的权限
+  const hasTeamInfoPermission = () => {
+    return TEAM_INFO_PERMISSIONS.includes(userRole)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -133,95 +143,154 @@ export default function TeamInfoPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {hasTeamInfoPermission() ? (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">成立时间</label>
+                  <input
+                    type="date"
+                    value={teamInfo.establishment_date || ''}
+                    onChange={(e) => setTeamInfo({ ...teamInfo, establishment_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">战队宣言</label>
+                  <input
+                    type="text"
+                    value={teamInfo.team_declaration || ''}
+                    onChange={(e) => setTeamInfo({ ...teamInfo, team_declaration: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="输入战队宣言"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">成立时间</label>
-                <input
-                  type="date"
-                  value={teamInfo.establishment_date || ''}
-                  onChange={(e) => setTeamInfo({ ...teamInfo, establishment_date: e.target.value })}
+                <label className="block text-sm font-medium text-gray-700 mb-2">队内管理制度</label>
+                <textarea
+                  value={teamInfo.management_rules || ''}
+                  onChange={(e) => setTeamInfo({ ...teamInfo, management_rules: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={4}
+                  placeholder="输入队内管理制度"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">战队宣言</label>
-                <input
-                  type="text"
-                  value={teamInfo.team_declaration || ''}
-                  onChange={(e) => setTeamInfo({ ...teamInfo, team_declaration: e.target.value })}
+                <label className="block text-sm font-medium text-gray-700 mb-2">训练安排</label>
+                <textarea
+                  value={teamInfo.training_schedule || ''}
+                  onChange={(e) => setTeamInfo({ ...teamInfo, training_schedule: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="输入战队宣言"
+                  rows={4}
+                  placeholder="输入训练安排"
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">队内管理制度</label>
-              <textarea
-                value={teamInfo.management_rules || ''}
-                onChange={(e) => setTeamInfo({ ...teamInfo, management_rules: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={4}
-                placeholder="输入队内管理制度"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">比赛策略</label>
+                <textarea
+                  value={teamInfo.competition_strategy || ''}
+                  onChange={(e) => setTeamInfo({ ...teamInfo, competition_strategy: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={4}
+                  placeholder="输入比赛策略"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">训练安排</label>
-              <textarea
-                value={teamInfo.training_schedule || ''}
-                onChange={(e) => setTeamInfo({ ...teamInfo, training_schedule: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={4}
-                placeholder="输入训练安排"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">短期目标</label>
+                <textarea
+                  value={teamInfo.short_term_goals || ''}
+                  onChange={(e) => setTeamInfo({ ...teamInfo, short_term_goals: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="输入短期目标"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">比赛策略</label>
-              <textarea
-                value={teamInfo.competition_strategy || ''}
-                onChange={(e) => setTeamInfo({ ...teamInfo, competition_strategy: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={4}
-                placeholder="输入比赛策略"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">长期目标</label>
+                <textarea
+                  value={teamInfo.long_term_goals || ''}
+                  onChange={(e) => setTeamInfo({ ...teamInfo, long_term_goals: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="输入长期目标"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">短期目标</label>
-              <textarea
-                value={teamInfo.short_term_goals || ''}
-                onChange={(e) => setTeamInfo({ ...teamInfo, short_term_goals: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-                placeholder="输入短期目标"
-              />
-            </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {saving ? '保存中...' : '保存'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">成立时间</label>
+                  <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    {teamInfo.establishment_date || '未设置'}
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">长期目标</label>
-              <textarea
-                value={teamInfo.long_term_goals || ''}
-                onChange={(e) => setTeamInfo({ ...teamInfo, long_term_goals: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-                placeholder="输入长期目标"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">战队宣言</label>
+                  <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    {teamInfo.team_declaration || '未设置'}
+                  </div>
+                </div>
+              </div>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {saving ? '保存中...' : '保存'}
-              </button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">队内管理制度</label>
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                  {teamInfo.management_rules || '未设置'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">训练安排</label>
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                  {teamInfo.training_schedule || '未设置'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">比赛策略</label>
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                  {teamInfo.competition_strategy || '未设置'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">短期目标</label>
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                  {teamInfo.short_term_goals || '未设置'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">长期目标</label>
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                  {teamInfo.long_term_goals || '未设置'}
+                </div>
+              </div>
+
+              <div className="p-4 bg-gray-100 text-gray-600 rounded-lg">
+                <p>您没有权限修改战队信息</p>
+              </div>
             </div>
-          </form>
+          )}
         </div>
       </div>
     </div>

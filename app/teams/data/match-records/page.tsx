@@ -7,10 +7,14 @@ import { supabase } from '../../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Navbar from '../../../components/Navbar'
 
+// 定义权限常量
+const MATCH_RECORD_PERMISSIONS = ['队长', '副队', '领队', '组长']
+
 export default function MatchRecordsPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [teamId, setTeamId] = useState('')
+  const [userRole, setUserRole] = useState('')
   const [matchRecords, setMatchRecords] = useState<MatchRecord[]>([])
   const [newRecord, setNewRecord] = useState<MatchRecord>({
     team_id: '',
@@ -32,7 +36,7 @@ export default function MatchRecordsPage() {
     try {
       const { data, error } = await supabase
         .from('team_members')
-        .select('team_id')
+        .select('team_id, role')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .single()
@@ -42,6 +46,7 @@ export default function MatchRecordsPage() {
         setLoading(false)
       } else if (data) {
         setTeamId(data.team_id)
+        setUserRole(data.role || '')
         setNewRecord(prev => ({ ...prev, team_id: data.team_id }))
         fetchMatchRecords(data.team_id)
       }
@@ -131,6 +136,11 @@ export default function MatchRecordsPage() {
     }
   }
 
+  // 检查用户是否有管理比赛记录的权限
+  const hasMatchRecordPermission = () => {
+    return MATCH_RECORD_PERMISSIONS.includes(userRole)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -175,103 +185,109 @@ export default function MatchRecordsPage() {
           )}
 
           {/* 创建新记录 */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">添加比赛记录</h2>
-            <form onSubmit={editingRecord ? handleUpdateRecord : handleCreateRecord} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {hasMatchRecordPermission() ? (
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold mb-4">添加比赛记录</h2>
+              <form onSubmit={editingRecord ? handleUpdateRecord : handleCreateRecord} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">比赛日期</label>
+                    <input
+                      type="date"
+                      value={(editingRecord || newRecord).match_date}
+                      onChange={(e) => editingRecord ? 
+                        setEditingRecord({ ...editingRecord, match_date: e.target.value }) : 
+                        setNewRecord({ ...newRecord, match_date: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">对手</label>
+                    <input
+                      type="text"
+                      value={(editingRecord || newRecord).opponent}
+                      onChange={(e) => editingRecord ? 
+                        setEditingRecord({ ...editingRecord, opponent: e.target.value }) : 
+                        setNewRecord({ ...newRecord, opponent: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="输入对手名称"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">结果</label>
+                    <select
+                      value={(editingRecord || newRecord).result}
+                      onChange={(e) => editingRecord ? 
+                        setEditingRecord({ ...editingRecord, result: e.target.value }) : 
+                        setNewRecord({ ...newRecord, result: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="胜利">胜利</option>
+                      <option value="失败">失败</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">比分</label>
+                    <input
+                      type="text"
+                      value={(editingRecord || newRecord).score || ''}
+                      onChange={(e) => editingRecord ? 
+                        setEditingRecord({ ...editingRecord, score: e.target.value }) : 
+                        setNewRecord({ ...newRecord, score: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="例如：2-1"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">比赛日期</label>
-                  <input
-                    type="date"
-                    value={(editingRecord || newRecord).match_date}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">分析</label>
+                  <textarea
+                    value={(editingRecord || newRecord).analysis || ''}
                     onChange={(e) => editingRecord ? 
-                      setEditingRecord({ ...editingRecord, match_date: e.target.value }) : 
-                      setNewRecord({ ...newRecord, match_date: e.target.value })
+                      setEditingRecord({ ...editingRecord, analysis: e.target.value }) : 
+                      setNewRecord({ ...newRecord, analysis: e.target.value })
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    placeholder="输入比赛分析"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">对手</label>
-                  <input
-                    type="text"
-                    value={(editingRecord || newRecord).opponent}
-                    onChange={(e) => editingRecord ? 
-                      setEditingRecord({ ...editingRecord, opponent: e.target.value }) : 
-                      setNewRecord({ ...newRecord, opponent: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="输入对手名称"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">结果</label>
-                  <select
-                    value={(editingRecord || newRecord).result}
-                    onChange={(e) => editingRecord ? 
-                      setEditingRecord({ ...editingRecord, result: e.target.value }) : 
-                      setNewRecord({ ...newRecord, result: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="胜利">胜利</option>
-                    <option value="失败">失败</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">比分</label>
-                  <input
-                    type="text"
-                    value={(editingRecord || newRecord).score || ''}
-                    onChange={(e) => editingRecord ? 
-                      setEditingRecord({ ...editingRecord, score: e.target.value }) : 
-                      setNewRecord({ ...newRecord, score: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="例如：2-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">分析</label>
-                <textarea
-                  value={(editingRecord || newRecord).analysis || ''}
-                  onChange={(e) => editingRecord ? 
-                    setEditingRecord({ ...editingRecord, analysis: e.target.value }) : 
-                    setNewRecord({ ...newRecord, analysis: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows={3}
-                  placeholder="输入比赛分析"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-4">
-                {editingRecord && (
+                <div className="flex justify-end space-x-4">
+                  {editingRecord && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingRecord(null)}
+                      className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+                    >
+                      取消
+                    </button>
+                  )}
                   <button
-                    type="button"
-                    onClick={() => setEditingRecord(null)}
-                    className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+                    type="submit"
+                    disabled={saving}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
-                    取消
+                    {saving ? '保存中...' : (editingRecord ? '更新' : '添加')}
                   </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {saving ? '保存中...' : (editingRecord ? '更新' : '添加')}
-                </button>
-              </div>
-            </form>
-          </div>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="mb-8 p-4 bg-gray-100 text-gray-600 rounded-lg">
+              <p>您没有权限添加比赛记录</p>
+            </div>
+          )}
 
           {/* 比赛记录列表 */}
           <div>
@@ -302,18 +318,22 @@ export default function MatchRecordsPage() {
                       <div className="mt-2 text-sm">{record.analysis}</div>
                     )}
                     <div className="mt-4 flex justify-end space-x-2">
-                      <button
-                        onClick={() => setEditingRecord(record)}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
-                      >
-                        编辑
-                      </button>
-                      <button
-                        onClick={() => handleDeleteRecord(record.id || '')}
-                        className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors"
-                      >
-                        删除
-                      </button>
+                      {hasMatchRecordPermission() && (
+                        <>
+                          <button
+                            onClick={() => setEditingRecord(record)}
+                            className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                          >
+                            编辑
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRecord(record.id || '')}
+                            className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors"
+                          >
+                            删除
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

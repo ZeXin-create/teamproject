@@ -7,10 +7,14 @@ import { supabase } from '../../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Navbar from '../../../components/Navbar'
 
+// 定义权限常量
+const TRAINING_PLAN_PERMISSIONS = ['队长', '副队', '领队']
+
 export default function TrainingPlansPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [teamId, setTeamId] = useState('')
+  const [userRole, setUserRole] = useState('')
   const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([])
   const [newPlan, setNewPlan] = useState<TrainingPlan>({
     team_id: '',
@@ -35,7 +39,7 @@ export default function TrainingPlansPage() {
     try {
       const { data, error } = await supabase
         .from('team_members')
-        .select('team_id')
+        .select('team_id, role')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .single()
@@ -45,6 +49,7 @@ export default function TrainingPlansPage() {
         setLoading(false)
       } else if (data) {
         setTeamId(data.team_id)
+        setUserRole(data.role || '')
         setNewPlan(prev => ({ ...prev, team_id: data.team_id }))
         fetchTeamMembers(data.team_id)
         fetchTrainingPlans(data.team_id)
@@ -183,6 +188,11 @@ export default function TrainingPlansPage() {
     }
   }
 
+  // 检查用户是否有管理训练计划的权限
+  const hasTrainingPlanPermission = () => {
+    return TRAINING_PLAN_PERMISSIONS.includes(userRole)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -227,129 +237,135 @@ export default function TrainingPlansPage() {
           )}
 
           {/* 创建新计划 */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">添加训练计划</h2>
-            <form onSubmit={editingPlan ? handleUpdatePlan : handleCreatePlan} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">计划名称</label>
-                  <input
-                    type="text"
-                    value={(editingPlan || newPlan).plan_name}
-                    onChange={(e) => editingPlan ? 
-                      setEditingPlan({ ...editingPlan, plan_name: e.target.value }) : 
-                      setNewPlan({ ...newPlan, plan_name: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="输入计划名称"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">训练日期</label>
-                  <input
-                    type="date"
-                    value={(editingPlan || newPlan).training_date}
-                    onChange={(e) => editingPlan ? 
-                      setEditingPlan({ ...editingPlan, training_date: e.target.value }) : 
-                      setNewPlan({ ...newPlan, training_date: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
+          {hasTrainingPlanPermission() ? (
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold mb-4">添加训练计划</h2>
+              <form onSubmit={editingPlan ? handleUpdatePlan : handleCreatePlan} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">开始时间</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">计划名称</label>
                     <input
-                      type="time"
-                      value={(editingPlan || newPlan).start_time || ''}
+                      type="text"
+                      value={(editingPlan || newPlan).plan_name}
                       onChange={(e) => editingPlan ? 
-                        setEditingPlan({ ...editingPlan, start_time: e.target.value }) : 
-                        setNewPlan({ ...newPlan, start_time: e.target.value })
+                        setEditingPlan({ ...editingPlan, plan_name: e.target.value }) : 
+                        setNewPlan({ ...newPlan, plan_name: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="输入计划名称"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">训练日期</label>
+                    <input
+                      type="date"
+                      value={(editingPlan || newPlan).training_date}
+                      onChange={(e) => editingPlan ? 
+                        setEditingPlan({ ...editingPlan, training_date: e.target.value }) : 
+                        setNewPlan({ ...newPlan, training_date: e.target.value })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">结束时间</label>
-                    <input
-                      type="time"
-                      value={(editingPlan || newPlan).end_time || ''}
-                      onChange={(e) => editingPlan ? 
-                        setEditingPlan({ ...editingPlan, end_time: e.target.value }) : 
-                        setNewPlan({ ...newPlan, end_time: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">参与人员</label>
-                <div className="flex flex-wrap gap-2">
-                  {teamMembers.map((member) => (
-                    <label key={member.id} className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">开始时间</label>
                       <input
-                        type="checkbox"
-                        checked={((editingPlan || newPlan).participants || []).includes(member.id)}
-                        onChange={() => handleParticipantChange(member.id)}
+                        type="time"
+                        value={(editingPlan || newPlan).start_time || ''}
+                        onChange={(e) => editingPlan ? 
+                          setEditingPlan({ ...editingPlan, start_time: e.target.value }) : 
+                          setNewPlan({ ...newPlan, start_time: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
-                      <span>{member.name}</span>
-                    </label>
-                  ))}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">结束时间</label>
+                      <input
+                        type="time"
+                        value={(editingPlan || newPlan).end_time || ''}
+                        onChange={(e) => editingPlan ? 
+                          setEditingPlan({ ...editingPlan, end_time: e.target.value }) : 
+                          setNewPlan({ ...newPlan, end_time: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">训练内容</label>
-                <textarea
-                  value={(editingPlan || newPlan).content || ''}
-                  onChange={(e) => editingPlan ? 
-                    setEditingPlan({ ...editingPlan, content: e.target.value }) : 
-                    setNewPlan({ ...newPlan, content: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows={3}
-                  placeholder="输入训练内容"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">参与人员</label>
+                  <div className="flex flex-wrap gap-2">
+                    {teamMembers.map((member) => (
+                      <label key={member.id} className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={((editingPlan || newPlan).participants || []).includes(member.id)}
+                          onChange={() => handleParticipantChange(member.id)}
+                        />
+                        <span>{member.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">训练效果分析</label>
-                <textarea
-                  value={(editingPlan || newPlan).效果_analysis || ''}
-                  onChange={(e) => editingPlan ? 
-                    setEditingPlan({ ...editingPlan, 效果_analysis: e.target.value }) : 
-                    setNewPlan({ ...newPlan, 效果_analysis: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows={3}
-                  placeholder="输入训练效果分析"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">训练内容</label>
+                  <textarea
+                    value={(editingPlan || newPlan).content || ''}
+                    onChange={(e) => editingPlan ? 
+                      setEditingPlan({ ...editingPlan, content: e.target.value }) : 
+                      setNewPlan({ ...newPlan, content: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    placeholder="输入训练内容"
+                  />
+                </div>
 
-              <div className="flex justify-end space-x-4">
-                {editingPlan && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">训练效果分析</label>
+                  <textarea
+                    value={(editingPlan || newPlan).效果_analysis || ''}
+                    onChange={(e) => editingPlan ? 
+                      setEditingPlan({ ...editingPlan, 效果_analysis: e.target.value }) : 
+                      setNewPlan({ ...newPlan, 效果_analysis: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    placeholder="输入训练效果分析"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-4">
+                  {editingPlan && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingPlan(null)}
+                      className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+                    >
+                      取消
+                    </button>
+                  )}
                   <button
-                    type="button"
-                    onClick={() => setEditingPlan(null)}
-                    className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+                    type="submit"
+                    disabled={saving}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
-                    取消
+                    {saving ? '保存中...' : (editingPlan ? '更新' : '添加')}
                   </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {saving ? '保存中...' : (editingPlan ? '更新' : '添加')}
-                </button>
-              </div>
-            </form>
-          </div>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="mb-8 p-4 bg-gray-100 text-gray-600 rounded-lg">
+              <p>您没有权限添加训练计划</p>
+            </div>
+          )}
 
           {/* 训练计划列表 */}
           <div>
@@ -383,18 +399,22 @@ export default function TrainingPlansPage() {
                       <div className="mt-2 text-sm font-medium">效果分析: {plan.效果_analysis}</div>
                     )}
                     <div className="mt-4 flex justify-end space-x-2">
-                      <button
-                        onClick={() => setEditingPlan(plan)}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
-                      >
-                        编辑
-                      </button>
-                      <button
-                        onClick={() => handleDeletePlan(plan.id || '')}
-                        className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors"
-                      >
-                        删除
-                      </button>
+                      {hasTrainingPlanPermission() && (
+                        <>
+                          <button
+                            onClick={() => setEditingPlan(plan)}
+                            className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                          >
+                            编辑
+                          </button>
+                          <button
+                            onClick={() => handleDeletePlan(plan.id || '')}
+                            className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors"
+                          >
+                            删除
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { PlayerProfile, AvailableTime } from '../types/teamGrouping';
+import { PlayerProfile } from '../types/teamGrouping';
 
 // 智谱AI API配置
 const ZHIPU_API_KEY = '242547db85954199ae6decacda106ddd.PSNp9my5FoajqbyA'; // 请替换为实际的API密钥
@@ -347,31 +347,60 @@ ${王者荣耀知识库.胜率提升}
       }
       
       // 获取战队队员数量
-      const { data: members } = await supabase
-        .from('team_members')
-        .select('id')
-        .eq('team_id', teamId)
-        .eq('status', 'active');
+      let memberCount = 0;
+      try {
+        const { data: members, error: membersError } = await supabase
+          .from('team_members')
+          .select('id')
+          .eq('team_id', teamId)
+          .eq('status', 'active');
+        
+        if (!membersError && members) {
+          memberCount = members.length;
+        }
+      } catch (membersError) {
+        console.error('获取战队成员数量失败:', membersError);
+      }
       
-      context += `战队成员数量：${members?.length || 0}\n`;
+      context += `战队成员数量：${memberCount}\n`;
       
       // 获取战队队员资料
-      const { data: profiles } = await supabase
-        .from('player_profiles')
-        .select('*')
-        .eq('team_id', teamId);
+      let profilesCount = 0;
+      let profilesData = null;
+      try {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('player_profiles')
+          .select('*')
+          .eq('team_id', teamId);
+        
+        if (!profilesError && profiles) {
+          profilesCount = profiles.length;
+          profilesData = profiles;
+        }
+      } catch (profilesError) {
+        console.error('获取战队队员资料失败:', profilesError);
+      }
       
-      context += `已填写游戏资料的队员数量：${profiles?.length || 0}\n\n`;
+      context += `已填写游戏资料的队员数量：${profilesCount}\n\n`;
       
       // 添加队员详细信息
-      if (profiles && profiles.length > 0) {
+      if (profilesData && profilesData.length > 0) {
         context += '队员详细信息：\n';
-        for (const profile of profiles) {
-          const { data: userData } = await supabase
-            .from('profiles')
-            .select('nickname')
-            .eq('id', profile.user_id)
-            .single();
+        for (const profile of profilesData) {
+          let userData = null;
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('nickname')
+              .eq('id', profile.user_id)
+              .single();
+            
+            if (!error) {
+              userData = data;
+            }
+          } catch (userError) {
+            console.error('获取用户信息失败:', userError);
+          }
           
           const nickname = userData?.nickname || '未知用户';
           context += `${nickname}：\n`;
@@ -380,25 +409,40 @@ ${王者荣耀知识库.胜率提升}
           let gameId = profile.game_id || '未设置';
           let positionStats = profile.position_stats;
           
-          // 从本地存储获取资料
-          try {
-            if (typeof window !== 'undefined') {
+          // 从本地存储获取资料 - 只在客户端执行
+          if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+            try {
               const storedProfile = localStorage.getItem(`playerProfile_${profile.user_id}_${teamId}`);
               if (storedProfile) {
                 const parsedProfile = JSON.parse(storedProfile);
                 gameId = parsedProfile.gameId || gameId;
                 positionStats = parsedProfile.positionStats;
               }
+            } catch (localStorageError) {
+              console.error('从本地存储获取资料失败:', localStorageError);
             }
-          } catch (localStorageError) {
-            console.error('从本地存储获取资料失败:', localStorageError);
           }
           
           // 获取用户擅长英雄
-          const { data: heroData } = await supabase
-            .from('player_heroes')
-            .select('hero:hero_id(id, name, position, image_url)')
-            .eq('player_profile_id', profile.id);
+          let heroData = null;
+          try {
+            const { data, error } = await supabase
+              .from('player_heroes')
+              .select('hero_id')
+              .eq('player_profile_id', profile.id);
+            
+            if (!error && data && data.length > 0) {
+              // 获取英雄详细信息
+              const heroIds = data.map(item => item.hero_id);
+              const { data: heroesData } = await supabase
+                .from('heroes')
+                .select('id, name, position, image_url')
+                .in('id', heroIds);
+              heroData = heroesData ? heroesData.map(hero => ({ hero })) : null;
+            }
+          } catch (heroError) {
+            console.error('获取英雄数据失败:', heroError);
+          }
           
           context += `  游戏ID：${gameId}\n`;
           context += `  段位：${profile.current_rank || '未设置'}\n`;
@@ -414,20 +458,42 @@ ${王者荣耀知识库.胜率提升}
           } else {
             context += `  常用英雄：未设置\n`;
           }
-          if (positionStats) {
+          if (positionStats && typeof positionStats === 'object') {
             context += `  位置数据：\n`;
-            Object.entries(positionStats).forEach(([position, stats]) => {
-              const typedStats = stats as { winRate?: string; kda?: string; rating?: string; power?: string };
-              if (typedStats.winRate || typedStats.kda || typedStats.rating || typedStats.power) {
-                context += `    ${position}：胜率 ${typedStats.winRate || '未设置'}，KDA ${typedStats.kda || '未设置'}，评分 ${typedStats.rating || '未设置'}，战力 ${typedStats.power || '未设置'}\n`;
-              }
-            });
+            try {
+              Object.entries(positionStats).forEach(([position, stats]) => {
+                if (stats && typeof stats === 'object') {
+                  const statsObj = stats as Record<string, string>;
+                  const winRate = statsObj.winRate || statsObj.win_rate || '未设置';
+                  const kda = statsObj.kda || '未设置';
+                  const rating = statsObj.rating || '未设置';
+                  const power = statsObj.power || '未设置';
+                  if (winRate || kda || rating || power) {
+                    context += `    ${position}：胜率 ${winRate}，KDA ${kda}，评分 ${rating}，战力 ${power}\n`;
+                  }
+                }
+              });
+            } catch (positionError) {
+              console.error('处理位置数据失败:', positionError);
+              context += `    位置数据获取失败\n`;
+            }
           }
-          if (profile.available_time && profile.available_time.length > 0) {
+          if (profile.available_time && Array.isArray(profile.available_time) && profile.available_time.length > 0) {
             context += `  可比赛时间：\n`;
-            profile.available_time.forEach((time: AvailableTime) => {
-              context += `    ${time.day} ${time.start_time}-${time.end_time}\n`;
-            });
+            try {
+              profile.available_time.forEach((time: unknown) => {
+                if (time && typeof time === 'object') {
+                  const timeObj = time as Record<string, string>;
+                  const day = timeObj.day || timeObj.day_of_week || '未知';
+                  const startTime = timeObj.start_time || timeObj.startTime || '00:00';
+                  const endTime = timeObj.end_time || timeObj.endTime || '23:59';
+                  context += `    ${day} ${startTime}-${endTime}\n`;
+                }
+              });
+            } catch (timeError) {
+              console.error('处理时间数据失败:', timeError);
+              context += `    时间数据获取失败\n`;
+            }
           } else {
             context += `  可比赛时间：未设置\n`;
           }

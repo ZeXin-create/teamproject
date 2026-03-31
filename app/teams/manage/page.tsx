@@ -32,18 +32,20 @@ interface Team {
 
 
 const AVAILABLE_ROLES: Record<string, string[]> = {
-  '队长': ['副队长', '领队', '精英', '成员'],
-  '副队长': ['领队', '精英', '成员'],
-  '领队': ['精英', '成员'],
+  '队长': ['副队长', '领队', '组长', '精英', '成员'],
+  '副队长': ['领队', '组长', '精英', '成员'],
+  '领队': ['组长', '精英', '成员'],
+  '组长': ['精英', '成员'],
   '精英': ['成员'],
   '成员': []
 }
 
 // 踢出权限配置
 const KICK_PERMISSIONS: Record<string, string[]> = {
-  '队长': ['副队长', '领队', '精英', '成员'],
-  '副队长': ['领队', '精英', '成员'],
-  '领队': [],
+  '队长': ['副队长', '领队', '组长', '精英', '成员'],
+  '副队长': ['领队', '组长', '精英', '成员'],
+  '领队': ['组长', '精英', '成员'],
+  '组长': ['精英', '成员'],
   '精英': [],
   '成员': []
 }
@@ -265,6 +267,7 @@ export default function TeamManagePage() {
       case '队长': return 'bg-yellow-100 text-yellow-600'
       case '副队长': return 'bg-purple-100 text-purple-600'
       case '领队': return 'bg-blue-100 text-blue-600'
+      case '组长': return 'bg-orange-100 text-orange-600'
       case '精英': return 'bg-green-100 text-green-600'
       default: return 'bg-gray-100 text-gray-600'
     }
