@@ -39,6 +39,15 @@ const AVAILABLE_ROLES: Record<string, string[]> = {
   '成员': []
 }
 
+// 踢出权限配置
+const KICK_PERMISSIONS: Record<string, string[]> = {
+  '队长': ['副队长', '领队', '精英', '成员'],
+  '副队长': ['领队', '精英', '成员'],
+  '领队': [],
+  '精英': [],
+  '成员': []
+}
+
 export default function TeamManagePage() {
   const { user } = useAuth()
   const router = useRouter()
@@ -194,6 +203,21 @@ export default function TeamManagePage() {
   }
 
   const handleKick = () => {
+    if (!selectedMember) return
+
+    // 检查权限：只有队长和副队长可以踢出成员
+    const hasKickPermission = KICK_PERMISSIONS[userRole]?.includes(selectedMember.role)
+    if (!hasKickPermission) {
+      alert('您没有权限执行此操作')
+      return
+    }
+
+    // 队长不能被踢出
+    if (selectedMember.role === '队长') {
+      alert('队长不能被踢出')
+      return
+    }
+
     setShowActionModal(false)
     setShowKickConfirm(true)
   }
@@ -404,16 +428,18 @@ export default function TeamManagePage() {
                   </button>
                 )}
 
-                <button
-                  onClick={handleKick}
-                  className="w-full glass-card p-4 text-left hover:bg-red-50 transition-all flex items-center gap-3"
-                >
-                  <span className="text-2xl">🚫</span>
-                  <div>
-                    <div className="font-medium text-red-600">踢出战队</div>
-                    <div className="text-sm text-gray-400">将该成员移出战队</div>
-                  </div>
-                </button>
+                {selectedMember && KICK_PERMISSIONS[userRole]?.includes(selectedMember.role) && selectedMember.role !== '队长' && (
+                  <button
+                    onClick={handleKick}
+                    className="w-full glass-card p-4 text-left hover:bg-red-50 transition-all flex items-center gap-3"
+                  >
+                    <span className="text-2xl">🚫</span>
+                    <div>
+                      <div className="font-medium text-red-600">踢出战队</div>
+                      <div className="text-sm text-gray-400">将该成员移出战队</div>
+                    </div>
+                  </button>
+                )}
 
                 <button
                   onClick={() => setShowActionModal(false)}
