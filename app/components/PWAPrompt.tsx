@@ -2,13 +2,18 @@
 
 import React, { useState, useEffect } from 'react'
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
 interface PWAPromptProps {
   isLoggedIn: boolean
 }
 
 export const PWAPrompt: React.FC<PWAPromptProps> = ({ isLoggedIn }) => {
   const [showPrompt, setShowPrompt] = useState(false)
-  const [deferredPrompt, setDeferredPrompt] = useState<Event | null>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
     // 检查用户是否已经拒绝过提示
@@ -28,7 +33,7 @@ export const PWAPrompt: React.FC<PWAPromptProps> = ({ isLoggedIn }) => {
       // 阻止Chrome 67及更早版本自动显示安装提示
       e.preventDefault()
       // 保存事件以便稍后触发
-      setDeferredPrompt(e)
+      setDeferredPrompt(e as BeforeInstallPromptEvent)
       // 只有在用户登录后才显示提示
       if (isLoggedIn) {
         setShowPrompt(true)
