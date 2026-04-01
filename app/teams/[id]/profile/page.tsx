@@ -299,8 +299,8 @@ export default function PlayerProfilePage() {
 
     setLoading(true)
     try {
-      // 提取所有选中的英雄ID
-      const heroIds = formData.mainPositions.flatMap(position => formData.positionStats[position].heroes)
+      // 提取所有选中的英雄ID，并去重以避免409 Conflict错误
+      const heroIds = [...new Set(formData.mainPositions.flatMap(position => formData.positionStats[position].heroes))]
 
       // 保存游戏资料
       await createOrUpdatePlayerProfile(user!.id, teamId, {
@@ -595,15 +595,16 @@ export default function PlayerProfilePage() {
                       <label className="block text-gray-700 font-medium mb-2">
                         常用英雄 * (最多选择3个)
                       </label>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 glass-card">
                         {heroes
                           .filter(hero => hero.position === position)
+                          .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
                           .map(hero => (
                             <button
                               key={hero.id}
                               type="button"
                               onClick={() => handleHeroChange(hero.id, position)}
-                              className={`px-3 py-1 rounded-full text-sm border-2 ${formData.positionStats[position].heroes.includes(hero.id) ? 'border-purple-500 bg-purple-100 text-purple-600' : 'border-gray-300 text-gray-600 hover:border-purple-300'}`}
+                              className={`px-3 py-1 rounded-full text-sm border-2 transition-all ${formData.positionStats[position].heroes.includes(hero.id) ? 'border-purple-500 bg-purple-100 text-purple-600' : 'border-gray-300 text-gray-600 hover:border-purple-300'}`}
                             >
                               {hero.name}
                             </button>

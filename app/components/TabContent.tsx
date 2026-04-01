@@ -30,17 +30,18 @@ export default function TabContent({ activeTab }: TabContentProps) {
 
   // 当切换到出售标签时，重定向到出售页面
   useEffect(() => {
-    if (activeTab === 3) {
+    if (activeTab === 2) {
       router.push('/team-sales')
     }
     // 当切换到贴吧社区标签时，重定向到贴吧页面
-    if (activeTab === 4) {
+    if (activeTab === 3) {
       router.push('/forum')
     }
   }, [activeTab, router])
   const [loading, setLoading] = useState(false)
   const [teams, setTeams] = useState<Array<{ id: string; name: string; avatar_url?: string; region?: string; declaration?: string; city?: string; member_count?: number; images?: string[] }>>([])
-  const [rankedTeams, setRankedTeams] = useState<Array<{ id: string; name: string; rank: number; avatar_url?: string; region?: string }>>([])
+  // 由于战队排行功能已被移除，此状态暂时注释
+  // const [rankedTeams, setRankedTeams] = useState<Array<{ id: string; name: string; rank: number; avatar_url?: string; region?: string }>>([])
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [selectedRegion, setSelectedRegion] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -91,34 +92,36 @@ export default function TabContent({ activeTab }: TabContentProps) {
     }
   }, [searchQuery, searchRegion])
 
-  const fetchRankedTeams = useCallback(async () => {
-    setLoading(true)
-    try {
-      let query = supabase
-        .from('teams')
-        .select('id, name, region, avatar_url')
-        .order('created_at', { ascending: false })
+  // 由于战队排行功能已被移除，此函数暂时注释
+  // const fetchRankedTeams = useCallback(async () => {
+  //   setLoading(true)
+  //   try {
+  //     let query = supabase
+  //       .from('teams')
+  //       .select('id, name, region, avatar_url')
+  //       .order('created_at', { ascending: false })
 
-      // 根据选择的大区筛选
-      if (selectedRegion) {
-        query = query.eq('region', selectedRegion)
-      }
+  //     // 根据选择的大区筛选
+  //     if (selectedRegion) {
+  //       query = query.eq('region', selectedRegion)
+  //     }
 
-      const { data } = await query
+  //     const { data } = await query
 
-      if (data) {
-        const ranked = data.map((team, index) => ({
-          ...team,
-          rank: index + 1
-        }))
-        setRankedTeams(ranked)
-      }
-    } catch (error) {
-      console.error('获取战队排行失败:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [selectedRegion])
+  //     if (data) {
+  //       // 为每个战队添加排名
+  //       const rankedTeams = data.map((team, index) => ({
+  //         ...team,
+  //         rank: index + 1
+  //       }))
+  //       setRankedTeams(rankedTeams)
+  //     }
+  //   } catch (error) {
+  //     console.error('获取战队排行失败:', error)
+  //   } finally {
+  //     setLoading(false)
+  //   }
+  // }, [selectedRegion])
 
   const fetchRecruits = useCallback(async () => {
     setLoading(true)
@@ -168,10 +171,8 @@ export default function TabContent({ activeTab }: TabContentProps) {
       fetchRecruits()
     } else if (activeTab === 1) {
       fetchTeams()
-    } else if (activeTab === 2) {
-      fetchRankedTeams()
     }
-  }, [activeTab, selectedRegion, fetchTeams, fetchRankedTeams, fetchRecruits])
+  }, [activeTab, selectedRegion, fetchTeams, fetchRecruits])
 
   const renderContent = () => {
     switch (activeTab) {
@@ -481,9 +482,9 @@ export default function TabContent({ activeTab }: TabContentProps) {
                     <div className="flex items-center gap-4">
                       <div
                         className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl font-bold ${team.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-orange-500' :
-                            team.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400' :
-                              team.rank === 3 ? 'bg-gradient-to-br from-orange-300 to-orange-400' :
-                                'bg-gradient-to-br from-blue-400 to-blue-500'
+                          team.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400' :
+                            team.rank === 3 ? 'bg-gradient-to-br from-orange-300 to-orange-400' :
+                              'bg-gradient-to-br from-blue-400 to-blue-500'
                           }`}
                       >
                         {team.rank === 1 ? '👑' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : team.rank}
@@ -525,6 +526,11 @@ export default function TabContent({ activeTab }: TabContentProps) {
       default:
         return null
     }
+  }
+
+  // 当activeTab为2或3时，不渲染任何内容，因为会通过useEffect重定向
+  if (activeTab === 2 || activeTab === 3) {
+    return null
   }
 
   return renderContent()

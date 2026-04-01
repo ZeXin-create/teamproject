@@ -80,6 +80,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password
       })
       if (error) {
+        // 检查是否是邮箱未验证错误
+        if (error.message === 'Email not confirmed' || error.message?.includes('Email not confirmed')) {
+          throw new Error('邮箱未验证，请前往邮箱点击验证链接完成注册')
+        }
         throw error
       }
     } catch (error) {

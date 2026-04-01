@@ -6,14 +6,14 @@ import { TeamDataService, MatchRecord } from '../../../services/teamDataService'
 import { supabase } from '../../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Navbar from '../../../components/Navbar'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement } from 'chart.js'
-import { Pie, Bar } from 'react-chartjs-2'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement, LineElement } from 'chart.js'
+import { Pie, Bar, Line } from 'react-chartjs-2'
 
 // 定义权限常量
 const ANALYTICS_PERMISSIONS = ['队长', '副队', '领队']
 
 // 注册Chart.js组件
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement)
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement, LineElement)
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
@@ -131,6 +131,63 @@ export default function AnalyticsPage() {
     }
   }
 
+  // 位置分布数据
+  const getPositionDistributionData = () => {
+    if (!teamStats?.positionDistribution) {
+      return { labels: [], datasets: [] }
+    }
+
+    return {
+      labels: Object.keys(teamStats.positionDistribution),
+      datasets: [
+        {
+          data: Object.values(teamStats.positionDistribution),
+          backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
+          borderWidth: 1
+        }
+      ]
+    }
+  }
+
+  // 胜率趋势数据
+  const getWinRateTrendData = () => {
+    if (!matchRecords || matchRecords.length === 0) {
+      return { labels: [], datasets: [] }
+    }
+
+    // 按日期排序
+    const sortedRecords = [...matchRecords].sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())
+    
+    // 计算累计胜率
+    let winCount = 0
+    const labels = []
+    const winRates = []
+    
+    sortedRecords.forEach((record, index) => {
+      if (record.result === '胜利') {
+        winCount++
+      }
+      const winRate = (winCount / (index + 1)) * 100
+      labels.push(record.match_date)
+      winRates.push(winRate)
+    })
+
+    return {
+      labels: labels,
+      datasets: [
+        {
+          label: '胜率趋势',
+          data: winRates,
+          borderColor: '#3B82F6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true
+        }
+      ]
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -191,26 +248,90 @@ export default function AnalyticsPage() {
               </div>
 
               {/* 图表区域 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* 状态分布饼图 */}
                 <div className="glass-card p-4">
-                  <h2 className="text-lg font-semibold mb-4">队员状态分布</h2>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <span>📊</span> 队员状态分布
+                  </h2>
                   <div className="h-64">
-                    <Pie data={getStatusDistributionData()} options={{ responsive: true, maintainAspectRatio: false }} />
+                    <Pie data={getStatusDistributionData()} options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'bottom'
+                        }
+                      }
+                    }} />
                   </div>
                 </div>
 
                 {/* 段位分布柱状图 */}
                 <div className="glass-card p-4">
-                  <h2 className="text-lg font-semibold mb-4">段位分布</h2>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <span>🏆</span> 段位分布
+                  </h2>
                   <div className="h-64">
-                    <Bar data={getRankDistributionData()} options={{ responsive: true, maintainAspectRatio: false }} />
+                    <Bar data={getRankDistributionData()} options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false,
+                      scales: {
+                        y: {
+                          beginAtZero: true
+                        }
+                      }
+                    }} />
                   </div>
                 </div>
 
-                {/* 比赛历史折线图 */}
-                <div className="glass-card p-4 md:col-span-2">
-                  <h2 className="text-lg font-semibold mb-4">比赛历史</h2>
+                {/* 位置分布饼图 */}
+                <div className="glass-card p-4">
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <span>🎮</span> 位置分布
+                  </h2>
+                  <div className="h-64">
+                    <Pie data={getPositionDistributionData()} options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'bottom'
+                        }
+                      }
+                    }} />
+                  </div>
+                </div>
+
+                {/* 胜率趋势折线图 */}
+                <div className="glass-card p-4 md:col-span-2 lg:col-span-3">
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <span>📈</span> 胜率趋势
+                  </h2>
+                  <div className="h-64">
+                    <Line data={getWinRateTrendData()} options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false,
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          max: 100,
+                          ticks: {
+                            callback: function(value) {
+                              return value + '%'
+                            }
+                          }
+                        }
+                      }
+                    }} />
+                  </div>
+                </div>
+
+                {/* 比赛历史柱状图 */}
+                <div className="glass-card p-4 md:col-span-2 lg:col-span-3">
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <span>📅</span> 比赛历史
+                  </h2>
                   <div className="h-64">
                     <Bar data={getMatchHistoryData()} options={{ 
                       responsive: true, 

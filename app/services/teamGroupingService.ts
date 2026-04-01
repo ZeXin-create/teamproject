@@ -1,33 +1,244 @@
 import { supabase } from '../lib/supabase';
 import { Hero, PlayerProfile, TeamGroup, CreatePlayerProfileRequest, CreateGroupsRequest, UpdateGroupMembersRequest } from '../types/teamGrouping';
 
+// 默认英雄列表 - 2026年最新数据
+const DEFAULT_HEROES: Hero[] = [
+  // 上单 (对抗路)
+  { id: 1, name: '亚瑟', position: '上单' },
+  { id: 2, name: '吕布', position: '上单' },
+  { id: 3, name: '程咬金', position: '上单' },
+  { id: 4, name: '花木兰', position: '上单' },
+  { id: 5, name: '铠', position: '上单' },
+  { id: 6, name: '李信', position: '上单' },
+  { id: 7, name: '马超', position: '上单' },
+  { id: 8, name: '关羽', position: '上单' },
+  { id: 9, name: '老夫子', position: '上单' },
+  { id: 10, name: '狂铁', position: '上单' },
+  { id: 11, name: '夏洛特', position: '上单' },
+  { id: 12, name: '司空震', position: '上单' },
+  { id: 13, name: '蒙恬', position: '上单' },
+  { id: 14, name: '猪八戒', position: '上单' },
+  { id: 15, name: '廉颇', position: '上单' },
+  { id: 16, name: '白起', position: '上单' },
+  { id: 17, name: '项羽', position: '上单' },
+  { id: 18, name: '刘邦', position: '上单' },
+  { id: 19, name: '哪吒', position: '上单' },
+  { id: 20, name: '杨戬', position: '上单' },
+  { id: 21, name: '达摩', position: '上单' },
+  { id: 22, name: '钟无艳', position: '上单' },
+  { id: 23, name: '夏侯惇', position: '上单' },
+  { id: 24, name: '曜', position: '上单' },
+  { id: 25, name: '赵怀真', position: '上单' },
+  { id: 26, name: '姬小满', position: '上单' },
+  { id: 27, name: '亚连', position: '上单' },
+  { id: 28, name: '海诺', position: '上单' },
+  { id: 29, name: '大司命', position: '上单' },
+  { id: 30, name: '元流之子', position: '上单' },
 
+  // 打野
+  { id: 31, name: '韩信', position: '打野' },
+  { id: 32, name: '李白', position: '打野' },
+  { id: 33, name: '赵云', position: '打野' },
+  { id: 34, name: '兰陵王', position: '打野' },
+  { id: 35, name: '孙悟空', position: '打野' },
+  { id: 36, name: '娜可露露', position: '打野' },
+  { id: 37, name: '百里玄策', position: '打野' },
+  { id: 38, name: '裴擒虎', position: '打野' },
+  { id: 39, name: '云中君', position: '打野' },
+  { id: 40, name: '镜', position: '打野' },
+  { id: 41, name: '澜', position: '打野' },
+  { id: 42, name: '云缨', position: '打野' },
+  { id: 43, name: '暃', position: '打野' },
+  { id: 44, name: '宫本武藏', position: '打野' },
+  { id: 45, name: '典韦', position: '打野' },
+  { id: 46, name: '阿轲', position: '打野' },
+  { id: 47, name: '露娜', position: '打野' },
+  { id: 48, name: '雅典娜', position: '打野' },
+  { id: 49, name: '刘备', position: '打野' },
+  { id: 50, name: '盘古', position: '打野' },
+  { id: 51, name: '橘右京', position: '打野' },
+  { id: 52, name: '司马懿', position: '打野' },
+  { id: 53, name: '诸葛亮', position: '打野' },
+  { id: 54, name: '芈月', position: '打野' },
+  { id: 55, name: '曜', position: '打野' },
+  { id: 56, name: '铠', position: '打野' },
+  { id: 57, name: '曹操', position: '打野' },
+  { id: 58, name: '大司命', position: '打野' },
+  { id: 59, name: '影', position: '打野' },
+  { id: 60, name: '元流之子', position: '打野' },
+
+  // 中单
+  { id: 61, name: '妲己', position: '中单' },
+  { id: 62, name: '安琪拉', position: '中单' },
+  { id: 63, name: '王昭君', position: '中单' },
+  { id: 64, name: '小乔', position: '中单' },
+  { id: 65, name: '貂蝉', position: '中单' },
+  { id: 66, name: '不知火舞', position: '中单' },
+  { id: 67, name: '干将莫邪', position: '中单' },
+  { id: 68, name: '上官婉儿', position: '中单' },
+  { id: 69, name: '西施', position: '中单' },
+  { id: 70, name: '杨玉环', position: '中单' },
+  { id: 71, name: '女娲', position: '中单' },
+  { id: 72, name: '武则天', position: '中单' },
+  { id: 73, name: '嬴政', position: '中单' },
+  { id: 74, name: '周瑜', position: '中单' },
+  { id: 75, name: '诸葛亮', position: '中单' },
+  { id: 76, name: '司马懿', position: '中单' },
+  { id: 77, name: '高渐离', position: '中单' },
+  { id: 78, name: '扁鹊', position: '中单' },
+  { id: 79, name: '张良', position: '中单' },
+  { id: 80, name: '芈月', position: '中单' },
+  { id: 81, name: '嫦娥', position: '中单' },
+  { id: 82, name: '弈星', position: '中单' },
+  { id: 83, name: '沈梦溪', position: '中单' },
+  { id: 84, name: '米莱狄', position: '中单' },
+  { id: 85, name: '金蝉', position: '中单' },
+  { id: 86, name: '海月', position: '中单' },
+  { id: 87, name: '姜子牙', position: '中单' },
+  { id: 88, name: '甄姬', position: '中单' },
+  { id: 89, name: '墨子', position: '中单' },
+  { id: 90, name: '元流之子', position: '中单' },
+
+  // 射手
+  { id: 201, name: '后羿', position: '射手' },
+  { id: 202, name: '鲁班七号', position: '射手' },
+  { id: 203, name: '孙尚香', position: '射手' },
+  { id: 204, name: '狄仁杰', position: '射手' },
+  { id: 205, name: '马可波罗', position: '射手' },
+  { id: 206, name: '公孙离', position: '射手' },
+  { id: 207, name: '虞姬', position: '射手' },
+  { id: 208, name: '黄忠', position: '射手' },
+  { id: 209, name: '百里守约', position: '射手' },
+  { id: 210, name: '蒙犽', position: '射手' },
+  { id: 211, name: '伽罗', position: '射手' },
+  { id: 212, name: '李元芳', position: '射手' },
+  { id: 213, name: '成吉思汗', position: '射手' },
+  { id: 214, name: '艾琳', position: '射手' },
+  { id: 215, name: '戈娅', position: '射手' },
+  { id: 216, name: '莱西奥', position: '射手' },
+  { id: 217, name: '敖隐', position: '射手' },
+  { id: 218, name: '苍', position: '射手' },
+  { id: 219, name: '元流之子', position: '射手' },
+
+  // 辅助
+  { id: 301, name: '庄周', position: '辅助' },
+  { id: 302, name: '蔡文姬', position: '辅助' },
+  { id: 303, name: '瑶', position: '辅助' },
+  { id: 304, name: '明世隐', position: '辅助' },
+  { id: 305, name: '孙膑', position: '辅助' },
+  { id: 306, name: '大乔', position: '辅助' },
+  { id: 307, name: '鬼谷子', position: '辅助' },
+  { id: 308, name: '东皇太一', position: '辅助' },
+  { id: 309, name: '盾山', position: '辅助' },
+  { id: 310, name: '鲁班大师', position: '辅助' },
+  { id: 311, name: '太乙真人', position: '辅助' },
+  { id: 312, name: '牛魔', position: '辅助' },
+  { id: 313, name: '张飞', position: '辅助' },
+  { id: 314, name: '刘禅', position: '辅助' },
+  { id: 315, name: '钟馗', position: '辅助' },
+  { id: 316, name: '苏烈', position: '辅助' },
+  { id: 317, name: '廉颇', position: '辅助' },
+  { id: 318, name: '项羽', position: '辅助' },
+  { id: 319, name: '桑启', position: '辅助' },
+  { id: 320, name: '金蝉', position: '辅助' },
+  { id: 321, name: '朵莉亚', position: '辅助' },
+  { id: 322, name: '少司缘', position: '辅助' },
+  { id: 323, name: '元流之子', position: '辅助' },
+  { id: 91, name: '大禹', position: '辅助' },
+];
 
 // 获取英雄库
 export const getHeroes = async (): Promise<Hero[]> => {
-  const { data, error } = await supabase
-    .from('heroes')
-    .select('*');
+  try {
+    const { data, error } = await supabase
+      .from('heroes')
+      .select('*');
 
-  if (error) {
-    throw new Error('获取英雄库失败');
+    if (error) {
+      console.warn('从数据库获取英雄失败，使用默认英雄列表:', error);
+      return DEFAULT_HEROES;
+    }
+
+    // 如果数据库中没有数据，返回默认英雄列表
+    if (!data || data.length === 0) {
+      console.warn('数据库中没有英雄数据，使用默认英雄列表');
+      return DEFAULT_HEROES;
+    }
+
+    // 确保返回的英雄列表包含所有默认英雄，避免英雄ID不匹配问题
+    const databaseHeroes = data;
+    const allHeroes = [...DEFAULT_HEROES];
+
+    // 用数据库中的英雄数据更新默认英雄列表
+    databaseHeroes.forEach(dbHero => {
+      const existingIndex = allHeroes.findIndex(hero => hero.id === dbHero.id);
+      if (existingIndex !== -1) {
+        allHeroes[existingIndex] = dbHero;
+      } else {
+        // 检查是否已有同名英雄，避免重复
+        const existingNameIndex = allHeroes.findIndex(hero => hero.name === dbHero.name);
+        if (existingNameIndex === -1) {
+          allHeroes.push(dbHero);
+        }
+      }
+    });
+
+    // 去重，确保没有重复的英雄
+    const uniqueHeroes = Array.from(new Map(allHeroes.map(hero => [hero.name, hero])).values());
+
+    return uniqueHeroes;
+  } catch (error) {
+    console.warn('获取英雄库失败，使用默认英雄列表:', error);
+    return DEFAULT_HEROES;
   }
-
-  return data;
 };
 
 // 按位置获取英雄
 export const getHeroesByPosition = async (position: string): Promise<Hero[]> => {
-  const { data, error } = await supabase
-    .from('heroes')
-    .select('*')
-    .eq('position', position);
+  try {
+    const { data, error } = await supabase
+      .from('heroes')
+      .select('*')
+      .eq('position', position);
 
-  if (error) {
-    throw new Error('获取英雄失败');
+    if (error) {
+      console.warn('从数据库获取英雄失败，使用默认英雄列表:', error);
+      return DEFAULT_HEROES.filter(hero => hero.position === position);
+    }
+
+    // 如果数据库中没有数据，返回默认英雄列表中对应位置的英雄
+    if (!data || data.length === 0) {
+      console.warn('数据库中没有对应位置的英雄数据，使用默认英雄列表');
+      return DEFAULT_HEROES.filter(hero => hero.position === position);
+    }
+
+    // 确保返回的英雄列表包含默认英雄列表中对应位置的所有英雄
+    const databaseHeroes = data;
+    const defaultPositionHeroes = DEFAULT_HEROES.filter(hero => hero.position === position);
+    const allHeroes = [...defaultPositionHeroes];
+
+    // 用数据库中的英雄数据更新默认英雄列表
+    databaseHeroes.forEach(dbHero => {
+      const existingIndex = allHeroes.findIndex(hero => hero.id === dbHero.id);
+      if (existingIndex !== -1) {
+        allHeroes[existingIndex] = dbHero;
+      } else {
+        // 检查是否已有同名英雄，避免重复
+        const existingNameIndex = allHeroes.findIndex(hero => hero.name === dbHero.name);
+        if (existingNameIndex === -1) {
+          allHeroes.push(dbHero);
+        }
+      }
+    });
+
+    // 去重，确保没有重复的英雄
+    const uniqueHeroes = Array.from(new Map(allHeroes.map(hero => [hero.name, hero])).values());
+
+    return uniqueHeroes;
+  } catch (error) {
+    console.warn('获取英雄失败，使用默认英雄列表:', error);
+    return DEFAULT_HEROES.filter(hero => hero.position === position);
   }
-
-  return data;
 };
 
 // 检查用户是否是战队成员
@@ -160,12 +371,6 @@ export const createOrUpdatePlayerProfile = async (user_id: string, team_id: stri
   // 添加可选字段
   if (data.current_rank) profileData.current_rank = data.current_rank;
 
-  // 开始事务
-  const { error: transactionError } = await supabase.rpc('begin');
-  if (transactionError) {
-    throw new Error('开始事务失败');
-  }
-
   try {
     if (existingProfile) {
       // 更新现有资料
@@ -213,22 +418,60 @@ export const createOrUpdatePlayerProfile = async (user_id: string, team_id: stri
       profileId = newProfile.id;
     }
 
+    // 先删除现有的英雄关联
+    try {
+      const { error: deleteError } = await supabase
+        .from('player_heroes')
+        .delete()
+        .eq('player_profile_id', profileId);
+
+      if (deleteError) {
+        console.warn('删除现有英雄关联失败:', deleteError);
+        // 继续执行，不中断流程
+      }
+    } catch (deleteError) {
+      console.warn('删除现有英雄关联出错:', deleteError);
+      // 继续执行，不中断流程
+    }
+
     // 添加新的英雄关联
     if (data.hero_ids && data.hero_ids.length > 0) {
-      const heroInserts = data.hero_ids.map(hero_id => ({
-        player_profile_id: profileId,
-        hero_id,
-        proficiency: 0,
-        usage_frequency: 0
-      }));
+      // 确保英雄ID唯一且有效
+      const uniqueHeroIds = [...new Set(data.hero_ids)].filter(hero_id => hero_id && typeof hero_id === 'number');
 
-      const { error } = await supabase
-        .from('player_heroes')
-        .insert(heroInserts);
+      if (uniqueHeroIds.length > 0) {
+        const heroInserts = uniqueHeroIds.map(hero_id => ({
+          player_profile_id: profileId,
+          hero_id,
+          proficiency: 0,
+          usage_frequency: 0
+        }));
 
-      if (error) {
-        throw new Error('关联英雄失败');
+        try {
+          const { error } = await supabase
+            .from('player_heroes')
+            .insert(heroInserts);
+
+          if (error) {
+            console.error('关联英雄失败:', error);
+            // 继续执行，不中断流程
+          }
+        } catch (error) {
+          console.error('关联英雄出错:', error);
+          // 继续执行，不中断流程
+        }
       }
+    }
+
+    // 先删除现有的位置统计数据
+    const { error: deleteStatsError } = await supabase
+      .from('player_position_stats')
+      .delete()
+      .eq('player_profile_id', profileId);
+
+    if (deleteStatsError) {
+      console.warn('删除现有位置统计数据失败:', deleteStatsError);
+      // 继续执行，不中断流程
     }
 
     // 处理位置统计数据
@@ -253,17 +496,10 @@ export const createOrUpdatePlayerProfile = async (user_id: string, team_id: stri
       }
     }
 
-    // 提交事务
-    const { error: commitError } = await supabase.rpc('commit');
-    if (commitError) {
-      throw new Error('提交事务失败');
-    }
-
     // 返回更新后的资料
     return await getPlayerProfile(user_id, team_id) as PlayerProfile;
   } catch (error) {
-    // 回滚事务
-    await supabase.rpc('rollback');
+    console.error('保存队员资料失败:', error);
     throw error;
   }
 };

@@ -295,6 +295,7 @@ export class TeamDataService {
     winRate: string;
     statusDistribution: Record<string, number>;
     rankDistribution: Record<string, number>;
+    positionDistribution: Record<string, number>;
   }> {
     try {
       // 获取比赛统计
@@ -311,7 +312,7 @@ export class TeamDataService {
       // 获取队员状态分布
       const { data: playerStats } = await supabase
         .from('player_profiles')
-        .select('current_status, current_rank')
+        .select('current_status, current_rank, main_positions')
         .eq('team_id', teamId);
       
       // 统计状态分布
@@ -330,12 +331,23 @@ export class TeamDataService {
         return acc;
       }, {}) || {};
       
+      // 统计位置分布
+      const positionDistribution = playerStats?.reduce((acc: Record<string, number>, player: { main_positions?: string[] }) => {
+        if (player.main_positions && Array.isArray(player.main_positions)) {
+          player.main_positions.forEach(position => {
+            acc[position] = (acc[position] || 0) + 1;
+          });
+        }
+        return acc;
+      }, {}) || {};
+      
       return {
         totalMatches,
         wins,
         winRate,
         statusDistribution,
-        rankDistribution
+        rankDistribution,
+        positionDistribution
       };
     } catch (error) {
       console.error('获取战队统计失败:', error);

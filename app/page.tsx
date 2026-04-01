@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Navbar from './components/Navbar'
 import TabContent from './components/TabContent'
+import ScrollingAnnouncement from './components/ScrollingAnnouncement'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState(0)
@@ -21,7 +22,7 @@ export default function Home() {
   const tabs = [
     '招募大厅',
     '战队列表',
-    '战区排行',
+    // '战区排行', // 暂时隐藏战区排行功能
     '战队/ID出售',
     '贴吧社区'
   ]
@@ -29,6 +30,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <Navbar />
+      <ScrollingAnnouncement />
       <div className="container mx-auto px-4 py-6">
         <div className="flex overflow-x-auto mb-6 border-b">
           {tabs.map((tab, index) => (

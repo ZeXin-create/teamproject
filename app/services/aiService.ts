@@ -80,6 +80,53 @@ const calculatePositionDiversity = (group: PlayerProfile[]): number => {
 
 
 
+// 计算英雄搭配分数
+const calculateHeroSynergy = (group: PlayerProfile[]): number => {
+  let synergyScore = 0;
+  const allHeroes = group.flatMap(player => player.heroes || []);
+  
+  // 检查英雄位置分布
+  const positionCounts: Record<string, number> = {};
+  allHeroes.forEach(hero => {
+    if (hero.position) {
+      positionCounts[hero.position] = (positionCounts[hero.position] || 0) + 1;
+    }
+  });
+  
+  // 理想的位置分布：1上单 + 1打野 + 1中单 + 1射手 + 1辅助
+  const idealPositions = ['上单', '打野', '中单', '射手', '辅助'];
+  idealPositions.forEach(pos => {
+    if (positionCounts[pos] >= 1) {
+      synergyScore += 10;
+    }
+  });
+  
+  // 检查英雄克制关系（简化版）
+  // 这里可以添加更复杂的英雄克制逻辑
+  
+  return synergyScore;
+};
+
+// 计算队伍战术体系分数
+const calculateTeamStrategy = (group: PlayerProfile[]): number => {
+  let strategyScore = 0;
+  
+  // 检查队伍平均段位
+  const avgRating = group.reduce((sum, player) => sum + (player.recent_rating || 0), 0) / group.length;
+  
+  // 段位越高，战术体系分数越高
+  if (avgRating >= 1800) strategyScore += 20;
+  else if (avgRating >= 1600) strategyScore += 15;
+  else if (avgRating >= 1400) strategyScore += 10;
+  else if (avgRating >= 1200) strategyScore += 5;
+  
+  // 检查位置多样性
+  const positionDiversity = calculatePositionDiversity(group);
+  strategyScore += positionDiversity * 2;
+  
+  return strategyScore;
+};
+
 // 智能分组算法
 const generateOptimalGroups = (players: PlayerProfile[], groupSize: number = 5) => {
   const groups: PlayerProfile[][] = [];
@@ -116,8 +163,14 @@ const generateOptimalGroups = (players: PlayerProfile[], groupSize: number = 5) 
         totalTimeOverlap += calculateTimeOverlap(player, groupPlayer);
       });
       
+      // 计算英雄搭配分数
+      const heroSynergy = calculateHeroSynergy(tempGroup);
+      
+      // 计算队伍战术体系分数
+      const teamStrategy = calculateTeamStrategy(tempGroup);
+      
       // 计算综合分数
-      const score = positionDiversity * 10 + totalTimeOverlap * 5;
+      const score = positionDiversity * 10 + totalTimeOverlap * 5 + heroSynergy * 8 + teamStrategy * 6;
       
       if (score > bestScore) {
         bestScore = score;
@@ -363,6 +416,41 @@ ${王者荣耀知识库.胜率提升}
       }
       
       context += `战队成员数量：${memberCount}\n`;
+      
+      // 获取战队统计数据
+      try {
+        const { totalMatches, wins, winRate, statusDistribution, rankDistribution, positionDistribution } = await import('../services/teamDataService').then(module => module.TeamDataService.getTeamStatistics(teamId));
+        
+        context += `总比赛数：${totalMatches}\n`;
+        context += `胜利数：${wins}\n`;
+        context += `胜率：${winRate}%\n\n`;
+        
+        if (Object.keys(statusDistribution).length > 0) {
+          context += '队员状态分布：\n';
+          Object.entries(statusDistribution).forEach(([status, count]) => {
+            context += `  ${status}：${count}人\n`;
+          });
+          context += '\n';
+        }
+        
+        if (Object.keys(rankDistribution).length > 0) {
+          context += '队员段位分布：\n';
+          Object.entries(rankDistribution).forEach(([rank, count]) => {
+            context += `  ${rank}：${count}人\n`;
+          });
+          context += '\n';
+        }
+        
+        if (Object.keys(positionDistribution).length > 0) {
+          context += '队员位置分布：\n';
+          Object.entries(positionDistribution).forEach(([position, count]) => {
+            context += `  ${position}：${count}人\n`;
+          });
+          context += '\n';
+        }
+      } catch (statsError) {
+        console.error('获取战队统计数据失败:', statsError);
+      }
       
       // 获取战队队员资料
       let profilesCount = 0;

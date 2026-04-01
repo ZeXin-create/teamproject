@@ -52,6 +52,7 @@ export default function RecruitPage() {
   // 发布招募信息
   const [showRecruitForm, setShowRecruitForm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [recruitForm, setRecruitForm] = useState({
     rank_requirement: '',
     positions: [] as string[],
@@ -346,6 +347,7 @@ export default function RecruitPage() {
       return
     }
 
+    setIsDeleting(true)
     try {
       const { error } = await supabase
         .from('team_recruits')
@@ -364,6 +366,8 @@ export default function RecruitPage() {
     } catch (err: unknown) {
       console.error('删除招募信息失败:', err)
       setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '删除招募信息失败，请稍后重试')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -560,10 +564,8 @@ export default function RecruitPage() {
           </div>
         )}
 
-
-
         {/* 招募信息列表 */}
-        <div className="space-y-4">
+        <div className="space-y-2">
           {recruits.length === 0 ? (
             <div className="glass-card p-12 text-center">
               <div className="text-6xl mb-4">🎮</div>
@@ -571,80 +573,70 @@ export default function RecruitPage() {
               <p className="text-gray-400 text-sm mt-2">点击上方按钮发布招募信息</p>
             </div>
           ) : (
-            recruits.map((recruit, index) => (
-              <div key={recruit.id} className="glass-card p-6 hover:scale-[1.02] transition-all duration-300 animate-fade-in-up" style={{ animationDelay: `${index * 0.1}s` }}>
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-800">{recruit.team?.name || '未知战队'}</h3>
+            <div className="glass-card overflow-hidden">
+              <div className="grid grid-cols-12 bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b">
+                <div className="col-span-3 font-semibold">战队名称</div>
+                <div className="col-span-2 font-semibold">段位要求</div>
+                <div className="col-span-2 font-semibold">擅长位置</div>
+                <div className="col-span-1 font-semibold">在线时间</div>
+                <div className="col-span-1 font-semibold">人数</div>
+                <div className="col-span-2 font-semibold">联系方式</div>
+                <div className="col-span-1 font-semibold">操作</div>
+              </div>
+              {recruits.map((recruit, index) => (
+                <div key={recruit.id} className="grid grid-cols-12 p-3 border-b hover:bg-gray-50 transition-colors animate-fade-in-up min-h-[80px]" style={{ animationDelay: `${index * 0.1}s` }}>
+                  <div className="col-span-3">
+                                  <div className="font-medium">{recruit.team?.name || '未知战队'}</div>
                     {recruit.team?.region && (
                       <span className="text-xs text-pink-500 mt-1 inline-block px-2 py-1 bg-pink-100 rounded-full">
                         {recruit.team.region}
                       </span>
                     )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-400">
+                    <div className="text-xs text-gray-400 mt-1">
                       {new Date(recruit.created_at).toLocaleDateString()}
-                    </span>
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    {recruit.rank_requirement || '不限'}
+                  </div>
+                  <div className="col-span-2">
+                    {recruit.positions && recruit.positions.length > 0 ? recruit.positions.join('、') : '不限'}
+                  </div>
+                  <div className="col-span-1">
+                    {recruit.online_time || '不限'}
+                  </div>
+                  <div className="col-span-1">
+                    {recruit.recruit_count || 0}人
+                  </div>
+                  <div className="col-span-2">      
+                    <div className="text-sm truncate">{recruit.contact}</div>
+                    <div className="text-sm text-gray-600 mt-1 truncate">
+                      {recruit.requirements?.substring(0, 20)}...
+                    </div>
+                  </div>
+                  <div className="col-span-1">
                     {canManageRecruit(recruit) && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-1">
                         <button
-                          className="text-sm text-blue-500 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                          className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
                           onClick={() => handleEditRecruit(recruit)}
                         >
                           编辑
                         </button>
                         <button
-                          className="text-sm text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                          className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
                           onClick={() => handleDeleteRecruit(recruit.id)}
-                        >
-                          删除
-                        </button>
+                        disabled={ isDeleting }
+  >
+                      {isDeleting ? '删除中...' : '删除'}
+                          </button>    
+  
                       </div>
                     )}
                   </div>
                 </div>
-
-                <div className="space-y-2 mb-4">
-                  {recruit.rank_requirement && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-pink-500">🏆</span>
-                      <span className="text-gray-700">段位要求：{recruit.rank_requirement}</span>
-                    </div>
-                  )}
-
-                  {recruit.positions && recruit.positions.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-pink-500">🎯</span>
-                      <span className="text-gray-700">擅长位置：{recruit.positions.join('、')}</span>
-                    </div>
-                  )}
-
-                  {recruit.online_time && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-pink-500">⏰</span>
-                      <span className="text-gray-700">在线时间：{recruit.online_time}</span>
-                    </div>
-                  )}
-
-                  {recruit.recruit_count && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-pink-500">👥</span>
-                      <span className="text-gray-700">招募人数：{recruit.recruit_count}人</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 mb-4">
-                  <p className="text-gray-700 leading-relaxed">{recruit.requirements}</p>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-xl p-3">
-                  <span className="text-pink-400">📞</span>
-                  <span>联系方式：{recruit.contact}</span>
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       </div>

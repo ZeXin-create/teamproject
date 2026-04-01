@@ -18,6 +18,7 @@ interface Team {
 
 export default function JoinTeamPage() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedRegion, setSelectedRegion] = useState('')
   const [teams, setTeams] = useState<Team[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState('')
@@ -31,10 +32,16 @@ export default function JoinTeamPage() {
     setError('')
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('teams')
         .select('*')
         .ilike('name', `%${searchQuery}%`)
+
+      if (selectedRegion) {
+        query = query.eq('region', selectedRegion)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         throw error
@@ -129,6 +136,17 @@ export default function JoinTeamPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            <select
+              className="px-4 py-2 border border-gray-300 rounded"
+              value={selectedRegion}
+              onChange={(e) => setSelectedRegion(e.target.value)}
+            >
+              <option value="">所有大区</option>
+              <option value="安卓QQ">安卓QQ</option>
+              <option value="安卓微信">安卓微信</option>
+              <option value="iOS QQ">iOS QQ</option>
+              <option value="iOS 微信">iOS 微信</option>
+            </select>
             <button
               type="submit"
               className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
