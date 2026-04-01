@@ -300,7 +300,7 @@ export default function PlayerProfilePage() {
     setLoading(true)
     try {
       // 提取所有选中的英雄ID，并去重以避免409 Conflict错误
-      const heroIds = [...new Set(formData.mainPositions.flatMap(position => formData.positionStats[position].heroes))]
+      const heroIds = Array.from(new Set(formData.mainPositions.flatMap(position => formData.positionStats[position].heroes)))
 
       // 保存游戏资料
       await createOrUpdatePlayerProfile(user!.id, teamId, {

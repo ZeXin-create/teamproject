@@ -437,7 +437,7 @@ export const createOrUpdatePlayerProfile = async (user_id: string, team_id: stri
     // 添加新的英雄关联
     if (data.hero_ids && data.hero_ids.length > 0) {
       // 确保英雄ID唯一且有效
-      const uniqueHeroIds = [...new Set(data.hero_ids)].filter(hero_id => hero_id && typeof hero_id === 'number');
+      const uniqueHeroIds = Array.from(new Set(data.hero_ids)).filter(hero_id => hero_id && typeof hero_id === 'number');
 
       if (uniqueHeroIds.length > 0) {
         const heroInserts = uniqueHeroIds.map(hero_id => ({

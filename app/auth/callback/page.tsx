@@ -1,22 +1,36 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '../../../lib/supabase'
+import { useRouter } from 'next/navigation'
+import { supabase } from '../../lib/supabase'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [message, setMessage] = useState('正在处理验证...')
   const [error, setError] = useState('')
 
+  // 使用useState和useEffect来模拟useSearchParams的功能
+  const [searchParams, setSearchParams] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    // 在客户端获取URL参数
+    const params = new URLSearchParams(window.location.search)
+    const paramsObj: Record<string, string> = {}
+    params.forEach((value, key) => {
+      paramsObj[key] = value
+    })
+    setSearchParams(paramsObj)
+  }, [])
+
   useEffect(() => {
     const handleAuthCallback = async () => {
+      if (Object.keys(searchParams).length === 0) return
+
       try {
         // 获取 URL 中的 access_token 和 refresh_token
-        const accessToken = searchParams.get('access_token')
-        const refreshToken = searchParams.get('refresh_token')
-        const type = searchParams.get('type')
+        const accessToken = searchParams['access_token']
+        const refreshToken = searchParams['refresh_token']
+        const type = searchParams['type']
 
         if (type === 'signup' || type === 'recovery') {
           if (accessToken && refreshToken) {

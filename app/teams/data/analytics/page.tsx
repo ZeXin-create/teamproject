@@ -25,6 +25,7 @@ export default function AnalyticsPage() {
     winRate: string;
     statusDistribution: Record<string, number>;
     rankDistribution: Record<string, number>;
+    positionDistribution: Record<string, number>;
   } | null>(null)
   const [matchRecords, setMatchRecords] = useState<MatchRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -160,8 +161,8 @@ export default function AnalyticsPage() {
     
     // 计算累计胜率
     let winCount = 0
-    const labels = []
-    const winRates = []
+    const labels: string[] = []
+    const winRates: number[] = []
     
     sortedRecords.forEach((record, index) => {
       if (record.result === '胜利') {

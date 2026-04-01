@@ -40,8 +40,8 @@ export default function TabContent({ activeTab }: TabContentProps) {
   }, [activeTab, router])
   const [loading, setLoading] = useState(false)
   const [teams, setTeams] = useState<Array<{ id: string; name: string; avatar_url?: string; region?: string; declaration?: string; city?: string; member_count?: number; images?: string[] }>>([])
-  // 由于战队排行功能已被移除，此状态暂时注释
-  // const [rankedTeams, setRankedTeams] = useState<Array<{ id: string; name: string; rank: number; avatar_url?: string; region?: string }>>([])
+  // 战队排行状态
+  const [rankedTeams, setRankedTeams] = useState<Array<{ id: string; name: string; rank: number; avatar_url?: string; region?: string }>>([])
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [selectedRegion, setSelectedRegion] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -92,36 +92,36 @@ export default function TabContent({ activeTab }: TabContentProps) {
     }
   }, [searchQuery, searchRegion])
 
-  // 由于战队排行功能已被移除，此函数暂时注释
-  // const fetchRankedTeams = useCallback(async () => {
-  //   setLoading(true)
-  //   try {
-  //     let query = supabase
-  //       .from('teams')
-  //       .select('id, name, region, avatar_url')
-  //       .order('created_at', { ascending: false })
+  // 获取战队排行
+  const fetchRankedTeams = useCallback(async () => {
+    setLoading(true)
+    try {
+      let query = supabase
+        .from('teams')
+        .select('id, name, region, avatar_url')
+        .order('created_at', { ascending: false })
 
-  //     // 根据选择的大区筛选
-  //     if (selectedRegion) {
-  //       query = query.eq('region', selectedRegion)
-  //     }
+      // 根据选择的大区筛选
+      if (selectedRegion) {
+        query = query.eq('region', selectedRegion)
+      }
 
-  //     const { data } = await query
+      const { data } = await query
 
-  //     if (data) {
-  //       // 为每个战队添加排名
-  //       const rankedTeams = data.map((team, index) => ({
-  //         ...team,
-  //         rank: index + 1
-  //       }))
-  //       setRankedTeams(rankedTeams)
-  //     }
-  //   } catch (error) {
-  //     console.error('获取战队排行失败:', error)
-  //   } finally {
-  //     setLoading(false)
-  //   }
-  // }, [selectedRegion])
+      if (data) {
+        // 为每个战队添加排名
+        const rankedTeams = data.map((team, index) => ({
+          ...team,
+          rank: index + 1
+        }))
+        setRankedTeams(rankedTeams)
+      }
+    } catch (error) {
+      console.error('获取战队排行失败:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedRegion])
 
   const fetchRecruits = useCallback(async () => {
     setLoading(true)
@@ -171,8 +171,10 @@ export default function TabContent({ activeTab }: TabContentProps) {
       fetchRecruits()
     } else if (activeTab === 1) {
       fetchTeams()
+    } else if (activeTab === 2) {
+      fetchRankedTeams()
     }
-  }, [activeTab, selectedRegion, fetchTeams, fetchRecruits])
+  }, [activeTab, selectedRegion, fetchTeams, fetchRecruits, fetchRankedTeams])
 
   const renderContent = () => {
     switch (activeTab) {
