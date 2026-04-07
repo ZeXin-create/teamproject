@@ -7,7 +7,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import Navbar from '../../components/Navbar'
 import Sidebar from '../../components/Sidebar'
-import { DashboardSkeleton } from '../../components/Skeleton'
+import ErrorBoundary from '../../components/ErrorBoundary'
+import { teamMenuConfig } from '../../config/menuConfig'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface Team {
   id: string
@@ -49,6 +51,17 @@ export default function TeamSpacePage() {
     recentActivities: []
   })
 
+  // 退出战队对话框状态
+  const [showQuitModal, setShowQuitModal] = useState(false)
+  // 退出结果提示状态
+  const [showQuitResult, setShowQuitResult] = useState(false)
+  const [quitResult, setQuitResult] = useState<{ success: boolean; message: string }>({ success: false, message: '' })
+  
+  // 删除战队状态
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showDeleteResult, setShowDeleteResult] = useState(false)
+  const [deleteResult, setDeleteResult] = useState<{ success: boolean; message: string }>({ success: false, message: '' })
+
   const fetchTeamStats = useCallback(async (teamId: string) => {
     try {
       // 获取战队成员数量
@@ -62,42 +75,11 @@ export default function TeamSpacePage() {
         console.error('获取战队成员失败:', membersError)
       }
 
-      // 获取近期比赛数量和胜率
-      const { data: matches, error: matchesError } = await supabase
-        .from('match_records')
-        .select('result')
-        .eq('team_id', teamId)
-        .order('match_date', { ascending: false })
-        .limit(10)
-
-      if (matchesError) {
-        console.error('获取比赛记录失败:', matchesError)
-      }
-
-      // 计算胜率
-      let winRate = 0
-      if (matches && matches.length > 0) {
-        const winCount = matches.filter(match => match.result === 'win').length
-        winRate = Math.round((winCount / matches.length) * 100)
-      }
-
-      // 获取近期活动
-      const { data: activities, error: activitiesError } = await supabase
-        .from('user_activities')
-        .select('*')
-        .eq('team_id', teamId)
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      if (activitiesError) {
-        console.error('获取活动记录失败:', activitiesError)
-      }
-
       setTeamStats({
         memberCount: members?.length || 0,
-        matchCount: matches?.length || 0,
-        winRate: winRate,
-        recentActivities: activities || []
+        matchCount: 0,
+        winRate: 0,
+        recentActivities: []
       })
     } catch (error) {
       console.error('获取战队统计数据失败:', error)
@@ -173,6 +155,29 @@ export default function TeamSpacePage() {
     }
   }, [user, checkUserTeam])
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // 骨架屏组件
+  const SkeletonCard = () => (
+    <div className="card p-6 animate-pulse">
+      <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="card p-4">
+            <div className="h-12 bg-gray-200 rounded w-1/2 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+          </div>
+        ))}
+      </div>
+      <div className="card p-4">
+        <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-12 bg-gray-200 rounded w-full mb-3"></div>
+        ))}
+      </div>
+    </div>
+  )
+
   if (loading) {
     return (
       <div className="min-h-screen">
@@ -181,7 +186,7 @@ export default function TeamSpacePage() {
           <div className="flex flex-col lg:flex-row gap-6">
             {/* 侧边栏 */}
             <div className="hidden lg:block">
-              <div className="glass-card p-6 w-64">
+              <div className="card p-6 w-64">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-12 h-12 rounded-full bg-gray-200 animate-pulse"></div>
                   <div>
@@ -198,7 +203,7 @@ export default function TeamSpacePage() {
             </div>
             {/* 主内容区 */}
             <div className="flex-1">
-              <DashboardSkeleton />
+              <SkeletonCard />
             </div>
           </div>
         </div>
@@ -208,7 +213,124 @@ export default function TeamSpacePage() {
 
   // 检查用户是否有管理权限（副队或队长）
   const hasManagementPermission = () => {
-    return ['队长', '副队'].includes(userRole)
+    return ['队长', '副队长'].includes(userRole)
+  }
+
+  // 显示退出战队对话框
+  const handleQuitClick = () => {
+    if (!team?.id || !user?.id) return
+    
+    if (userRole === '队长') {
+      alert('队长不能退出战队，请先转让队长职务')
+      return
+    }
+    
+    setShowQuitModal(true)
+  }
+
+  // 确认退出战队
+  const confirmQuitTeam = async () => {
+    if (!team?.id || !user?.id) return
+    
+    setShowQuitModal(false)
+    
+    try {
+      const response = await fetch('/api/team/kick-member', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          teamId: team.id,
+          kickedBy: user.id
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setQuitResult({ success: true, message: '已成功退出战队' })
+        setShowQuitResult(true)
+        
+        // 3秒后跳转到战队空间页面
+        setTimeout(() => {
+          window.location.href = '/teams/space'
+        }, 3000)
+      } else {
+        setQuitResult({ success: false, message: '退出战队失败：' + (result.error || '未知错误') })
+        setShowQuitResult(true)
+        
+        // 3秒后关闭提示
+        setTimeout(() => {
+          setShowQuitResult(false)
+        }, 3000)
+      }
+    } catch (error) {
+      console.error('退出战队失败:', error)
+      setQuitResult({ success: false, message: '退出战队失败，请稍后重试' })
+      setShowQuitResult(true)
+      
+      // 3秒后关闭提示
+      setTimeout(() => {
+        setShowQuitResult(false)
+      }, 3000)
+    }
+  }
+
+  // 确认解散战队
+  const confirmDeleteTeam = async () => {
+    if (!team?.id) return
+    
+    setShowDeleteModal(false)
+    
+    try {
+      // 获取认证令牌
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setDeleteResult({ success: false, message: '请重新登录后再试' })
+        setShowDeleteResult(true)
+        return
+      }
+      
+      const response = await fetch('/api/team/dismiss', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          teamId: team.id,
+          userId: user?.id
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setDeleteResult({ success: true, message: '战队已成功解散' })
+        setShowDeleteResult(true)
+        
+        // 3秒后跳转到战队空间页面
+        setTimeout(() => {
+          window.location.href = '/teams/space'
+        }, 3000)
+      } else {
+        setDeleteResult({ success: false, message: '解散战队失败：' + (result.error || '未知错误') })
+        setShowDeleteResult(true)
+        
+        // 3秒后关闭提示
+        setTimeout(() => {
+          setShowDeleteResult(false)
+        }, 3000)
+      }
+    } catch (error) {
+      console.error('解散战队失败:', error)
+      setDeleteResult({ success: false, message: '解散战队失败，请稍后重试' })
+      setShowDeleteResult(true)
+      
+      // 3秒后关闭提示
+      setTimeout(() => {
+        setShowDeleteResult(false)
+      }, 3000)
+    }
   }
 
   if (!hasTeam) {
@@ -218,12 +340,20 @@ export default function TeamSpacePage() {
           <h1 className="text-2xl font-bold text-gray-800">您还没有加入战队</h1>
           <p className="mt-4 text-gray-600">请先创建或加入一个战队</p>
           <div className="mt-8 flex space-x-4 justify-center">
-            <Link href="/teams/new" className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              创建战队
-            </Link>
-            <Link href="/teams/join" className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
-              加入战队
-            </Link>
+            {user ? (
+              <>
+                <Link href="/teams/new" className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  创建战队
+                </Link>
+                <Link href="/teams/join" className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                  加入战队
+                </Link>
+              </>
+            ) : (
+              <Link href="/auth/login" className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                登录后创建/加入战队
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -231,119 +361,116 @@ export default function TeamSpacePage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <ErrorBoundary>
+      <div className="min-h-screen">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* 侧边栏 */}
           <div className="hidden lg:block">
-            <Sidebar type="team" teamId={team?.id} userRole={userRole} />
+            <div className="card p-6 w-64">
+              <Sidebar type="team" teamId={team?.id} userRole={userRole} />
+            </div>
           </div>
 
           {/* 主内容区 */}
           <div className="flex-1">
-            {/* 战队信息 */}
-            <div className="glass-card p-6 mb-8">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center">
-                  {team?.avatar_url ? (
-                    <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-white/50 shadow-lg">
-                      <Image
-                        src={team.avatar_url}
-                        alt={team.name}
-                        width={80}
-                        height={80}
-                        className="object-cover"
-                        priority // 首屏图片，设置优先级
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}>
-                      <span className="text-white text-2xl font-bold">{team?.name?.charAt(0) || ''}</span>
-                    </div>
-                  )}
-                  <div className="ml-6">
-                    <h1 className="text-2xl font-bold gradient-text">{team?.name || ''}</h1>
-                    <p className="mt-2 text-gray-600">{team?.region} · {team?.province} · {team?.city}</p>
-                    {team?.declaration && (
-                      <p className="mt-3 text-gray-700">{team.declaration}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex space-x-4">
-                  <Link href="/teams/manage" className="px-4 py-2 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium">
-                    管理战队
-                  </Link>
-                  {userRole === '队长' && (
-                    <Link href="/teams/recruit" className="glass-button px-4 py-2 text-white font-medium">
-                      招募队员
-                    </Link>
-                  )}
-                </div>
+            {/* 顶部导航 */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => window.history.back()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                >
+                  <span>←</span> 返回上一页
+                </button>
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                >
+                  <span>🏠</span> 返回主页面
+                </Link>
+                <h1 className="text-3xl font-bold gradient-text">{team?.name || ''} 战队管理后台</h1>
+              </div>
+              <div className="flex items-center gap-4">
+                {/* 移动端菜单按钮 */}
+                <button 
+                  className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                  onClick={() => setMobileMenuOpen(true)}
+                >
+                  <span>☰</span> 菜单
+                </button>
+                {userRole === '队长' && (
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-700 hover:text-red-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                  >
+                    <span>🗑️</span> 解散战队
+                  </button>
+                )}
+                {userRole !== '队长' && (
+                  <button
+                    onClick={handleQuitClick}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-gray-700 hover:text-red-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                  >
+                    <span>🚪</span> 退出战队
+                  </button>
+                )}
               </div>
             </div>
 
             {/* 移动端导航（仅在小屏幕显示） */}
             <div className="lg:hidden mb-8">
-              <div className="glass-card p-4">
+              <div className="card p-4">
                 <h3 className="text-lg font-semibold mb-4">快捷导航</h3>
                 <div className="grid grid-cols-3 gap-3">
-                  <Link href={`/teams/${team?.id}/profile`} className="glass-card p-3 text-center hover:scale-105 transition-all duration-300">
-                    <div className="text-xl mb-1">🎮</div>
-                    <div className="text-sm font-medium text-gray-800">个人资料</div>
-                  </Link>
-                  {hasManagementPermission() && (
-                    <Link href="/teams/applications" className="glass-card p-3 text-center hover:scale-105 transition-all duration-300">
-                      <div className="text-xl mb-1">📋</div>
-                      <div className="text-sm font-medium text-gray-800">申请管理</div>
-                    </Link>
-                  )}
-                  <Link href="/teams/ai-chat" className="glass-card p-3 text-center hover:scale-105 transition-all duration-300">
-                    <div className="text-xl mb-1">🤖</div>
-                    <div className="text-sm font-medium text-gray-800">智能助手</div>
-                  </Link>
-                  {hasManagementPermission() && (
-                    <Link href="/teams/data/match-records" className="glass-card p-3 text-center hover:scale-105 transition-all duration-300">
-                      <div className="text-xl mb-1">🏆</div>
-                      <div className="text-sm font-medium text-gray-800">比赛记录</div>
-                    </Link>
-                  )}
-                  {hasManagementPermission() && (
-                    <Link href="/teams/data/training-plans" className="glass-card p-3 text-center hover:scale-105 transition-all duration-300">
-                      <div className="text-xl mb-1">🏋️</div>
-                      <div className="text-sm font-medium text-gray-800">训练安排</div>
-                    </Link>
-                  )}
-                  {hasManagementPermission() && (
-                    <Link href="/teams/data/analytics" className="glass-card p-3 text-center hover:scale-105 transition-all duration-300">
-                      <div className="text-xl mb-1">📈</div>
-                      <div className="text-sm font-medium text-gray-800">数据可视化</div>
-                    </Link>
-                  )}
+                  {/* 从统一的菜单配置中获取核心功能项 */}
+                  {teamMenuConfig
+                    .flatMap(section => section.items)
+                    .filter(item => {
+                      // 只显示核心功能
+                      if (!item.isCore) return false;
+                      // 检查权限
+                      if (Array.isArray(item.requirePermission)) {
+                        return item.requirePermission.includes(userRole);
+                      }
+                      return true;
+                    })
+                    .map((item, index) => (
+                      <Link
+                        key={index}
+                        href={item.href.replace('{teamId}', team?.id || '')}
+                        className="card p-3 text-center hover:scale-105 transition-all duration-300"
+                      >
+                        <div className="text-xl mb-1">{item.icon}</div>
+                        <div className="text-sm font-medium text-gray-800">{item.label}</div>
+                      </Link>
+                    ))
+                  }
                 </div>
               </div>
             </div>
 
             {/* 战队概览内容 */}
-            <div className="glass-card p-6">
+            <div className="card p-6">
               <h2 className="text-2xl font-bold mb-6 gradient-text">战队概览</h2>
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="glass-card p-4 text-center">
+                  <div className="card p-4 text-center">
                     <div className="text-4xl font-bold text-pink-500 mb-2">{teamStats.memberCount}</div>
                     <div className="text-gray-600">战队成员</div>
                   </div>
-                  <div className="glass-card p-4 text-center">
+                  <div className="card p-4 text-center">
                     <div className="text-4xl font-bold text-blue-500 mb-2">{teamStats.matchCount}</div>
                     <div className="text-gray-600">近期比赛</div>
                   </div>
-                  <div className="glass-card p-4 text-center">
+                  <div className="card p-4 text-center">
                     <div className="text-4xl font-bold text-green-500 mb-2">{teamStats.winRate}%</div>
                     <div className="text-gray-600">胜率</div>
                   </div>
                 </div>
 
-                <div className="glass-card p-4">
+                <div className="card p-4">
                   <h3 className="text-lg font-semibold mb-3">近期活动</h3>
                   <div className="space-y-3">
                     {teamStats.recentActivities.length > 0 ? (
@@ -363,8 +490,10 @@ export default function TeamSpacePage() {
                         </div>
                       ))
                     ) : (
-                      <div className="text-center text-gray-500 py-4">
-                        暂无近期活动
+                      <div className="text-center py-8">
+                        <div className="text-6xl mb-4">📅</div>
+                        <p className="text-gray-500 mb-4">暂无近期活动</p>
+                        <p className="text-gray-400 text-sm">战队成员的活动将显示在这里</p>
                       </div>
                     )}
                   </div>
@@ -374,6 +503,186 @@ export default function TeamSpacePage() {
           </div>
         </div>
       </div>
-    </div>
+
+      {/* 移动端抽屉菜单 */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 lg:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'tween' }}
+              className="absolute right-0 top-0 bottom-0 w-64 bg-white p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold">菜单</h3>
+                <button 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-gray-500 hover:text-gray-800"
+                >
+                  ×
+                </button>
+              </div>
+              <Sidebar type="team" teamId={team?.id} userRole={userRole} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 退出战队确认对话框 */}
+      {showQuitModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center mb-6">
+              <div className="text-5xl mb-4">🚪</div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">确认退出战队</h3>
+              <p className="text-gray-600 mb-4">
+                退出后：
+              </p>
+              <ul className="text-left text-gray-600 space-y-2 mb-6">
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>你的游戏资料将被清除</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>需要重新申请才能加入该战队</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>所有战队相关数据将被移除</span>
+                </li>
+              </ul>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowQuitModal(false)}
+                className="flex-1 px-6 py-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmQuitTeam}
+                className="flex-1 px-6 py-3 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                确认退出
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 退出结果提示 */}
+      {showQuitResult && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className={`text-5xl mb-4 ${quitResult.success ? 'text-green-500' : 'text-red-500'}`}>
+                {quitResult.success ? '✅' : '❌'}
+              </div>
+              <h3 className={`text-xl font-bold mb-4 ${quitResult.success ? 'text-green-700' : 'text-red-700'}`}>
+                {quitResult.success ? '退出成功' : '退出失败'}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {quitResult.message}
+              </p>
+              {quitResult.success && (
+                <p className="text-sm text-gray-500 mb-6">
+                  3秒后将自动跳转...
+                </p>
+              )}
+              <button
+                onClick={() => setShowQuitResult(false)}
+                className="px-6 py-3 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 解散战队确认对话框 */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center mb-6">
+              <div className="text-5xl mb-4">🗑️</div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">确认解散战队</h3>
+              <p className="text-gray-600 mb-4">
+                解散后：
+              </p>
+              <ul className="text-left text-gray-600 space-y-2 mb-6">
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>所有战队成员将被移出</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>战队所有数据将被删除</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">•</span>
+                  <span>此操作不可恢复</span>
+                </li>
+              </ul>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 px-6 py-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmDeleteTeam}
+                className="flex-1 px-6 py-3 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                确认解散
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 解散结果提示 */}
+      {showDeleteResult && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className={`text-5xl mb-4 ${deleteResult.success ? 'text-green-500' : 'text-red-500'}`}>
+                {deleteResult.success ? '✅' : '❌'}
+              </div>
+              <h3 className={`text-xl font-bold mb-4 ${deleteResult.success ? 'text-green-700' : 'text-red-700'}`}>
+                {deleteResult.success ? '解散成功' : '解散失败'}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {deleteResult.message}
+              </p>
+              {deleteResult.success && (
+                <p className="text-sm text-gray-500 mb-6">
+                  3秒后将自动跳转...
+                </p>
+              )}
+              <button
+                onClick={() => setShowDeleteResult(false)}
+                className="px-6 py-3 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
+    </ErrorBoundary>
   )
 }

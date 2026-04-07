@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { supabase } from '../../lib/supabase'
 import Link from 'next/link'
 import { APP_VERSION } from '../../utils/version'
 
@@ -10,8 +11,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [isMounted, setIsMounted] = useState(false)
   const { login, isLoading, successMessage, setSuccessMessage } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // 解决 hydration 错误
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,8 +28,17 @@ export default function LoginPage() {
     try {
       await login(email, password)
       setSuccessMessage('登录成功！欢迎回来')
+      
       // 1秒后跳转到首页
       setTimeout(() => {
+        // 检查是否有重定向参数
+        const redirect = searchParams.get('redirect')
+        if (redirect) {
+          router.push(redirect)
+          return
+        }
+
+        // 跳转到首页
         router.push('/')
       }, 1000)
     } catch {
@@ -38,13 +55,13 @@ export default function LoginPage() {
           <p className="text-gray-500 mt-2">登录您的战队管理账号</p>
         </div>
 
-        {error && (
+        {isMounted && error && (
           <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200 text-center">
             {error}
           </div>
         )}
 
-        {successMessage && (
+        {isMounted && successMessage && (
           <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200 text-center">
             {successMessage}
           </div>
@@ -99,13 +116,20 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 text-center">
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-4">
             还没有账号？{' '}
             <Link href="/auth/register" className="text-pink-500 hover:text-pink-600 font-medium transition-colors">
               立即注册 ✨
             </Link>
           </p>
-          <p className="text-gray-400 text-xs mt-4">当前版本 {APP_VERSION}</p>
+          <p className="text-gray-600 mb-4">
+            <Link href="/auth/forgot-password" className="text-blue-500 hover:text-blue-600 font-medium transition-colors">
+              忘记密码？
+            </Link>
+          </p>
+          <p className="text-gray-400 text-xs mt-4" suppressHydrationWarning={true}>
+            当前版本 {APP_VERSION}
+          </p>
         </div>
       </div>
     </div>

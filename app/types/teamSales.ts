@@ -40,6 +40,7 @@ export interface TeamSale {
   team_size?: number;
   team_badge?: TeamBadge;
   id_name?: string;
+  image_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +55,7 @@ export interface CreateTeamSaleRequest {
   team_size?: number;
   team_badge?: TeamBadge;
   id_name?: string;
+  image_url?: string;
 }
 
 // 商品列表查询参数类型

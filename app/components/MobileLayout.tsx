@@ -41,8 +41,11 @@ export default function MobileLayout({
   headerClassName = ''
 }: MobileLayoutProps) {
   const [isMobile, setIsMobile] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }

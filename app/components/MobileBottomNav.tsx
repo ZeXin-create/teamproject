@@ -27,11 +27,17 @@ const navItems: NavItem[] = [
     requireAuth: true
   },
   {
-    path: '/ai-assistant',
-    label: 'AI助手',
-    icon: '🤖',
-    activeIcon: '🦾',
+    path: '/group',
+    label: '分组',
+    icon: '📋',
+    activeIcon: '📊',
     requireAuth: true
+  },
+  {
+    path: '/team-sales',
+    label: '出售',
+    icon: '💰',
+    activeIcon: '💎'
   },
   {
     path: '/forum',
@@ -54,9 +60,17 @@ export default function MobileBottomNav() {
   const { user } = useAuth()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // 滚动时隐藏/显示导航栏
   useEffect(() => {
+    if (!mounted) return
+
     const handleScroll = () => {
       const currentScrollY = window.scrollY
       
@@ -72,12 +86,12 @@ export default function MobileBottomNav() {
 
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [lastScrollY])
+  }, [lastScrollY, mounted])
 
   // 检查是否是移动端
-  const [isMobile, setIsMobile] = useState(false)
-  
   useEffect(() => {
+    if (!mounted) return
+
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
@@ -85,7 +99,7 @@ export default function MobileBottomNav() {
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+  }, [mounted])
 
   if (!isMobile) return null
 
@@ -169,8 +183,15 @@ export function FloatingActionButton({
   color = 'bg-blue-500'
 }: FloatingActionButtonProps) {
   const [isMobile, setIsMobile] = useState(false)
+  const [mounted, setMounted] = useState(false)
   
   useEffect(() => {
+    setMounted(true)
+  }, [])
+  
+  useEffect(() => {
+    if (!mounted) return
+
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
@@ -178,7 +199,7 @@ export function FloatingActionButton({
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+  }, [mounted])
 
   if (!isMobile) return null
 
@@ -209,8 +230,15 @@ export function QuickActionsMenu({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [mounted, setMounted] = useState(false)
   
   useEffect(() => {
+    setMounted(true)
+  }, [])
+  
+  useEffect(() => {
+    if (!mounted) return
+
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
@@ -218,7 +246,7 @@ export function QuickActionsMenu({
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+  }, [mounted])
 
   if (!isMobile) return null
 

@@ -7,6 +7,8 @@ export interface Hero {
   name: string;
   position: Position;
   image_url?: string;
+  avatar?: string;
+  types?: string[];
 }
 
 // 可比赛时间段类型
@@ -39,6 +41,7 @@ export interface PlayerProfile {
     avatar?: string;
   };
   heroes?: Hero[];
+  hero_ids?: number[];
 }
 
 // 分组类型

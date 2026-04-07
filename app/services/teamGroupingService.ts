@@ -1,922 +1,825 @@
 import { supabase } from '../lib/supabase';
-import { Hero, PlayerProfile, TeamGroup, CreatePlayerProfileRequest, CreateGroupsRequest, UpdateGroupMembersRequest } from '../types/teamGrouping';
+import { PlayerProfile, Hero } from '../types/teamGrouping';
 
-// 默认英雄列表 - 2026年最新数据
-const DEFAULT_HEROES: Hero[] = [
-  // 上单 (对抗路)
-  { id: 1, name: '亚瑟', position: '上单' },
-  { id: 2, name: '吕布', position: '上单' },
-  { id: 3, name: '程咬金', position: '上单' },
-  { id: 4, name: '花木兰', position: '上单' },
-  { id: 5, name: '铠', position: '上单' },
-  { id: 6, name: '李信', position: '上单' },
-  { id: 7, name: '马超', position: '上单' },
-  { id: 8, name: '关羽', position: '上单' },
-  { id: 9, name: '老夫子', position: '上单' },
-  { id: 10, name: '狂铁', position: '上单' },
-  { id: 11, name: '夏洛特', position: '上单' },
-  { id: 12, name: '司空震', position: '上单' },
-  { id: 13, name: '蒙恬', position: '上单' },
-  { id: 14, name: '猪八戒', position: '上单' },
-  { id: 15, name: '廉颇', position: '上单' },
-  { id: 16, name: '白起', position: '上单' },
-  { id: 17, name: '项羽', position: '上单' },
-  { id: 18, name: '刘邦', position: '上单' },
-  { id: 19, name: '哪吒', position: '上单' },
-  { id: 20, name: '杨戬', position: '上单' },
-  { id: 21, name: '达摩', position: '上单' },
-  { id: 22, name: '钟无艳', position: '上单' },
-  { id: 23, name: '夏侯惇', position: '上单' },
-  { id: 24, name: '曜', position: '上单' },
-  { id: 25, name: '赵怀真', position: '上单' },
-  { id: 26, name: '姬小满', position: '上单' },
-  { id: 27, name: '亚连', position: '上单' },
-  { id: 28, name: '海诺', position: '上单' },
-  { id: 29, name: '大司命', position: '上单' },
-  { id: 30, name: '元流之子', position: '上单' },
+// 类型定义
+export interface Team {
+  id: string;
+  name: string;
+  game_id: string;
+  rank: string;
+  created_at: string;
+  updated_at: string;
+}
 
-  // 打野
-  { id: 31, name: '韩信', position: '打野' },
-  { id: 32, name: '李白', position: '打野' },
-  { id: 33, name: '赵云', position: '打野' },
-  { id: 34, name: '兰陵王', position: '打野' },
-  { id: 35, name: '孙悟空', position: '打野' },
-  { id: 36, name: '娜可露露', position: '打野' },
-  { id: 37, name: '百里玄策', position: '打野' },
-  { id: 38, name: '裴擒虎', position: '打野' },
-  { id: 39, name: '云中君', position: '打野' },
-  { id: 40, name: '镜', position: '打野' },
-  { id: 41, name: '澜', position: '打野' },
-  { id: 42, name: '云缨', position: '打野' },
-  { id: 43, name: '暃', position: '打野' },
-  { id: 44, name: '宫本武藏', position: '打野' },
-  { id: 45, name: '典韦', position: '打野' },
-  { id: 46, name: '阿轲', position: '打野' },
-  { id: 47, name: '露娜', position: '打野' },
-  { id: 48, name: '雅典娜', position: '打野' },
-  { id: 49, name: '刘备', position: '打野' },
-  { id: 50, name: '盘古', position: '打野' },
-  { id: 51, name: '橘右京', position: '打野' },
-  { id: 52, name: '司马懿', position: '打野' },
-  { id: 53, name: '诸葛亮', position: '打野' },
-  { id: 54, name: '芈月', position: '打野' },
-  { id: 55, name: '曜', position: '打野' },
-  { id: 56, name: '铠', position: '打野' },
-  { id: 57, name: '曹操', position: '打野' },
-  { id: 58, name: '大司命', position: '打野' },
-  { id: 59, name: '影', position: '打野' },
-  { id: 60, name: '元流之子', position: '打野' },
+export interface TeamMember {
+  id: string;
+  team_id: string;
+  user_id: string;
+  role: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
 
-  // 中单
-  { id: 61, name: '妲己', position: '中单' },
-  { id: 62, name: '安琪拉', position: '中单' },
-  { id: 63, name: '王昭君', position: '中单' },
-  { id: 64, name: '小乔', position: '中单' },
-  { id: 65, name: '貂蝉', position: '中单' },
-  { id: 66, name: '不知火舞', position: '中单' },
-  { id: 67, name: '干将莫邪', position: '中单' },
-  { id: 68, name: '上官婉儿', position: '中单' },
-  { id: 69, name: '西施', position: '中单' },
-  { id: 70, name: '杨玉环', position: '中单' },
-  { id: 71, name: '女娲', position: '中单' },
-  { id: 72, name: '武则天', position: '中单' },
-  { id: 73, name: '嬴政', position: '中单' },
-  { id: 74, name: '周瑜', position: '中单' },
-  { id: 75, name: '诸葛亮', position: '中单' },
-  { id: 76, name: '司马懿', position: '中单' },
-  { id: 77, name: '高渐离', position: '中单' },
-  { id: 78, name: '扁鹊', position: '中单' },
-  { id: 79, name: '张良', position: '中单' },
-  { id: 80, name: '芈月', position: '中单' },
-  { id: 81, name: '嫦娥', position: '中单' },
-  { id: 82, name: '弈星', position: '中单' },
-  { id: 83, name: '沈梦溪', position: '中单' },
-  { id: 84, name: '米莱狄', position: '中单' },
-  { id: 85, name: '金蝉', position: '中单' },
-  { id: 86, name: '海月', position: '中单' },
-  { id: 87, name: '姜子牙', position: '中单' },
-  { id: 88, name: '甄姬', position: '中单' },
-  { id: 89, name: '墨子', position: '中单' },
-  { id: 90, name: '元流之子', position: '中单' },
+export interface Application {
+  id: string;
+  team_id: string;
+  user_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
 
-  // 射手
-  { id: 201, name: '后羿', position: '射手' },
-  { id: 202, name: '鲁班七号', position: '射手' },
-  { id: 203, name: '孙尚香', position: '射手' },
-  { id: 204, name: '狄仁杰', position: '射手' },
-  { id: 205, name: '马可波罗', position: '射手' },
-  { id: 206, name: '公孙离', position: '射手' },
-  { id: 207, name: '虞姬', position: '射手' },
-  { id: 208, name: '黄忠', position: '射手' },
-  { id: 209, name: '百里守约', position: '射手' },
-  { id: 210, name: '蒙犽', position: '射手' },
-  { id: 211, name: '伽罗', position: '射手' },
-  { id: 212, name: '李元芳', position: '射手' },
-  { id: 213, name: '成吉思汗', position: '射手' },
-  { id: 214, name: '艾琳', position: '射手' },
-  { id: 215, name: '戈娅', position: '射手' },
-  { id: 216, name: '莱西奥', position: '射手' },
-  { id: 217, name: '敖隐', position: '射手' },
-  { id: 218, name: '苍', position: '射手' },
-  { id: 219, name: '元流之子', position: '射手' },
+export interface Match {
+  id: string;
+  team_id: string;
+  opponent_name: string;
+  result: string;
+  match_time: string;
+  participants?: string[];
+  created_at: string;
+  updated_at: string;
+}
 
-  // 辅助
-  { id: 301, name: '庄周', position: '辅助' },
-  { id: 302, name: '蔡文姬', position: '辅助' },
-  { id: 303, name: '瑶', position: '辅助' },
-  { id: 304, name: '明世隐', position: '辅助' },
-  { id: 305, name: '孙膑', position: '辅助' },
-  { id: 306, name: '大乔', position: '辅助' },
-  { id: 307, name: '鬼谷子', position: '辅助' },
-  { id: 308, name: '东皇太一', position: '辅助' },
-  { id: 309, name: '盾山', position: '辅助' },
-  { id: 310, name: '鲁班大师', position: '辅助' },
-  { id: 311, name: '太乙真人', position: '辅助' },
-  { id: 312, name: '牛魔', position: '辅助' },
-  { id: 313, name: '张飞', position: '辅助' },
-  { id: 314, name: '刘禅', position: '辅助' },
-  { id: 315, name: '钟馗', position: '辅助' },
-  { id: 316, name: '苏烈', position: '辅助' },
-  { id: 317, name: '廉颇', position: '辅助' },
-  { id: 318, name: '项羽', position: '辅助' },
-  { id: 319, name: '桑启', position: '辅助' },
-  { id: 320, name: '金蝉', position: '辅助' },
-  { id: 321, name: '朵莉亚', position: '辅助' },
-  { id: 322, name: '少司缘', position: '辅助' },
-  { id: 323, name: '元流之子', position: '辅助' },
-  { id: 91, name: '大禹', position: '辅助' },
+export interface TeamMemberStats {
+  user_id: string;
+  name: string;
+  role: string;
+  matches: number;
+  wins: number;
+  win_rate: string;
+}
+
+export interface TeamMatchStats {
+  total_matches: number;
+  total_wins: number;
+  win_rate: string;
+}
+
+// 英雄数据
+export const heroes: Hero[] = [];
+
+// 上单英雄
+const topHeroes = [
+  '扁鹊', '曹操', '嫦娥', '达摩', '大司命', '典韦', '蚩奼', '宫本武藏', '关羽', '海诺',
+  '花木兰', '姬小满', '橘右京', '铠', '狂铁', '澜', '老夫子', '李信', '刘备', '吕布',
+  '马超', '芈月', '墨子', '哪吒', '盘古', '司空震', '孙策', '夏侯惇', '夏洛特', '项羽',
+  '雅典娜', '亚连', '亚瑟', '杨戬', '曜', '元流之子', '云缨', '赵怀真', '赵云', '钟无艳',
+  '周瑜', '阿古朵', '白起', '程咬金', '大禹', '廉颇', '刘邦', '刘禅', '鲁班大师',
+  '梦奇', '蒙恬', '牛魔', '苏烈', '太乙真人', '张飞', '钟馗', '猪八戒', '庄周'
 ];
 
-// 获取英雄库
-export const getHeroes = async (): Promise<Hero[]> => {
+// 打野英雄
+const jungleHeroes = [
+  '阿轲', '百里玄策', '不知火舞', '蚩奼', '暃', '宫本武藏', '韩信', '镜', '橘右京',
+  '兰陵王', '澜', '李白', '露娜', '娜可露露', '裴擒虎', '司马懿', '孙悟空', '雅典娜',
+  '曜', '元歌', '元流之子', '云缨', '云中君', '赵云', '阿古朵', '刘备', '铠', '典韦', '盘古',
+  '影'
+];
+
+// 中单英雄
+const midHeroes = [
+  '安琪拉', '扁鹊', '不知火舞', '蔡文姬', '嫦娥', '妲己', '大乔', '貂蝉', '东皇太一', '朵莉亚',
+  '干将莫邪', '高渐离', '鬼谷子', '海诺', '海月', '姜子牙', '金蝉', '刘邦', '露娜', '梦奇',
+  '米莱狄', '明世隐', '芈月', '墨子', '女娲', '桑启', '上官婉儿', '沈梦溪', '司空震', '王昭君',
+  '西施', '小乔', '杨玉环', '弈星', '嬴政', '张良', '甄姬', '周瑜', '诸葛亮', '元流之子',
+  '武则天'
+];
+
+// 射手英雄
+const botHeroes = [
+  '艾琳', '敖隐', '百里守约', '成吉思汗', '狄仁杰', '公孙离', '戈娅', '后羿', '黄忠',
+  '伽罗', '李元芳', '鲁班七号', '马可波罗', '蒙犽', '孙尚香', '虞姬', '阿古朵', '刘备', '元流之子',
+  '莱西奥'
+];
+
+// 辅助英雄
+const supportHeroes = [
+  '蔡文姬', '大乔', '大禹', '朵莉亚', '鬼谷子', '金蝉', '鲁班大师', '明世隐', '牛魔', '少司缘',
+  '太乙真人', '孙膑', '瑶', '张飞', '庄周', '盾山', '刘邦', '钟馗', '廉颇', '刘禅', '苏烈', '东皇太一', '桑启',
+  '空空儿', '元流之子'
+];
+
+// 生成英雄数据
+topHeroes.forEach((name, index) => {
+  heroes.push({ id: index + 1, name, position: '上单' });
+});
+
+jungleHeroes.forEach((name, index) => {
+  heroes.push({ id: topHeroes.length + index + 1, name, position: '打野' });
+});
+
+midHeroes.forEach((name, index) => {
+  heroes.push({ id: topHeroes.length + jungleHeroes.length + index + 1, name, position: '中单' });
+});
+
+botHeroes.forEach((name, index) => {
+  heroes.push({ id: topHeroes.length + jungleHeroes.length + midHeroes.length + index + 1, name, position: '射手' });
+});
+
+supportHeroes.forEach((name, index) => {
+  heroes.push({ id: topHeroes.length + jungleHeroes.length + midHeroes.length + botHeroes.length + index + 1, name, position: '辅助' });
+});
+
+// 根据位置获取英雄
+export function getHeroesByPosition(position: string): Hero[] {
+  return heroes.filter(hero => hero.position === position);
+}
+
+// 检查英雄是否存在
+export function getHeroById(id: number): Hero | undefined {
+  return heroes.find(hero => hero.id === id);
+}
+
+// 获取所有英雄
+export function getHeroes(): Hero[] {
+  return heroes;
+}
+
+// 保存或更新队员游戏资料
+export async function createOrUpdatePlayerProfile(profileData: Partial<PlayerProfile>): Promise<PlayerProfile> {
   try {
-    const { data, error } = await supabase
-      .from('heroes')
-      .select('*');
-
-    if (error) {
-      console.warn('从数据库获取英雄失败，使用默认英雄列表:', error);
-      return DEFAULT_HEROES;
+    if (!profileData.user_id || !profileData.team_id) {
+      throw new Error('用户ID和战队ID是必填项');
     }
 
-    // 如果数据库中没有数据，返回默认英雄列表
-    if (!data || data.length === 0) {
-      console.warn('数据库中没有英雄数据，使用默认英雄列表');
-      return DEFAULT_HEROES;
-    }
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('player_profiles')
+      .select('id')
+      .eq('user_id', profileData.user_id)
+      .eq('team_id', profileData.team_id)
+      .single();
 
-    // 确保返回的英雄列表包含所有默认英雄，避免英雄ID不匹配问题
-    const databaseHeroes = data;
-    const allHeroes = [...DEFAULT_HEROES];
+    let profileId: string;
 
-    // 用数据库中的英雄数据更新默认英雄列表
-    databaseHeroes.forEach(dbHero => {
-      const existingIndex = allHeroes.findIndex(hero => hero.id === dbHero.id);
-      if (existingIndex !== -1) {
-        allHeroes[existingIndex] = dbHero;
-      } else {
-        // 检查是否已有同名英雄，避免重复
-        const existingNameIndex = allHeroes.findIndex(hero => hero.name === dbHero.name);
-        if (existingNameIndex === -1) {
-          allHeroes.push(dbHero);
-        }
-      }
-    });
-
-    // 去重，确保没有重复的英雄
-    const uniqueHeroes = Array.from(new Map(allHeroes.map(hero => [hero.name, hero])).values());
-
-    return uniqueHeroes;
-  } catch (error) {
-    console.warn('获取英雄库失败，使用默认英雄列表:', error);
-    return DEFAULT_HEROES;
-  }
-};
-
-// 按位置获取英雄
-export const getHeroesByPosition = async (position: string): Promise<Hero[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('heroes')
-      .select('*')
-      .eq('position', position);
-
-    if (error) {
-      console.warn('从数据库获取英雄失败，使用默认英雄列表:', error);
-      return DEFAULT_HEROES.filter(hero => hero.position === position);
-    }
-
-    // 如果数据库中没有数据，返回默认英雄列表中对应位置的英雄
-    if (!data || data.length === 0) {
-      console.warn('数据库中没有对应位置的英雄数据，使用默认英雄列表');
-      return DEFAULT_HEROES.filter(hero => hero.position === position);
-    }
-
-    // 确保返回的英雄列表包含默认英雄列表中对应位置的所有英雄
-    const databaseHeroes = data;
-    const defaultPositionHeroes = DEFAULT_HEROES.filter(hero => hero.position === position);
-    const allHeroes = [...defaultPositionHeroes];
-
-    // 用数据库中的英雄数据更新默认英雄列表
-    databaseHeroes.forEach(dbHero => {
-      const existingIndex = allHeroes.findIndex(hero => hero.id === dbHero.id);
-      if (existingIndex !== -1) {
-        allHeroes[existingIndex] = dbHero;
-      } else {
-        // 检查是否已有同名英雄，避免重复
-        const existingNameIndex = allHeroes.findIndex(hero => hero.name === dbHero.name);
-        if (existingNameIndex === -1) {
-          allHeroes.push(dbHero);
-        }
-      }
-    });
-
-    // 去重，确保没有重复的英雄
-    const uniqueHeroes = Array.from(new Map(allHeroes.map(hero => [hero.name, hero])).values());
-
-    return uniqueHeroes;
-  } catch (error) {
-    console.warn('获取英雄失败，使用默认英雄列表:', error);
-    return DEFAULT_HEROES.filter(hero => hero.position === position);
-  }
-};
-
-// 检查用户是否是战队成员
-export const checkTeamMembership = async (user_id: string, team_id: string): Promise<boolean> => {
-  const { data, error } = await supabase
-    .from('team_members')
-    .select('id')
-    .eq('user_id', user_id)
-    .eq('team_id', team_id)
-    .eq('status', 'active')
-    .single();
-
-  // 处理 406 错误和记录不存在的情况
-  if (error) {
-    if (error.code === 'PGRST116' || error.code === '406') {
-      return false;
-    }
-    console.error('检查战队成员失败:', error);
-  }
-
-  return !error && data !== null;
-};
-
-// 检查用户是否是战队队长
-export const checkTeamCaptain = async (user_id: string, team_id: string): Promise<boolean> => {
-  const { data, error } = await supabase
-    .from('team_members')
-    .select('id')
-    .eq('user_id', user_id)
-    .eq('team_id', team_id)
-    .eq('role', '队长')
-    .eq('status', 'active')
-    .single();
-
-  return !error && data !== null;
-};
-
-// 获取队员游戏资料
-export const getPlayerProfile = async (user_id: string, team_id: string): Promise<PlayerProfile | null> => {
-  // 检查用户是否是战队成员
-  const isMember = await checkTeamMembership(user_id, team_id);
-  if (!isMember) {
-    throw new Error('您不是该战队的成员');
-  }
-
-  // 获取队员资料
-  const { data: profile, error: profileError } = await supabase
-    .from('player_profiles')
-    .select('*')
-    .eq('user_id', user_id)
-    .eq('team_id', team_id)
-    .single();
-
-  if (profileError) {
-    // PGRST116: 记录不存在
-    // 406: Not Acceptable - 记录不存在或请求格式问题
-    if (profileError.code === 'PGRST116' || profileError.code === '406') {
-      return null;
-    }
-    console.error('获取队员资料失败:', profileError);
-    throw new Error('获取队员资料失败: ' + profileError.message);
-  }
-
-  // 获取用户信息
-  const { data: userData, error: userError } = await supabase
-    .from('profiles')
-    .select('id, email, nickname, avatar')
-    .eq('id', user_id)
-    .single();
-
-  if (userError) {
-    console.error('获取用户信息失败:', userError);
-  }
-
-  // 获取擅长英雄
-  const { data: heroData } = await supabase
-    .from('player_heroes')
-    .select('hero:hero_id(id, name, position, image_url)')
-    .eq('player_profile_id', profile.id);
-
-  // 获取位置统计数据
-  const { data: positionStatsData } = await supabase
-    .from('player_position_stats')
-    .select('*')
-    .eq('player_profile_id', profile.id);
-
-  // 构建position_stats对象
-  const positionStats: Record<string, { win_rate: string; kda: string; rating: string; power: string; heroes: number[] }> = {};
-  if (positionStatsData) {
-    positionStatsData.forEach(stat => {
-      positionStats[stat.position] = {
-        win_rate: stat.win_rate?.toString() || '',
-        kda: stat.kda?.toString() || '',
-        rating: stat.rating?.toString() || '',
-        power: stat.power?.toString() || '',
-        heroes: [] // 英雄数据通过player_heroes获取
-      };
-    });
-  }
-
-  return {
-    ...profile,
-    user: userData || { id: user_id, email: '', nickname: '未知用户' },
-    heroes: heroData ? heroData.map((item) => item.hero) : [],
-    position_stats: positionStats
-  };
-};
-
-// 创建/更新队员游戏资料
-export const createOrUpdatePlayerProfile = async (user_id: string, team_id: string, data: CreatePlayerProfileRequest): Promise<PlayerProfile> => {
-  // 检查用户是否是战队成员
-  const isMember = await checkTeamMembership(user_id, team_id);
-  if (!isMember) {
-    throw new Error('您不是该战队的成员');
-  }
-
-  // 检查是否已存在资料
-  const existingProfile = await getPlayerProfile(user_id, team_id);
-
-  let profileId: string;
-
-  // 准备更新或创建数据
-  const profileData: Partial<PlayerProfile> = {
-    // 使用空数组作为默认值，以满足数据库的 NOT NULL 约束
-    main_positions: data.main_positions || [],
-    available_time: data.available_time || [],
-    accept_position_adjustment: data.accept_position_adjustment
-  };
-
-  // 添加可选字段
-  if (data.current_rank) profileData.current_rank = data.current_rank;
-
-  try {
-    if (existingProfile) {
-      // 更新现有资料
-      const { data: updatedProfile, error } = await supabase
-        .from('player_profiles')
-        .update(profileData)
-        .eq('user_id', user_id)
-        .eq('team_id', team_id)
-        .select()
-        .single();
-
-      if (error) {
-        throw new Error('更新队员资料失败: ' + (error.message || error.code || '未知错误'));
-      }
-
-      profileId = updatedProfile.id;
-
-      // 删除旧的英雄关联
-      await supabase
-        .from('player_heroes')
-        .delete()
-        .eq('player_profile_id', profileId);
-
-      // 删除旧的位置统计数据
-      await supabase
-        .from('player_position_stats')
-        .delete()
-        .eq('player_profile_id', profileId);
-    } else {
-      // 创建新资料
-      const { data: newProfile, error } = await supabase
+    if (checkError || !existingProfile) {
+      const { data: newProfile, error: insertError } = await supabase
         .from('player_profiles')
         .insert({
-          user_id,
-          team_id,
-          ...profileData
+          user_id: profileData.user_id,
+          team_id: profileData.team_id,
+          game_id: profileData.game_id || '',
+          current_rank: profileData.current_rank || '',
+          main_positions: profileData.main_positions || [],
+          position_stats: profileData.position_stats || {},
+          available_time: profileData.available_time || [],
+          accept_position_adjustment: profileData.accept_position_adjustment || false
         })
         .select()
         .single();
 
-      if (error) {
-        throw new Error('创建队员资料失败: ' + (error.message || error.code || '未知错误'));
+      if (insertError) {
+        throw new Error('创建资料失败: ' + (insertError.message || insertError.code || '未知错误'));
       }
 
       profileId = newProfile.id;
-    }
-
-    // 先删除现有的英雄关联
-    try {
-      const { error: deleteError } = await supabase
-        .from('player_heroes')
-        .delete()
-        .eq('player_profile_id', profileId);
-
-      if (deleteError) {
-        console.warn('删除现有英雄关联失败:', deleteError);
-        // 继续执行，不中断流程
-      }
-    } catch (deleteError) {
-      console.warn('删除现有英雄关联出错:', deleteError);
-      // 继续执行，不中断流程
-    }
-
-    // 添加新的英雄关联
-    if (data.hero_ids && data.hero_ids.length > 0) {
-      // 确保英雄ID唯一且有效
-      const uniqueHeroIds = Array.from(new Set(data.hero_ids)).filter(hero_id => hero_id && typeof hero_id === 'number');
-
-      if (uniqueHeroIds.length > 0) {
-        const heroInserts = uniqueHeroIds.map(hero_id => ({
-          player_profile_id: profileId,
-          hero_id,
-          proficiency: 0,
-          usage_frequency: 0
-        }));
-
-        try {
-          const { error } = await supabase
-            .from('player_heroes')
-            .insert(heroInserts);
-
-          if (error) {
-            console.error('关联英雄失败:', error);
-            // 继续执行，不中断流程
-          }
-        } catch (error) {
-          console.error('关联英雄出错:', error);
-          // 继续执行，不中断流程
-        }
-      }
-    }
-
-    // 先删除现有的位置统计数据
-    const { error: deleteStatsError } = await supabase
-      .from('player_position_stats')
-      .delete()
-      .eq('player_profile_id', profileId);
-
-    if (deleteStatsError) {
-      console.warn('删除现有位置统计数据失败:', deleteStatsError);
-      // 继续执行，不中断流程
-    }
-
-    // 处理位置统计数据
-    if (data.position_stats) {
-      const positionStatsInserts = Object.entries(data.position_stats).map(([position, stats]) => ({
-        player_profile_id: profileId,
-        position,
-        win_rate: stats.win_rate ? parseFloat(stats.win_rate) : null,
-        kda: stats.kda ? parseFloat(stats.kda) : null,
-        rating: stats.rating ? parseFloat(stats.rating) : null,
-        power: stats.power ? parseInt(stats.power) : null
-      }));
-
-      if (positionStatsInserts.length > 0) {
-        const { error } = await supabase
-          .from('player_position_stats')
-          .insert(positionStatsInserts);
-
-        if (error) {
-          throw new Error('保存位置统计数据失败');
-        }
-      }
-    }
-
-    // 返回更新后的资料
-    return await getPlayerProfile(user_id, team_id) as PlayerProfile;
-  } catch (error) {
-    console.error('保存队员资料失败:', error);
-    throw error;
-  }
-};
-
-// 获取战队所有队员资料
-export const getTeamPlayerProfiles = async (user_id: string, team_id: string): Promise<PlayerProfile[]> => {
-  // 检查用户是否是战队成员
-  const isMember = await checkTeamMembership(user_id, team_id);
-  if (!isMember) {
-    throw new Error('您不是该战队的成员');
-  }
-
-  // 获取队员资料列表
-  const { data: profiles, error: profilesError } = await supabase
-    .from('player_profiles')
-    .select('*')
-    .eq('team_id', team_id);
-
-  if (profilesError) {
-    throw new Error('获取战队队员资料失败');
-  }
-
-  // 为每个资料获取用户信息和英雄
-  const profilesWithDetails = await Promise.all(
-    profiles.map(async (profile) => {
-      // 获取用户信息
-      const { data: userData } = await supabase
-        .from('profiles')
-        .select('id, email, nickname, avatar')
-        .eq('id', profile.user_id)
+    } else {
+      profileId = existingProfile.id;
+      const { error: updateError } = await supabase
+        .from('player_profiles')
+        .update({
+          game_id: profileData.game_id,
+          current_rank: profileData.current_rank,
+          main_positions: profileData.main_positions,
+          position_stats: profileData.position_stats,
+          available_time: profileData.available_time,
+          accept_position_adjustment: profileData.accept_position_adjustment
+        })
+        .eq('id', profileId)
+        .select()
         .single();
 
-      // 获取擅长英雄
-      const { data: heroData } = await supabase
-        .from('player_heroes')
-        .select('hero:hero_id(id, name, position, image_url)')
-        .eq('player_profile_id', profile.id);
-
-      // 获取位置统计数据
-      const { data: positionStatsData } = await supabase
-        .from('player_position_stats')
-        .select('*')
-        .eq('player_profile_id', profile.id);
-
-      // 构建position_stats对象
-      const positionStats: Record<string, { win_rate: string; kda: string; rating: string; power: string; heroes: number[] }> = {};
-      if (positionStatsData) {
-        positionStatsData.forEach(stat => {
-          positionStats[stat.position] = {
-            win_rate: stat.win_rate?.toString() || '',
-            kda: stat.kda?.toString() || '',
-            rating: stat.rating?.toString() || '',
-            power: stat.power?.toString() || '',
-            heroes: [] // 英雄数据通过player_heroes获取
-          };
-        });
+      if (updateError) {
+        throw new Error('更新资料失败: ' + (updateError.message || updateError.code || '未知错误'));
       }
+    }
+
+    // 处理位置统计中的英雄数据
+    if (profileData.position_stats) {
+      // 可以在这里添加位置英雄数据的处理逻辑
+      // 目前英雄数据已经存储在 position_stats 中，不需要额外的表关联
+    }
+
+    const { data: finalProfile, error: finalError } = await supabase
+      .from('player_profiles')
+      .select('*')
+      .eq('id', profileId)
+      .single();
+
+    if (finalError) {
+      throw new Error('获取资料失败: ' + (finalError.message || finalError.code || '未知错误'));
+    }
+
+    // 确保 position_stats 结构完整
+    if (!finalProfile.position_stats) {
+      finalProfile.position_stats = {
+        '上单': { win_rate: '', kda: '', rating: '', power: '', heroes: [] },
+        '打野': { win_rate: '', kda: '', rating: '', power: '', heroes: [] },
+        '中单': { win_rate: '', kda: '', rating: '', power: '', heroes: [] },
+        '射手': { win_rate: '', kda: '', rating: '', power: '', heroes: [] },
+        '辅助': { win_rate: '', kda: '', rating: '', power: '', heroes: [] }
+      };
+    }
+
+    // 确保每个位置的 heroes 数组存在
+    Object.keys(finalProfile.position_stats).forEach(position => {
+      if (!finalProfile.position_stats[position].heroes) {
+        finalProfile.position_stats[position].heroes = [];
+      }
+    });
+
+    return finalProfile;
+  } catch (error) {
+    console.error('创建或更新队员资料失败:', error);
+    throw error;
+  }
+}
+
+// 获取队员游戏资料
+export async function getPlayerProfile(userId: string, teamId: string): Promise<PlayerProfile | null> {
+  try {
+    const { data, error } = await supabase
+      .from('player_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('team_id', teamId)
+      .single();
+
+    if (error) {
+      console.error('获取队员资料失败:', error);
+      return null;
+    }
+
+    // 确保 position_stats 结构完整
+    if (!data.position_stats) {
+      data.position_stats = {
+        '上单': { winRate: '', kda: '', rating: '', power: '', heroes: [] },
+        '打野': { winRate: '', kda: '', rating: '', power: '', heroes: [] },
+        '中单': { winRate: '', kda: '', rating: '', power: '', heroes: [] },
+        '射手': { winRate: '', kda: '', rating: '', power: '', heroes: [] },
+        '辅助': { winRate: '', kda: '', rating: '', power: '', heroes: [] }
+      };
+    }
+
+    // 确保每个位置的 heroes 数组存在
+    Object.keys(data.position_stats).forEach(position => {
+      if (!data.position_stats[position].heroes) {
+        data.position_stats[position].heroes = [];
+      }
+    });
+
+    return data;
+  } catch (error) {
+    console.error('获取队员资料出错:', error);
+    return null;
+  }
+}
+
+// 保存比赛记录
+export async function saveMatch(matchData: Partial<Match>): Promise<Match> {
+  const { data, error } = await supabase
+    .from('matches')
+    .insert(matchData)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error('保存比赛记录失败: ' + (error.message || error.code || '未知错误'));
+  }
+
+  return data;
+}
+
+// 获取战队比赛记录
+export async function getTeamMatches(teamId: string): Promise<Match[]> {
+  try {
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('team_id', teamId)
+      .order('match_time', { ascending: false });
+
+    if (error) {
+      console.error('获取比赛记录失败:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('获取比赛记录出错:', error);
+    return [];
+  }
+}
+
+// 分析战队数据
+export async function analyzeTeamData(teamId: string): Promise<{
+  teamStats: TeamMatchStats;
+  memberStats: TeamMemberStats[];
+}> {
+  try {
+    const { data: members, error: membersError } = await supabase
+      .from('team_members')
+      .select('user_id, role')
+      .eq('team_id', teamId);
+
+    if (membersError) {
+      console.error('获取战队成员失败:', membersError);
+      return {
+        teamStats: {
+          total_matches: 0,
+          total_wins: 0,
+          win_rate: '0.0'
+        },
+        memberStats: []
+      };
+    }
+
+    const matches = await getTeamMatches(teamId);
+    const totalMatches = matches.length;
+    const totalWins = matches.filter(match => match.result === 'win').length;
+    const winRate = totalMatches > 0 ? (totalWins / totalMatches * 100).toFixed(1) : '0.0';
+
+    const memberStats = members.map(member => {
+      const memberMatches = matches.filter(match =>
+        match.participants?.includes(member.user_id)
+      );
+      const memberWins = memberMatches.filter(match => match.result === 'win').length;
+      const memberWinRate = memberMatches.length > 0 ? (memberWins / memberMatches.length * 100).toFixed(1) : '0.0';
 
       return {
-        ...profile,
-        user: userData || { id: profile.user_id, email: '', nickname: '未知用户' },
-        heroes: heroData ? heroData.map((item) => item.hero) : [],
-        position_stats: positionStats
+        user_id: member.user_id,
+        name: member.user_id,
+        role: member.role,
+        matches: memberMatches.length,
+        wins: memberWins,
+        win_rate: memberWinRate
       };
-    })
-  );
-
-  return profilesWithDetails;
-};
-
-// 获取战队未填写资料的队员数量
-export const getTeamMissingProfilesCount = async (user_id: string, team_id: string): Promise<number> => {
-  // 检查用户是否是战队成员
-  const isMember = await checkTeamMembership(user_id, team_id);
-  if (!isMember) {
-    throw new Error('您不是该战队的成员');
-  }
-
-  // 获取战队所有队员
-  const { data: teamMembers, error: membersError } = await supabase
-    .from('team_members')
-    .select('user_id')
-    .eq('team_id', team_id)
-    .eq('status', 'active');
-
-  if (membersError) {
-    throw new Error('获取战队队员失败');
-  }
-
-  const memberIds = teamMembers.map((member) => member.user_id);
-
-  // 获取已填写资料的队员
-  const { data: profiles, error: profilesError } = await supabase
-    .from('player_profiles')
-    .select('user_id')
-    .eq('team_id', team_id)
-    .in('user_id', memberIds);
-
-  if (profilesError) {
-    throw new Error('获取队员资料失败');
-  }
-
-  const profileIds = profiles.map((profile) => profile.user_id);
-  const missingCount = memberIds.filter(id => !profileIds.includes(id)).length;
-
-  return missingCount;
-};
-
-
-
-
-
-// 计算小组的位置分布
-const calculatePositionDistribution = (group: PlayerProfile[]) => {
-  const distribution = {
-    '上单': 0,
-    '打野': 0,
-    '中单': 0,
-    '射手': 0,
-    '辅助': 0
-  };
-
-  group.forEach(player => {
-    player.main_positions.forEach(position => {
-      distribution[position]++;
     });
-  });
 
-  return distribution;
-};
-
-// 计算小组的平均评分
-const calculateAverageRating = (group: PlayerProfile[]): number => {
-  if (group.length === 0) return 0;
-  const totalRating = group.reduce((sum, player) => sum + (player.recent_rating || 0), 0);
-  return totalRating / group.length;
-};
-
-// 段位到数值的映射
-const rankToValue = (rank: string): number => {
-  const rankValues: Record<string, number> = {
-    '最强王者': 7,
-    '非凡王者': 8,
-    '无双王者': 9,
-    '绝世王者': 10,
-    '至圣王者': 11,
-    '荣耀王者': 12,
-    '传奇王者': 13
-  };
-  return rankValues[rank] || 0;
-};
-
-// 计算小组的平均段位
-const calculateAverageRank = (group: PlayerProfile[]): number => {
-  if (group.length === 0) return 0;
-  const totalRankValue = group.reduce((sum, player) => sum + rankToValue(player.current_rank || ''), 0);
-  return totalRankValue / group.length;
-};
-
-// 检查小组段位差距
-const checkRankDifference = (group: PlayerProfile[]): boolean => {
-  if (group.length < 2) return true;
-  const ranks = group.map(player => rankToValue(player.current_rank || '')).filter(value => value > 0);
-  if (ranks.length === 0) return true;
-  const maxRank = Math.max(...ranks);
-  const minRank = Math.min(...ranks);
-  return maxRank - minRank <= 5;
-};
-
-// 生成分组
-export const createGroups = async (user_id: string, data: CreateGroupsRequest): Promise<TeamGroup[]> => {
-  // 检查用户是否是战队队长
-  const isCaptain = await checkTeamCaptain(user_id, data.team_id);
-  if (!isCaptain) {
-    throw new Error('只有队长才能生成分组');
+    return {
+      teamStats: {
+        total_matches: totalMatches,
+        total_wins: totalWins,
+        win_rate: winRate
+      },
+      memberStats: memberStats
+    };
+  } catch (error) {
+    console.error('分析战队数据失败:', error);
+    return {
+      teamStats: {
+        total_matches: 0,
+        total_wins: 0,
+        win_rate: '0.0'
+      },
+      memberStats: []
+    };
   }
+}
 
-  // 获取战队所有队员资料
-  const profiles = await getTeamPlayerProfiles(user_id, data.team_id);
+// 获取战队成员
+export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
+  try {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('team_id', teamId);
 
-  // 过滤出有资料的队员
-  const eligiblePlayers = profiles.filter(profile =>
-    profile.main_positions.length > 0 &&
-    profile.available_time.length > 0
-  );
+    if (error) {
+      console.error('获取战队成员失败:', error);
+      return [];
+    }
 
-  // 按段位排序
-  eligiblePlayers.sort((a, b) => {
-    // 按段位排序
-    const rankDiff = rankToValue(b.current_rank || '') - rankToValue(a.current_rank || '');
-    if (rankDiff !== 0) return rankDiff;
-    return 0;
-  });
-
-  if (eligiblePlayers.length === 0) {
-    throw new Error('没有足够的队员资料');
+    return data || [];
+  } catch (error) {
+    console.error('获取战队成员出错:', error);
+    return [];
   }
+}
 
-  // 清空旧的分组
-  await supabase
-    .from('team_groups')
-    .delete()
-    .eq('team_id', data.team_id);
+// 处理入队申请
+export async function handleTeamApplication(applicationId: string, status: 'approved' | 'rejected'): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('team_applications')
+      .update({ status })
+      .eq('id', applicationId)
+      .select()
+      .single();
 
-  // 生成新的分组
-  const groups: PlayerProfile[][] = Array(data.group_count).fill(null).map(() => []);
+    if (error) {
+      console.error('处理入队申请失败:', error);
+      return false;
+    }
 
-  // 优先匹配时间重合的队员
-  // 这里使用简化的分组算法，实际项目中可以使用更复杂的算法
-  eligiblePlayers.forEach((player, index) => {
-    const groupIndex = index % data.group_count;
-    groups[groupIndex].push(player);
-  });
+    return true;
+  } catch (error) {
+    console.error('处理入队申请出错:', error);
+    return false;
+  }
+}
 
-  // 创建分组记录
-  const groupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-  const createdGroups: TeamGroup[] = [];
+// 搜索战队
+export async function searchTeams(name: string): Promise<Team[]> {
+  try {
+    const { data, error } = await supabase
+      .from('team_groups')
+      .select('*')
+      .ilike('name', `%${name}%`);
 
-  for (let i = 0; i < groups.length; i++) {
-    const groupName = groupNames[i] || String.fromCharCode(65 + i);
+    if (error) {
+      console.error('搜索战队失败:', error);
+      return [];
+    }
 
-    const { data: newGroup, error: groupError } = await supabase
+    return data || [];
+  } catch (error) {
+    console.error('搜索战队出错:', error);
+    return [];
+  }
+}
+
+// 创建战队
+export async function createTeam(teamData: {
+  name: string;
+  game_id: string;
+  rank: string;
+  user_id: string;
+}): Promise<Team | null> {
+  try {
+    const { data: team, error: teamError } = await supabase
       .from('team_groups')
       .insert({
-        team_id: data.team_id,
-        group_name: groupName,
-        group_type: 'training',
-        creator_id: user_id,
-        valid_until: null
+        name: teamData.name,
+        game_id: teamData.game_id,
+        rank: teamData.rank
       })
       .select()
       .single();
 
-    if (groupError) {
+    if (teamError) {
+      console.error('创建战队失败:', teamError);
+      return null;
+    }
+
+    const { error: memberError } = await supabase
+      .from('team_members')
+      .insert({
+        team_id: team.id,
+        user_id: teamData.user_id,
+        role: 'captain',
+        status: 'active'
+      });
+
+    if (memberError) {
+      console.error('添加队长失败:', memberError);
+    }
+
+    return team;
+  } catch (error) {
+    console.error('创建战队出错:', error);
+    return null;
+  }
+}
+
+// 申请加入战队
+export async function applyToTeam(applicationData: {
+  team_id: string;
+  user_id: string;
+}): Promise<Application | null> {
+  try {
+    const { data, error } = await supabase
+      .from('team_applications')
+      .insert({
+        team_id: applicationData.team_id,
+        user_id: applicationData.user_id,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('申请加入战队失败:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('申请加入战队出错:', error);
+    return null;
+  }
+}
+
+// 获取战队申请
+export async function getTeamApplications(teamId: string): Promise<Application[]> {
+  try {
+    const { data, error } = await supabase
+      .from('team_applications')
+      .select('*')
+      .eq('team_id', teamId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('获取战队申请失败:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('获取战队申请出错:', error);
+    return [];
+  }
+}
+
+// 获取战队分组
+export async function getTeamGroups(teamId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('team_groups')
+      .select('*')
+      .eq('id', teamId)
+      .single();
+
+    if (error) {
+      console.error('获取战队分组失败:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('获取战队分组出错:', error);
+    return null;
+  }
+}
+
+// 获取战队缺失资料的成员数量
+export async function getTeamMissingProfilesCount(teamId: string): Promise<number> {
+  try {
+    const members = await getTeamMembers(teamId);
+    let missingCount = 0;
+    for (const member of members) {
+      const profile = await getPlayerProfile(member.user_id, teamId);
+      if (!profile) {
+        missingCount++;
+      }
+    }
+    return missingCount;
+  } catch (error) {
+    console.error('获取缺失资料数量失败:', error);
+    return 0;
+  }
+}
+
+// 创建分组
+export async function createGroups(teamId: string, groupCount: number, userId: string): Promise<boolean> {
+  try {
+    // 1. 获取战队所有成员及其资料
+    const { data: members, error: membersError } = await supabase
+      .from('team_members')
+      .select(`
+        user_id,
+        profiles:user_id (id, email, nickname, avatar),
+        player_profiles!inner (*)
+      `)
+      .eq('team_id', teamId)
+      .eq('status', 'active');
+
+    if (membersError) {
+      console.error('获取战队成员失败:', membersError);
+      throw new Error('获取战队成员失败');
+    }
+
+    if (!members || members.length === 0) {
+      throw new Error('战队没有成员');
+    }
+
+    // 2. 过滤出有完整资料的成员
+    const validMembers = members.filter((m) =>
+      m.player_profiles &&
+      m.player_profiles.length > 0 &&
+      m.player_profiles[0].main_positions &&
+      m.player_profiles[0].main_positions.length > 0
+    );
+
+    if (validMembers.length === 0) {
+      throw new Error('没有成员填写了完整的游戏资料');
+    }
+
+    // 3. 删除旧的分组
+    const { error: deleteError } = await supabase
+      .from('team_groups')
+      .delete()
+      .eq('team_id', teamId);
+
+    if (deleteError) {
+      console.error('删除旧分组失败:', deleteError);
+    }
+
+    // 4. 创建新分组
+    const groupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const groups = [];
+
+    for (let i = 0; i < Math.min(groupCount, 10); i++) {
+      const { data: group, error: groupError } = await supabase
+        .from('team_groups')
+        .insert({
+          team_id: teamId,
+          name: `${groupNames[i]}组`,
+          group_type: 'training',
+          creator_id: userId
+        })
+        .select()
+        .single();
+
+      if (groupError) {
+        console.error('创建分组失败:', groupError);
+        continue;
+      }
+
+      groups.push({
+        id: group.id,
+        name: group.name,
+        members: []
+      });
+    }
+
+    if (groups.length === 0) {
       throw new Error('创建分组失败');
     }
 
-    // 添加队员到分组
-    if (groups[i].length > 0) {
-      const memberInserts = groups[i].map(player => ({
-        group_id: newGroup.id,
-        user_id: player.user_id,
+    // 5. 计算每个成员的综合评分
+    interface MemberWithScore {
+      user_id: string;
+      player_profiles: {
+        position_stats?: Record<string, { rating?: string }>;
+        current_rank?: string;
+      };
+      finalScore: number;
+    }
+
+    interface PositionStats {
+      rating?: string;
+    }
+
+    const membersWithScore: MemberWithScore[] = validMembers.map((member) => {
+      const profile = member.player_profiles[0];
+      let totalScore = 0;
+      let positionCount = 0;
+
+      // 计算位置评分
+      if (profile.position_stats) {
+        Object.values(profile.position_stats).forEach((stats) => {
+          const positionStats = stats as PositionStats;
+          if (positionStats.rating) {
+            totalScore += parseFloat(positionStats.rating) || 0;
+            positionCount++;
+          }
+        });
+      }
+
+      const avgScore = positionCount > 0 ? totalScore / positionCount : 0;
+
+      // 计算段位分数
+      const rankScores: Record<string, number> = {
+        '最强王者': 100,
+        '非凡王者': 95,
+        '无双王者': 90,
+        '绝世王者': 85,
+        '至圣王者': 80,
+        '荣耀王者': 75,
+        '传奇王者': 70
+      };
+      const rankScore = rankScores[profile.current_rank || ''] || 50;
+
+      // 综合评分 = 位置评分 * 0.6 + 段位评分 * 0.4
+      const finalScore = avgScore * 0.6 + rankScore * 0.4;
+
+      return {
+        user_id: member.user_id,
+        player_profiles: profile,
+        finalScore
+      };
+    });
+
+    // 6. 按评分排序（高分在前）
+    membersWithScore.sort((a, b) => b.finalScore - a.finalScore);
+
+    // 7. 使用蛇形分配算法（Snake Draft）分配成员
+    // 这样可以让每个小组的实力更均衡
+    let direction = 1; // 1 表示正向，-1 表示反向
+    let currentGroupIndex = 0;
+
+    for (let i = 0; i < membersWithScore.length; i++) {
+      const member = membersWithScore[i];
+
+      // 添加到当前分组
+      const { error: memberError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: groups[currentGroupIndex].id,
+          user_id: member.user_id,
+          role: 'member'
+        });
+
+      if (memberError) {
+        console.error('添加成员到分组失败:', memberError);
+      }
+
+      // 更新分组索引（蛇形分配）
+      if (direction === 1) {
+        currentGroupIndex++;
+        if (currentGroupIndex >= groups.length) {
+          currentGroupIndex = groups.length - 1;
+          direction = -1;
+        }
+      } else {
+        currentGroupIndex--;
+        if (currentGroupIndex < 0) {
+          currentGroupIndex = 0;
+          direction = 1;
+        }
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('创建分组失败:', error);
+    throw error;
+  }
+}
+
+// 更新分组成员
+export async function updateGroupMembers(groupId: string, members: string[]): Promise<boolean> {
+  try {
+    // 1. 删除该分组的所有成员
+    const { error: deleteError } = await supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId);
+
+    if (deleteError) {
+      console.error('删除旧成员失败:', deleteError);
+      throw new Error('删除旧成员失败');
+    }
+
+    // 2. 添加新成员
+    if (members.length > 0) {
+      const memberRecords = members.map(userId => ({
+        group_id: groupId,
+        user_id: userId,
         role: 'member'
       }));
 
-      const { error: memberError } = await supabase
+      const { error: insertError } = await supabase
         .from('group_members')
-        .insert(memberInserts);
+        .insert(memberRecords);
 
-      if (memberError) {
-        throw new Error('添加队员到分组失败');
+      if (insertError) {
+        console.error('添加新成员失败:', insertError);
+        throw new Error('添加新成员失败');
       }
     }
 
-    createdGroups.push(newGroup);
+    return true;
+  } catch (error) {
+    console.error('更新分组成员失败:', error);
+    throw error;
   }
+}
 
-  // 返回分组详情
-  return await getTeamGroups(user_id, data.team_id);
-};
-
-// 获取战队分组
-export const getTeamGroups = async (user_id: string, team_id: string): Promise<TeamGroup[]> => {
-  // 检查用户是否是战队成员
-  const isMember = await checkTeamMembership(user_id, team_id);
-  if (!isMember) {
-    throw new Error('您不是该战队的成员');
-  }
-
-  // 获取分组列表
-  const { data: groups, error: groupsError } = await supabase
-    .from('team_groups')
-    .select('*')
-    .eq('team_id', team_id)
-    .order('group_name');
-
-  if (groupsError) {
-    throw new Error('获取分组失败');
-  }
-
-  // 为每个分组获取成员
-  const groupsWithMembers = await Promise.all(
-    groups.map(async (group: TeamGroup) => {
-      // 获取分组成员
-      const { data: members, error: membersError } = await supabase
-        .from('group_members')
-        .select('id, user_id')
-        .eq('group_id', group.id);
-
-      if (membersError) {
-        console.error('获取分组成员失败:', membersError);
-        return { ...group, members: [] };
-      }
-
-      // 获取成员详情
-      const membersWithDetails = await Promise.all(
-        members.map(async (member: { id: string; user_id: string }) => {
-          // 获取用户信息
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('id, email, nickname, avatar')
-            .eq('id', member.user_id)
-            .single();
-
-          if (userError) {
-            console.error('获取用户信息失败:', userError);
-          }
-
-          // 获取用户游戏资料
-          const { data: profileData } = await supabase
-            .from('player_profiles')
-            .select('id, main_positions, historical_rating, recent_rating, available_time, accept_position_adjustment')
-            .eq('user_id', member.user_id)
-            .eq('team_id', team_id)
-            .single();
-
-          let profileWithHeroes = null;
-          if (profileData) {
-            // 获取用户擅长英雄
-            const { data: heroData } = await supabase
-              .from('player_heroes')
-              .select('hero:hero_id(id, name, position, image_url)')
-              .eq('player_profile_id', profileData.id);
-
-            if (heroData) {
-              profileWithHeroes = {
-                ...profileData,
-                heroes: heroData.map((item) => item.hero)
-              };
-            } else {
-              profileWithHeroes = profileData;
-            }
-          }
-
-          return {
-            ...member,
-            user: userData || { id: member.user_id, email: '', nickname: '未知用户' },
-            profile: profileWithHeroes as PlayerProfile || undefined
-          };
-        })
-      );
-
-      return {
-        ...group,
-        members: membersWithDetails
-      };
-    })
-  );
-
-  return groupsWithMembers;
-};
-
-// 更新分组队员
-export const updateGroupMembers = async (user_id: string, data: UpdateGroupMembersRequest): Promise<void> => {
-  // 获取分组所属的战队
-  const { data: groupData, error: groupError } = await supabase
-    .from('team_groups')
-    .select('team_id')
-    .eq('id', data.group_id)
-    .single();
-
-  if (groupError) {
-    throw new Error('获取分组信息失败');
-  }
-
-  // 检查用户是否是战队队长
-  const isCaptain = await checkTeamCaptain(user_id, groupData.team_id);
-  if (!isCaptain) {
-    throw new Error('只有队长才能调整分组');
-  }
-
-  // 清空旧的队员
-  await supabase
-    .from('group_members')
-    .delete()
-    .eq('group_id', data.group_id);
-
-  // 添加新的队员
-  if (data.user_ids.length > 0) {
-    const memberInserts = data.user_ids.map(user_id => ({
-      group_id: data.group_id,
-      user_id
-    }));
-
-    const { error } = await supabase
+// 移动成员到另一个分组
+export async function moveMemberToGroup(memberId: string, fromGroupId: string, toGroupId: string): Promise<boolean> {
+  try {
+    // 1. 从原分组删除
+    const { error: deleteError } = await supabase
       .from('group_members')
-      .insert(memberInserts);
+      .delete()
+      .eq('group_id', fromGroupId)
+      .eq('user_id', memberId);
 
-    if (error) {
-      throw new Error('更新分组队员失败');
+    if (deleteError) {
+      console.error('从原分组移除成员失败:', deleteError);
+      throw new Error('从原分组移除成员失败');
     }
+
+    // 2. 添加到新分组
+    const { error: insertError } = await supabase
+      .from('group_members')
+      .insert({
+        group_id: toGroupId,
+        user_id: memberId,
+        role: 'member'
+      });
+
+    if (insertError) {
+      console.error('添加到新分组失败:', insertError);
+      throw new Error('添加到新分组失败');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('移动成员失败:', error);
+    throw error;
   }
-};
-
-// 校验分组平衡性
-export const validateGroupBalance = (group: PlayerProfile[]) => {
-  const positionDistribution = calculatePositionDistribution(group);
-  const averageRating = calculateAverageRating(group);
-  const averageRank = calculateAverageRank(group);
-  const rankDifferenceValid = checkRankDifference(group);
-
-  // 检查位置分布
-  const hasAllPositions = Object.values(positionDistribution).every(count => count > 0);
-
-  // 检查评分均衡性（简化版）
-  const ratingVariance = group.reduce((sum, player) => {
-    return sum + Math.pow((player.recent_rating || 0) - averageRating, 2);
-  }, 0) / group.length;
-
-  const isRatingBalanced = ratingVariance < 100; // 评分方差小于100视为均衡
-
-  return {
-    hasAllPositions,
-    isRatingBalanced,
-    rankDifferenceValid,
-    positionDistribution,
-    averageRating,
-    averageRank
-  };
-};
+}

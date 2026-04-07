@@ -15,11 +15,14 @@ type Breakpoint = keyof typeof breakpoints
 
 export function useResponsive() {
   const [windowSize, setWindowSize] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 0,
-    height: typeof window !== 'undefined' ? window.innerHeight : 0
+    width: 0,
+    height: 0
   })
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     const handleResize = () => {
       setWindowSize({
         width: window.innerWidth,
@@ -66,8 +69,11 @@ export function useResponsive() {
 // 设备方向检测
 export function useOrientation() {
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     const handleOrientationChange = () => {
       const angle = window.screen.orientation?.angle || 0
       setOrientation(angle === 0 || angle === 180 ? 'portrait' : 'landscape')
@@ -84,8 +90,11 @@ export function useOrientation() {
 // 触摸设备检测
 export function useIsTouchDevice() {
   const [isTouch, setIsTouch] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     const checkTouch = () => {
       setIsTouch(
         'ontouchstart' in window ||
@@ -107,8 +116,11 @@ export function useSafeAreaInsets() {
     bottom: 0,
     left: 0
   })
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     // 检测CSS环境变量支持
     const computedStyle = getComputedStyle(document.documentElement)
     
@@ -127,8 +139,11 @@ export function useSafeAreaInsets() {
 export function useVirtualKeyboard() {
   const [isOpen, setIsOpen] = useState(false)
   const [height, setHeight] = useState(0)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     const handleResize = () => {
       const visualHeight = window.visualViewport?.height || window.innerHeight
       const windowHeight = window.innerHeight
@@ -151,8 +166,11 @@ export function useScrollPosition() {
   const [scrollDirection, setScrollDirection] = useState<'up' | 'down' | null>(null)
   const [isAtTop, setIsAtTop] = useState(true)
   const [isAtBottom, setIsAtBottom] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     let lastScrollY = 0
 
     const handleScroll = () => {
@@ -184,8 +202,11 @@ export function useScrollPosition() {
 // 媒体查询Hook
 export function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     const media = window.matchMedia(query)
     
     const updateMatch = () => setMatches(media.matches)

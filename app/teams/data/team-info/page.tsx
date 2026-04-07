@@ -125,10 +125,17 @@ export default function TeamInfoPage() {
               className="px-4 py-2 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium flex items-center gap-2"
               onClick={() => router.push('/teams/space')}
             >
-              <span>←</span> 返回战队空间
+              <span>←</span> 返回战队管理后台
             </button>
             <h1 className="text-2xl font-bold gradient-text">战队信息管理</h1>
-            <div className="w-20"></div>
+            {hasTeamInfoPermission() && (
+              <button
+                className="px-4 py-2 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium flex items-center gap-2"
+                onClick={() => router.push('/teams/edit')}
+              >
+                编辑战队信息
+              </button>
+            )}
           </div>
 
           {error && (

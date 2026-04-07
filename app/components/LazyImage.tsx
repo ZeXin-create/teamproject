@@ -1,151 +1,169 @@
-'use client'
+'use client';
 
-import React, { useState, useEffect, useRef } from 'react'
-import Image from 'next/image'
+import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 
 interface LazyImageProps {
-  src: string
-  alt: string
-  width?: number
-  height?: number
-  className?: string
-  placeholderSrc?: string
-  threshold?: number
+  src: string;
+  alt: string;
+  width?: number;
+  height?: number;
+  className?: string;
+  priority?: boolean;
+  placeholder?: 'blur' | 'empty';
+  blurDataURL?: string;
+  onLoad?: () => void;
+  onError?: () => void;
 }
 
 export default function LazyImage({
   src,
   alt,
-  width,
-  height,
+  width = 100,
+  height = 100,
   className = '',
-  placeholderSrc,
-  threshold = 0.1
+  priority = false,
+  placeholder = 'empty',
+  blurDataURL,
+  onLoad,
+  onError
 }: LazyImageProps) {
-  const [isLoaded, setIsLoaded] = useState(false)
-  const [isInView, setIsInView] = useState(false)
-  const [hasError, setHasError] = useState(false)
-  const imgRef = useRef<HTMLDivElement>(null)
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isInView, setIsInView] = useState(priority);
+  const [hasError, setHasError] = useState(false);
+  const imgRef = useRef<HTMLDivElement>(null);
 
+  // 使用 Intersection Observer 实现懒加载
   useEffect(() => {
+    if (priority) return;
+
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsInView(true)
-          observer.disconnect()
-        }
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsInView(true);
+            observer.disconnect();
+          }
+        });
       },
       {
-        threshold,
-        rootMargin: '50px'
+        rootMargin: '50px', // 提前 50px 开始加载
+        threshold: 0.1
       }
-    )
+    );
 
     if (imgRef.current) {
-      observer.observe(imgRef.current)
+      observer.observe(imgRef.current);
     }
 
-    return () => {
-      observer.disconnect()
-    }
-  }, [threshold])
+    return () => observer.disconnect();
+  }, [priority]);
 
   const handleLoad = () => {
-    setIsLoaded(true)
-  }
+    setIsLoaded(true);
+    onLoad?.();
+  };
 
   const handleError = () => {
-    setHasError(true)
-    setIsLoaded(true)
+    setHasError(true);
+    onError?.();
+  };
+
+  // 骨架屏占位
+  if (!isInView) {
+    return (
+      <div
+        ref={imgRef}
+        className={`bg-gray-200 animate-pulse ${className}`}
+        style={{ width, height }}
+      />
+    );
+  }
+
+  // 加载失败显示占位图
+  if (hasError) {
+    return (
+      <div
+        className={`bg-gray-100 flex items-center justify-center ${className}`}
+        style={{ width, height }}
+      >
+        <svg
+          className="w-8 h-8 text-gray-400"
+          fill="none"
+            stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+      </div>
+    );
   }
 
   return (
-    <div
-      ref={imgRef}
-      className={`relative overflow-hidden ${className}`}
-      style={{ width, height }}
-    >
-      {/* 占位符/骨架屏 */}
+    <div ref={imgRef} className="relative" style={{ width, height }}>
       {!isLoaded && (
-        <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
-          {placeholderSrc ? (
-            <Image
-              src={placeholderSrc}
-              alt={alt}
-              fill
-              className="object-cover opacity-50 blur-sm"
-            />
-          ) : (
-            <div className="w-12 h-12 bg-gray-300 rounded-full" />
-          )}
-        </div>
-      )}
-
-      {/* 实际图片 */}
-      {isInView && !hasError && (
-        <Image
-          src={src}
-          alt={alt}
-          fill={!width || !height}
-          width={width}
-          height={height}
-          className={`object-cover transition-opacity duration-300 ${
-            isLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
-          onLoad={handleLoad}
-          onError={handleError}
-          loading="lazy"
+        <div
+          className="absolute inset-0 bg-gray-200 animate-pulse"
+          style={{ width, height }}
         />
       )}
-
-      {/* 错误状态 */}
-      {hasError && (
-        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-          <div className="text-center">
-            <span className="text-3xl">🖼️</span>
-            <p className="text-xs text-gray-400 mt-1">加载失败</p>
-          </div>
-        </div>
-      )}
+      <Image
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        className={`transition-opacity duration-300 ${
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        } ${className}`}
+        onLoad={handleLoad}
+        onError={handleError}
+        priority={priority}
+        placeholder={placeholder}
+        blurDataURL={blurDataURL}
+      />
     </div>
-  )
+  );
 }
 
-// 图片预加载Hook
-export function useImagePreload(imageUrls: string[]) {
-  useEffect(() => {
-    imageUrls.forEach((url) => {
-      const img = new window.Image()
-      img.src = url
-    })
-  }, [imageUrls])
-}
-
-// 批量懒加载图片组件
-export function LazyImageGrid({
-  images,
-  className = ''
-}: {
+// 图片列表懒加载组件
+interface LazyImageListProps {
   images: Array<{
-    src: string
-    alt: string
-    width?: number
-    height?: number
-  }>
-  className?: string
-}) {
+    src: string;
+    alt: string;
+    width?: number;
+    height?: number;
+  }>;
+  className?: string;
+  itemClassName?: string;
+  columns?: number;
+}
+
+export function LazyImageList({
+  images,
+  className = '',
+  itemClassName = '',
+  columns = 3
+}: LazyImageListProps) {
   return (
-    <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 ${className}`}>
-      {images.map((img, index) => (
+    <div
+      className={`grid gap-4 ${className}`}
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
+      {images.map((image, index) => (
         <LazyImage
           key={index}
-          src={img.src}
-          alt={img.alt}
-          width={img.width}
-          height={img.height}
-          className="rounded-xl aspect-square"
+          src={image.src}
+          alt={image.alt}
+          width={image.width || 200}
+          height={image.height || 200}
+          className={itemClassName}
         />
       ))}
     </div>
-  )
+  );
 }

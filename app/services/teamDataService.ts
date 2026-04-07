@@ -138,155 +138,7 @@ export class TeamDataService {
     }
   }
   
-  // 比赛记录相关
-  static async getMatchRecords(teamId: string): Promise<MatchRecord[]> {
-    try {
-      const { data, error } = await supabase
-        .from('match_records')
-        .select('*')
-        .eq('team_id', teamId)
-        .order('match_date', { ascending: false });
-      
-      if (error) {
-        throw error;
-      }
-      
-      return data || [];
-    } catch (error) {
-      console.error('获取比赛记录失败:', error);
-      throw error;
-    }
-  }
-  
-  static async createMatchRecord(record: MatchRecord): Promise<MatchRecord> {
-    try {
-      const { data: newRecord, error } = await supabase
-        .from('match_records')
-        .insert(record)
-        .select()
-        .single();
-      
-      if (error) {
-        throw error;
-      }
-      
-      return newRecord;
-    } catch (error) {
-      console.error('创建比赛记录失败:', error);
-      throw error;
-    }
-  }
-  
-  static async updateMatchRecord(id: string, data: Partial<MatchRecord>): Promise<MatchRecord> {
-    try {
-      const { data: updatedRecord, error } = await supabase
-        .from('match_records')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) {
-        throw error;
-      }
-      
-      return updatedRecord;
-    } catch (error) {
-      console.error('更新比赛记录失败:', error);
-      throw error;
-    }
-  }
-  
-  static async deleteMatchRecord(id: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('match_records')
-        .delete()
-        .eq('id', id);
-      
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
-      console.error('删除比赛记录失败:', error);
-      throw error;
-    }
-  }
-  
-  // 训练计划相关
-  static async getTrainingPlans(teamId: string): Promise<TrainingPlan[]> {
-    try {
-      const { data, error } = await supabase
-        .from('training_plans')
-        .select('*')
-        .eq('team_id', teamId)
-        .order('training_date', { ascending: false });
-      
-      if (error) {
-        throw error;
-      }
-      
-      return data || [];
-    } catch (error) {
-      console.error('获取训练计划失败:', error);
-      throw error;
-    }
-  }
-  
-  static async createTrainingPlan(plan: TrainingPlan): Promise<TrainingPlan> {
-    try {
-      const { data: newPlan, error } = await supabase
-        .from('training_plans')
-        .insert(plan)
-        .select()
-        .single();
-      
-      if (error) {
-        throw error;
-      }
-      
-      return newPlan;
-    } catch (error) {
-      console.error('创建训练计划失败:', error);
-      throw error;
-    }
-  }
-  
-  static async updateTrainingPlan(id: string, data: Partial<TrainingPlan>): Promise<TrainingPlan> {
-    try {
-      const { data: updatedPlan, error } = await supabase
-        .from('training_plans')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) {
-        throw error;
-      }
-      
-      return updatedPlan;
-    } catch (error) {
-      console.error('更新训练计划失败:', error);
-      throw error;
-    }
-  }
-  
-  static async deleteTrainingPlan(id: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('training_plans')
-        .delete()
-        .eq('id', id);
-      
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
-      console.error('删除训练计划失败:', error);
-      throw error;
-    }
-  }
+
   
   // 数据统计相关
   static async getTeamStatistics(teamId: string): Promise<{
@@ -298,16 +150,10 @@ export class TeamDataService {
     positionDistribution: Record<string, number>;
   }> {
     try {
-      // 获取比赛统计
-      const { data: matchStats } = await supabase
-        .from('match_records')
-        .select('result')
-        .eq('team_id', teamId);
-      
-      // 计算胜率
-      const totalMatches = matchStats?.length || 0;
-      const wins = matchStats?.filter(record => record.result === '胜利').length || 0;
-      const winRate = totalMatches > 0 ? (wins / totalMatches * 100).toFixed(2) : '0.00';
+      // 固定返回默认值
+      const totalMatches = 0;
+      const wins = 0;
+      const winRate = '0.00';
       
       // 获取队员状态分布
       const { data: playerStats } = await supabase
@@ -351,6 +197,29 @@ export class TeamDataService {
       };
     } catch (error) {
       console.error('获取战队统计失败:', error);
+      throw error;
+    }
+  }
+  
+  // 比赛记录相关
+  static async getMatchRecords(teamId: string): Promise<MatchRecord[]> {
+    try {
+      const { data, error } = await supabase
+        .from('match_records')
+        .select('*')
+        .eq('team_id', teamId)
+        .order('match_date', { ascending: false });
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return [];
+        }
+        throw error;
+      }
+      
+      return data || [];
+    } catch (error) {
+      console.error('获取比赛记录失败:', error);
       throw error;
     }
   }

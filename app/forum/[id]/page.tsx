@@ -139,18 +139,27 @@ export default function PostDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">加载中...</div>
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="card p-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">加载中...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (!post) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">📝</div>
-          <p className="text-gray-600 text-lg">帖子不存在</p>
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="card p-12 text-center">
+            <div className="text-6xl mb-4">📝</div>
+            <p className="text-gray-600 text-lg">帖子不存在</p>
+          </div>
         </div>
       </div>
     )
@@ -162,19 +171,19 @@ export default function PostDetailPage() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <button
           onClick={() => router.back()}
-          className="mb-6 text-pink-500 hover:text-pink-600 glass-button px-4 py-2 rounded-lg"
+          className="mb-6 text-primary-500 hover:text-primary-600 btn-secondary px-4 py-2 rounded-lg"
         >
           ← 返回
         </button>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
+          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
             {error}
           </div>
         )}
 
         {/* 帖子内容 */}
-        <div className="glass-card p-8 mb-8">
+        <div className="card p-8 mb-8">
           <div className="flex items-center gap-2 mb-4">
             {post.is_pinned && (
               <span className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs font-medium">
@@ -206,8 +215,7 @@ export default function PostDetailPage() {
               </div>
             ) : (
               <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold"
-                style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
+                className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold bg-primary-500"
               >
                 {(post.author?.nickname || 'U').charAt(0).toUpperCase()}
               </div>
@@ -265,20 +273,20 @@ export default function PostDetailPage() {
 
         {/* 发表评论 */}
         {user && !post.is_locked && (
-          <div className="glass-card p-6 mb-8">
+          <div className="card p-6 mb-8">
             <h3 className="text-lg font-bold text-gray-800 mb-4">发表评论</h3>
             <form onSubmit={handleCommentSubmit}>
               <textarea
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
                 placeholder="写下你的评论..."
-                className="glass-input w-full px-4 py-3 mb-4"
+                className="w-full px-4 py-3 mb-4 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 rows={4}
               />
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="glass-button px-6 py-3 text-white font-medium"
+                  className="btn-primary px-6 py-3 text-white font-medium"
                   disabled={!commentContent.trim()}
                 >
                   发表评论
@@ -289,7 +297,7 @@ export default function PostDetailPage() {
         )}
 
         {/* 评论列表 */}
-        <div className="glass-card p-6">
+        <div className="card p-6">
           <h3 className="text-lg font-bold text-gray-800 mb-6">
             评论 ({post.comment_count})
           </h3>
@@ -317,8 +325,7 @@ export default function PostDetailPage() {
                       </div>
                     ) : (
                       <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
-                        style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold bg-primary-500"
                       >
                         {(comment.author?.nickname || 'U').charAt(0).toUpperCase()}
                       </div>
@@ -368,8 +375,7 @@ export default function PostDetailPage() {
                                 </div>
                               ) : (
                                 <div
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                                  style={{ background: 'linear-gradient(135deg, #4ecdc4, #45b7d1)' }}
+                                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold bg-primary-500"
                                 >
                                   {(reply.author?.nickname || 'U').charAt(0).toUpperCase()}
                                 </div>
@@ -405,7 +411,7 @@ export default function PostDetailPage() {
         {/* 回复模态框 */}
         {replyTo && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="glass-card p-6 w-full max-w-lg">
+            <div className="card p-6 w-full max-w-lg">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-gray-800">回复 @{replyTo.author?.nickname || '用户'}</h3>
                 <button
@@ -424,13 +430,13 @@ export default function PostDetailPage() {
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
                   placeholder="写下你的回复..."
-                  className="glass-input w-full px-4 py-3 mb-4"
+                  className="w-full px-4 py-3 mb-4 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   rows={4}
                 />
                 <div className="flex justify-end gap-4">
                   <button
                     type="button"
-                    className="px-6 py-3 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    className="btn-secondary px-6 py-3 text-gray-700 font-medium"
                     onClick={() => {
                       setReplyTo(null)
                       setReplyContent('')
@@ -440,7 +446,7 @@ export default function PostDetailPage() {
                   </button>
                   <button
                     type="submit"
-                    className="glass-button px-6 py-3 text-white font-medium"
+                    className="btn-primary px-6 py-3 text-white font-medium"
                     disabled={!replyContent.trim()}
                   >
                     发送回复

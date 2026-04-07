@@ -14,8 +14,15 @@ interface PWAPromptProps {
 export const PWAPrompt: React.FC<PWAPromptProps> = ({ isLoggedIn }) => {
   const [showPrompt, setShowPrompt] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
     // 检查用户是否已经拒绝过提示
     const hasRejectedPrompt = localStorage.getItem('pwaPromptRejected') === 'true'
     if (hasRejectedPrompt) {
@@ -28,14 +35,17 @@ export const PWAPrompt: React.FC<PWAPromptProps> = ({ isLoggedIn }) => {
       return
     }
 
+    // 检查当前页面是否是登录页面
+    const isLoginPage = window.location.pathname === '/auth/login'
+    
     // 监听beforeinstallprompt事件
     const handleBeforeInstallPrompt = (e: Event) => {
       // 阻止Chrome 67及更早版本自动显示安装提示
       e.preventDefault()
       // 保存事件以便稍后触发
       setDeferredPrompt(e as BeforeInstallPromptEvent)
-      // 只有在用户登录后才显示提示
-      if (isLoggedIn) {
+      // 只有在用户登录后且当前是登录页面才显示提示
+      if (isLoggedIn && isLoginPage) {
         setShowPrompt(true)
       }
     }
@@ -45,7 +55,7 @@ export const PWAPrompt: React.FC<PWAPromptProps> = ({ isLoggedIn }) => {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     }
-  }, [isLoggedIn])
+  }, [isLoggedIn, mounted])
 
   const handleInstall = async () => {
     if (!deferredPrompt) return

@@ -72,10 +72,15 @@ export default function OnboardingGuide() {
   const [showGuide, setShowGuide] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [isCompleted, setIsCompleted] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
-      if (!user) return
+      if (!user || !mounted) return
       
       // 首先检查localStorage
       const hasCompletedOnboarding = localStorage.getItem(`onboarding_completed_${user.id}`)
@@ -87,7 +92,7 @@ export default function OnboardingGuide() {
         // 检查用户是否已完成新手引导
         const { data, error } = await supabase
           .from('profiles')
-          .select('onboarding_completed')
+          .select('*')
           .eq('id', user.id)
           .single()
         
@@ -97,11 +102,14 @@ export default function OnboardingGuide() {
           return
         }
         
-        if (data && !data.onboarding_completed) {
+        if (data && data.onboarding_completed !== true) {
           setShowGuide(true)
-        } else if (data && data.onboarding_completed) {
+        } else if (data && data.onboarding_completed === true) {
           // 存储到localStorage
           localStorage.setItem(`onboarding_completed_${user.id}`, 'true')
+        } else {
+          // 字段不存在，默认显示引导
+          setShowGuide(true)
         }
       } catch (error) {
         console.error('检查新手引导状态失败:', error)
@@ -111,7 +119,7 @@ export default function OnboardingGuide() {
     }
     
     checkOnboardingStatus()
-  }, [user])
+  }, [user, mounted])
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {

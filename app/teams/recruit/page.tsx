@@ -2,642 +2,505 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-import { useRouter } from 'next/navigation'
-
-// 定义权限常量
-const RECRUIT_PERMISSIONS = ['队长', '副队']
-
-interface Recruit {
-  id: string
-  team_id: string
-  requirements: string
-  contact: string
-  created_at: string
-  rank_requirement?: string
-  positions?: string[]
-  online_time?: string
-  recruit_count?: number
-  deadline?: string
-  status?: string
-  created_by?: string
-  team?: {
-    name: string
-    region: string
-  }
-}
+import Navbar from '../../components/Navbar'
 
 export default function RecruitPage() {
   const { user } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const editId = searchParams.get('edit')
 
-  const [recruits, setRecruits] = useState<Recruit[]>([])
-  const [userRole, setUserRole] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [title, setTitle] = useState('')
+  const [position, setPosition] = useState('')
+  const [rank, setRank] = useState('')
+  const [membersNeeded, setMembersNeeded] = useState(1)
+  const [requirements, setRequirements] = useState('')
+  const [contact, setContact] = useState('')
+  const [image, setImage] = useState<File | null>(null)
+  const [imageUrl, setImageUrl] = useState('')
+  const [teamId, setTeamId] = useState('')
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
+  const positions = ['上单', '打野', '中单', '射手', '辅助', '任意位置']
+  const ranks = ['青铜', '白银', '黄金', '铂金', '钻石', '星耀', '王者']
 
-  // 检查用户是否有权限编辑/删除招募信息
-  const canManageRecruit = useCallback((recruit: Recruit): boolean => {
-    if (!user) return false
-    // 用户是该招募信息的创建者
-    return recruit.created_by === user.id
+  // 获取用户战队信息
+  const fetchUserTeam = useCallback(async () => {
+    if (!user) return
+
+    try {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('team_id, role')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+
+      if (error) {
+        console.error('获取用户战队信息失败:', error)
+        setError('获取战队信息失败')
+      } else if (data && data.length > 0) {
+        setTeamId(data[0].team_id)
+      } else {
+        setError('您还没有加入战队')
+      }
+    } catch (error) {
+      console.error('获取用户战队信息失败:', error)
+      setError('获取战队信息失败')
+    }
   }, [user])
 
-  // 检查用户是否有发布招募信息的权限
-  const hasRecruitPermission = () => {
-    return RECRUIT_PERMISSIONS.includes(userRole)
+  // 获取编辑的招募信息
+  const fetchRecruitInfo = useCallback(async () => {
+    if (!editId || !teamId) return
+
+    try {
+      const { data, error } = await supabase
+        .from('team_recruits')
+        .select('*')
+        .eq('id', editId)
+        .eq('team_id', teamId)
+        .single()
+
+      if (error) {
+        console.error('获取招募信息失败:', error)
+        setError('获取招募信息失败')
+      } else {
+        setTitle(data.title)
+        setPosition(data.position)
+        setRank(data.rank)
+        setMembersNeeded(data.members_needed)
+        setRequirements(data.requirements)
+        setContact(data.contact)
+        setImageUrl(data.image_url || '')
+      }
+    } catch (error) {
+      console.error('获取招募信息失败:', error)
+      setError('获取招募信息失败')
+    }
+  }, [editId, teamId])
+
+  useEffect(() => {
+    if (user) {
+      fetchUserTeam()
+    } else {
+      router.push('/auth/login')
+    }
+  }, [user, fetchUserTeam, router])
+
+  useEffect(() => {
+    if (teamId && editId) {
+      fetchRecruitInfo()
+    }
+  }, [teamId, editId, fetchRecruitInfo])
+
+  // 表单验证
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!title.trim()) {
+      newErrors.title = '请输入招募标题'
+    }
+
+    if (!position) {
+      newErrors.position = '请选择招募位置'
+    }
+
+    if (!rank) {
+      newErrors.rank = '请选择段位要求'
+    }
+
+    if (membersNeeded < 1 || membersNeeded > 10) {
+      newErrors.membersNeeded = '需求人数应在1-10之间'
+    }
+
+    if (!contact.trim()) {
+      newErrors.contact = '请输入联系方式'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
-  // 发布招募信息
-  const [showRecruitForm, setShowRecruitForm] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [recruitForm, setRecruitForm] = useState({
-    rank_requirement: '',
-    positions: [] as string[],
-    online_time: '',
-    recruit_count: 0,
-    requirements: '',
-    contact: ''
-  })
+  // 处理图片上传
+  const handleImageUpload = async (file: File) => {
+    if (!teamId) return
 
-  // 编辑招募信息
-  const [editingRecruit, setEditingRecruit] = useState<Recruit | null>(null)
+    try {
+      // 获取当前用户
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+      if (authError || !authUser) {
+        throw new Error('请先登录')
+      }
 
-  const getRecruits = useCallback(async () => {
-    if (!user) {
-      setLoading(false)
+      // 生成纯 UUID 文件名（不带后缀）
+      const fileName = crypto.randomUUID()
+      const filePath = `${authUser.id}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('team-images')
+        .upload(filePath, file, {
+          contentType: file.type, // 关键：指定 MIME 类型，让 Supabase 识别图片
+          cacheControl: '3600',
+          upsert: false,
+        })
+
+      if (uploadError) {
+        console.error('上传错误详情:', uploadError)
+        throw uploadError
+      }
+
+      // 获取公开 URL（Supabase 会自动处理，无需加后缀）
+      const { data: { publicUrl } } = supabase.storage
+        .from('team-images')
+        .getPublicUrl(filePath)
+
+      return publicUrl
+    } catch (error) {
+      console.error('上传图片失败:', error)
+      throw error
+    }
+  }
+
+  // 处理表单提交
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!validateForm()) {
+      return
+    }
+
+    if (!teamId) {
+      setError('未找到战队信息')
       return
     }
 
     setLoading(true)
+
     try {
-      // 获取用户在战队中的角色
-      const { data: teamMember, error: teamMemberError } = await supabase
-        .from('team_members')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single()
+      let finalImageUrl = imageUrl
 
-      if (teamMemberError) {
-        console.error('获取用户角色失败:', teamMemberError)
-      } else if (teamMember) {
-        setUserRole(teamMember.role || '')
+      // 上传图片
+      if (image) {
+        const uploadedUrl = await handleImageUpload(image)
+        if (uploadedUrl) {
+          finalImageUrl = uploadedUrl
+        }
       }
 
-      const { data, error } = await supabase
-        .from('team_recruits')
-        .select(`
-          id,
-          team_id,
-          requirements,
-          contact,
-          created_at,
-          rank_requirement,
-          positions,
-          online_time,
-          recruit_count,
-          deadline,
-          status,
-          created_by,
-          team:teams(
-            name,
-            region
-          )
-        `)
-        .eq('status', 'active')
-        .eq('created_by', user.id)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        throw error
+      const recruitData = {
+        title,
+        position,
+        rank,
+        members_needed: membersNeeded,
+        requirements,
+        contact,
+        status: 'active',
+        image_url: finalImageUrl
       }
 
-      console.log('获取到的招募信息:', data)
+      if (editId) {
+        // 更新招募信息
+        const { error } = await supabase
+          .from('team_recruits')
+          .update(recruitData)
+          .eq('id', editId)
+          .eq('team_id', teamId)
 
-      // 处理 team 字段的类型问题
-      const processedData: Recruit[] = (data || []).map(item => ({
-        ...item,
-        team: Array.isArray(item.team) ? item.team[0] : item.team
-      }))
+        if (error) {
+          throw error
+        }
 
-      console.log('处理后的招募信息:', processedData)
-      setRecruits(processedData)
-    } catch (err: unknown) {
-      console.error('获取招募信息失败:', err)
-      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '获取招募信息失败，请稍后重试')
+        setSuccess('招募信息更新成功！')
+      } else {
+        // 创建新招募
+        const { error } = await supabase
+          .from('team_recruits')
+          .insert({
+            ...recruitData,
+            team_id: teamId,
+            created_by: user?.id
+          })
+
+        if (error) {
+          throw error
+        }
+
+        setSuccess('招募信息发布成功！')
+      }
+
+      // 重置表单
+      if (!editId) {
+        setTitle('')
+        setPosition('')
+        setRank('')
+        setMembersNeeded(1)
+        setRequirements('')
+        setContact('')
+        setImage(null)
+        setImageUrl('')
+      }
+
+      // 跳转到招募管理页面
+      setTimeout(() => {
+        router.push('/teams/recruitment-management')
+      }, 1000)
+    } catch (error: any) {
+      console.error('提交失败:', error)
+      setError(error.message || '提交失败，请稍后重试')
     } finally {
       setLoading(false)
     }
-  }, [user])
-
-  useEffect(() => {
-    getRecruits()
-  }, [getRecruits])
-
-  // 发布招募信息
-  const handleRecruitSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!user) {
-      setError('请先登录')
-      return
-    }
-
-    if (!hasRecruitPermission()) {
-      setError('您没有权限发布招募信息')
-      return
-    }
-
-    if (!recruitForm.requirements || !recruitForm.contact) {
-      setError('请填写招募要求和联系方式')
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      // 获取用户所在的战队
-      const { data: teamMember, error: teamMemberError } = await supabase
-        .from('team_members')
-        .select('team_id')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single()
-
-      if (teamMemberError) {
-        throw new Error('您还没有加入战队')
-      }
-
-      const teamId = teamMember.team_id
-
-      // 创建招募信息
-      const { data: newRecruit, error: recruitError } = await supabase
-        .from('team_recruits')
-        .insert({
-          team_id: teamId,
-          requirements: recruitForm.requirements,
-          contact: recruitForm.contact,
-          rank_requirement: recruitForm.rank_requirement,
-          positions: recruitForm.positions,
-          online_time: recruitForm.online_time,
-          recruit_count: recruitForm.recruit_count,
-          status: 'active',
-          created_by: user.id
-        })
-        .select(`
-          id,
-          team_id,
-          requirements,
-          contact,
-          created_at,
-          rank_requirement,
-          positions,
-          online_time,
-          recruit_count,
-          deadline,
-          status,
-          created_by,
-          team:teams(
-            name,
-            region
-          )
-        `)
-        .single()
-
-      if (recruitError) {
-        throw recruitError
-      }
-
-      // 处理 team 字段的类型问题
-      const processedRecruit: Recruit = {
-        ...newRecruit,
-        team: Array.isArray(newRecruit.team) ? newRecruit.team[0] : newRecruit.team
-      }
-
-      // 更新招募列表
-      setRecruits(prev => [processedRecruit, ...prev])
-
-      // 重置表单
-      setRecruitForm({
-        rank_requirement: '',
-        positions: [] as string[],
-        online_time: '',
-        recruit_count: 0,
-        requirements: '',
-        contact: ''
-      })
-
-      // 关闭表单
-      setShowRecruitForm(false)
-
-      // 显示成功消息
-      setError('')
-    } catch (err: unknown) {
-      console.error('发布招募信息失败:', err)
-      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '发布招募信息失败，请稍后重试')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  // 编辑招募信息
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!user || !editingRecruit) {
-      setError('请先登录')
-      return
-    }
-
-    // 检查权限
-    if (!canManageRecruit(editingRecruit)) {
-      setError('您没有权限编辑这条招募信息')
-      return
-    }
-
-    if (!recruitForm.requirements || !recruitForm.contact) {
-      setError('请填写招募要求和联系方式')
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      // 更新招募信息
-      const { data: updatedRecruit, error: recruitError } = await supabase
-        .from('team_recruits')
-        .update({
-          requirements: recruitForm.requirements,
-          contact: recruitForm.contact,
-          rank_requirement: recruitForm.rank_requirement,
-          positions: recruitForm.positions,
-          online_time: recruitForm.online_time,
-          recruit_count: recruitForm.recruit_count
-        })
-        .eq('id', editingRecruit.id)
-        .select(`
-          id,
-          team_id,
-          requirements,
-          contact,
-          created_at,
-          rank_requirement,
-          positions,
-          online_time,
-          recruit_count,
-          deadline,
-          status,
-          created_by,
-          team:teams(
-            name,
-            region
-          )
-        `)
-        .single()
-
-      if (recruitError) {
-        throw recruitError
-      }
-
-      // 处理 team 字段的类型问题
-      const processedRecruit: Recruit = {
-        ...updatedRecruit,
-        team: Array.isArray(updatedRecruit.team) ? updatedRecruit.team[0] : updatedRecruit.team
-      }
-
-      // 更新招募列表
-      setRecruits(prev => prev.map(recruit => recruit.id === editingRecruit.id ? processedRecruit : recruit))
-
-      // 关闭表单
-      setShowRecruitForm(false)
-      setEditingRecruit(null)
-
-      // 显示成功消息
-      setError('')
-    } catch (err: unknown) {
-      console.error('编辑招募信息失败:', err)
-      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '编辑招募信息失败，请稍后重试')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  // 删除招募信息
-  const handleDeleteRecruit = async (recruitId: string) => {
-    if (!user) {
-      setError('请先登录')
-      return
-    }
-
-    // 查找要删除的招募信息
-    const recruitToDelete = recruits.find(r => r.id === recruitId)
-    if (!recruitToDelete) {
-      setError('招募信息不存在')
-      return
-    }
-
-    // 检查权限
-    if (!canManageRecruit(recruitToDelete)) {
-      setError('您没有权限删除这条招募信息')
-      return
-    }
-
-    if (!confirm('确定要删除这条招募信息吗？')) {
-      return
-    }
-
-    setIsDeleting(true)
-    try {
-      const { error } = await supabase
-        .from('team_recruits')
-        .update({ status: 'inactive' })
-        .eq('id', recruitId)
-
-      if (error) {
-        throw error
-      }
-
-      // 更新招募列表
-      setRecruits(prev => prev.filter(recruit => recruit.id !== recruitId))
-
-      // 显示成功消息
-      setError('')
-    } catch (err: unknown) {
-      console.error('删除招募信息失败:', err)
-      setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '删除招募信息失败，请稍后重试')
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  // 编辑招募信息
-  const handleEditRecruit = (recruit: Recruit) => {
-    setEditingRecruit(recruit)
-    setRecruitForm({
-      rank_requirement: recruit.rank_requirement || '',
-      positions: recruit.positions || [] as string[],
-      online_time: recruit.online_time || '',
-      recruit_count: recruit.recruit_count || 0,
-      requirements: recruit.requirements,
-      contact: recruit.contact
-    })
-    setShowRecruitForm(true)
   }
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="glass-card p-12 text-center">
-          <div className="animate-pulse text-pink-500 text-lg">✨ 加载中...</div>
-        </div>
+        <div className="text-center">加载中...</div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-6">
+      <Navbar />
+      <div className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-6">
           <button
-            className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2 mr-4"
             onClick={() => router.back()}
+            className="btn-secondary px-4 py-2 mr-4"
           >
-            <span>←</span> 返回
+            ← 返回
           </button>
-          <h1 className="text-2xl font-bold gradient-text flex items-center gap-2">
-            <span>🎯</span> 招募队员
+          <h1 className="text-2xl font-bold gradient-text">
+            {editId ? '编辑招募信息' : '发布招募信息'}
           </h1>
         </div>
 
-        {user && hasRecruitPermission() && (
-          <div className="mb-6">
-            <button
-              className="glass-button px-6 py-3 text-white font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg animate-breathe"
-              onClick={() => {
-                setEditingRecruit(null)
-                setRecruitForm({
-                  rank_requirement: '',
-                  positions: [] as string[],
-                  online_time: '',
-                  recruit_count: 0,
-                  requirements: '',
-                  contact: ''
-                })
-                setShowRecruitForm(true)
-              }}
-            >
-              ✨ 发布招募信息
-            </button>
-          </div>
-        )}
-        {user && !hasRecruitPermission() && (
-          <div className="mb-6 p-4 bg-gray-100 text-gray-600 rounded-lg">
-            <p>您没有权限发布招募信息</p>
-          </div>
-        )}
-
-        {/* 发布/编辑招募信息表单 */}
-        {showRecruitForm && (
-          <div className="glass-card p-6 mb-6 max-w-2xl">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <span>📝</span> {editingRecruit ? '编辑招募信息' : '发布招募信息'}
-            </h2>
-            <form onSubmit={editingRecruit ? handleEditSubmit : handleRecruitSubmit} className="space-y-4">
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">🏆 段位要求</label>
-                <select
-                  className="glass-input w-full px-4 py-2 outline-none"
-                  value={recruitForm.rank_requirement}
-                  onChange={(e) => setRecruitForm(prev => ({ ...prev, rank_requirement: e.target.value }))}
-                >
-                  <option value="">不限段位</option>
-                  <option value="王者">王者</option>
-                  <option value="星耀">星耀</option>
-                  <option value="钻石">钻石</option>
-                  <option value="铂金">铂金</option>
-                  <option value="黄金">黄金</option>
-                  <option value="白银">白银</option>
-                  <option value="青铜">青铜</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">🎯 擅长位置</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {['上单', '打野', '中单', '射手', '辅助'].map(position => (
-                    <label key={position} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={recruitForm.positions.includes(position)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setRecruitForm(prev => ({ ...prev, positions: [...prev.positions, position] }))
-                          } else {
-                            setRecruitForm(prev => ({ ...prev, positions: prev.positions.filter(p => p !== position) }))
-                          }
-                        }}
-                        className="mr-2"
-                      />
-                      <span>{position}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">⏰ 在线时间</label>
-                <select
-                  className="glass-input w-full px-4 py-2 outline-none"
-                  value={recruitForm.online_time}
-                  onChange={(e) => setRecruitForm(prev => ({ ...prev, online_time: e.target.value }))}
-                >
-                  <option value="">不限时间</option>
-                  <option value="早上">早上</option>
-                  <option value="中午">中午</option>
-                  <option value="晚上">晚上</option>
-                  <option value="全天">全天</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">👥 招募人数</label>
-                <input
-                  type="number"
-                  className="glass-input w-full px-4 py-2 outline-none"
-                  value={recruitForm.recruit_count || ''}
-                  onChange={(e) => setRecruitForm(prev => ({ ...prev, recruit_count: parseInt(e.target.value) || 0 }))}
-                  placeholder="请输入招募人数"
-                  min="1"
-                  max="5"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">📝 招募要求</label>
-                <textarea
-                  className="glass-input w-full px-4 py-2 outline-none"
-                  value={recruitForm.requirements}
-                  onChange={(e) => setRecruitForm(prev => ({ ...prev, requirements: e.target.value }))}
-                  placeholder="请输入详细的招募要求"
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">📞 联系方式</label>
-                <input
-                  type="text"
-                  className="glass-input w-full px-4 py-2 outline-none"
-                  value={recruitForm.contact}
-                  onChange={(e) => setRecruitForm(prev => ({ ...prev, contact: e.target.value }))}
-                  placeholder="请输入联系方式（QQ、微信等）"
-                />
-              </div>
-
-              <div className="flex space-x-4">
-                <button
-                  type="submit"
-                  className="glass-button px-6 py-2 text-white font-medium flex-1"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? '提交中...' : editingRecruit ? '更新招募' : '发布招募'}
-                </button>
-                <button
-                  type="button"
-                  className="px-6 py-2 rounded-2xl bg-white/50 text-gray-700 hover:bg-white/80 transition-all font-medium"
-                  onClick={() => {
-                    setShowRecruitForm(false)
-                    setEditingRecruit(null)
-                  }}
-                >
-                  取消
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
         {error && (
-          <div className="mb-4 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
+          <div className="mb-6 p-4 bg-red-100 text-red-600 rounded-lg">
             {error}
           </div>
         )}
 
-        {/* 招募信息列表 */}
-        <div className="space-y-2">
-          {recruits.length === 0 ? (
-            <div className="glass-card p-12 text-center">
-              <div className="text-6xl mb-4">🎮</div>
-              <p className="text-gray-600 text-lg">暂无招募信息</p>
-              <p className="text-gray-400 text-sm mt-2">点击上方按钮发布招募信息</p>
-            </div>
-          ) : (
-            <div className="glass-card overflow-hidden">
-              <div className="grid grid-cols-12 bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-b">
-                <div className="col-span-3 font-semibold">战队名称</div>
-                <div className="col-span-2 font-semibold">段位要求</div>
-                <div className="col-span-2 font-semibold">擅长位置</div>
-                <div className="col-span-1 font-semibold">在线时间</div>
-                <div className="col-span-1 font-semibold">人数</div>
-                <div className="col-span-2 font-semibold">联系方式</div>
-                <div className="col-span-1 font-semibold">操作</div>
-              </div>
-              {recruits.map((recruit, index) => (
-                <div key={recruit.id} className="grid grid-cols-12 p-3 border-b hover:bg-gray-50 transition-colors animate-fade-in-up min-h-[80px]" style={{ animationDelay: `${index * 0.1}s` }}>
-                  <div className="col-span-3">
-                                  <div className="font-medium">{recruit.team?.name || '未知战队'}</div>
-                    {recruit.team?.region && (
-                      <span className="text-xs text-pink-500 mt-1 inline-block px-2 py-1 bg-pink-100 rounded-full">
-                        {recruit.team.region}
-                      </span>
-                    )}
-                    <div className="text-xs text-gray-400 mt-1">
-                      {new Date(recruit.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="col-span-2">
-                    {recruit.rank_requirement || '不限'}
-                  </div>
-                  <div className="col-span-2">
-                    {recruit.positions && recruit.positions.length > 0 ? recruit.positions.join('、') : '不限'}
-                  </div>
-                  <div className="col-span-1">
-                    {recruit.online_time || '不限'}
-                  </div>
-                  <div className="col-span-1">
-                    {recruit.recruit_count || 0}人
-                  </div>
-                  <div className="col-span-2">      
-                    <div className="text-sm truncate">{recruit.contact}</div>
-                    <div className="text-sm text-gray-600 mt-1 truncate">
-                      {recruit.requirements?.substring(0, 20)}...
-                    </div>
-                  </div>
-                  <div className="col-span-1">
-                    {canManageRecruit(recruit) && (
-                      <div className="flex flex-col gap-1">
-                        <button
-                          className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                          onClick={() => handleEditRecruit(recruit)}
-                        >
-                          编辑
-                        </button>
-                        <button
-                          className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
-                          onClick={() => handleDeleteRecruit(recruit.id)}
-                        disabled={ isDeleting }
-  >
-                      {isDeleting ? '删除中...' : '删除'}
-                          </button>    
-  
-                      </div>
-                    )}
-                  </div>
+        {success && (
+          <div className="mb-6 p-4 bg-green-100 text-green-600 rounded-lg">
+            {success}
+          </div>
+        )}
+
+        <div className="card p-6">
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 基本信息 */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 mb-2">
+                    招募标题 *
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onBlur={() => {
+                      if (!title.trim()) {
+                        setErrors(prev => ({ ...prev, title: '请输入招募标题' }))
+                      } else {
+                        setErrors(prev => {
+                          const newErrors = { ...prev }
+                          delete newErrors.title
+                          return newErrors
+                        })
+                      }
+                    }}
+                    className="input w-full"
+                    placeholder="例如：招收钻石以上打野"
+                  />
+                  {errors.title && (
+                    <p className="text-red-500 text-sm mt-1">{errors.title}</p>
+                  )}
                 </div>
-              ))}
+
+                <div>
+                  <label className="block text-gray-700 mb-2">
+                    招募位置 *
+                  </label>
+                  <select
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
+                    onBlur={() => {
+                      if (!position) {
+                        setErrors(prev => ({ ...prev, position: '请选择招募位置' }))
+                      } else {
+                        setErrors(prev => {
+                          const newErrors = { ...prev }
+                          delete newErrors.position
+                          return newErrors
+                        })
+                      }
+                    }}
+                    className="input w-full"
+                  >
+                    <option value="">请选择位置</option>
+                    {positions.map((pos) => (
+                      <option key={pos} value={pos}>{pos}</option>
+                    ))}
+                  </select>
+                  {errors.position && (
+                    <p className="text-red-500 text-sm mt-1">{errors.position}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 mb-2">
+                    段位要求 *
+                  </label>
+                  <select
+                    value={rank}
+                    onChange={(e) => setRank(e.target.value)}
+                    onBlur={() => {
+                      if (!rank) {
+                        setErrors(prev => ({ ...prev, rank: '请选择段位要求' }))
+                      } else {
+                        setErrors(prev => {
+                          const newErrors = { ...prev }
+                          delete newErrors.rank
+                          return newErrors
+                        })
+                      }
+                    }}
+                    className="input w-full"
+                  >
+                    <option value="">请选择段位</option>
+                    {ranks.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                  {errors.rank && (
+                    <p className="text-red-500 text-sm mt-1">{errors.rank}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 mb-2">
+                    需求人数 *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={membersNeeded}
+                    onChange={(e) => setMembersNeeded(Number(e.target.value))}
+                    onBlur={() => {
+                      if (membersNeeded < 1 || membersNeeded > 10) {
+                        setErrors(prev => ({ ...prev, membersNeeded: '需求人数应在1-10之间' }))
+                      } else {
+                        setErrors(prev => {
+                          const newErrors = { ...prev }
+                          delete newErrors.membersNeeded
+                          return newErrors
+                        })
+                      }
+                    }}
+                    className="input w-full"
+                  />
+                  {errors.membersNeeded && (
+                    <p className="text-red-500 text-sm mt-1">{errors.membersNeeded}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 其他信息 */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 mb-2">
+                    联系方式 *
+                  </label>
+                  <input
+                    type="text"
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    onBlur={() => {
+                      if (!contact.trim()) {
+                        setErrors(prev => ({ ...prev, contact: '请输入联系方式' }))
+                      } else {
+                        setErrors(prev => {
+                          const newErrors = { ...prev }
+                          delete newErrors.contact
+                          return newErrors
+                        })
+                      }
+                    }}
+                    className="input w-full"
+                    placeholder="例如：QQ 123456789"
+                  />
+                  {errors.contact && (
+                    <p className="text-red-500 text-sm mt-1">{errors.contact}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 mb-2">
+                    招募要求
+                  </label>
+                  <textarea
+                    value={requirements}
+                    onChange={(e) => setRequirements(e.target.value)}
+                    className="input w-full h-24"
+                    placeholder="例如：要有团队意识，能经常在线..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 mb-2">
+                    招募图片
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setImage(e.target.files[0])
+                      }
+                    }}
+                    className="input w-full"
+                  />
+                  {imageUrl && (
+                    <div className="mt-2">
+                      <img
+                        src={imageUrl}
+                        alt="招募图片"
+                        className="w-32 h-32 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          )}
+
+            <div className="mt-6 flex justify-end gap-4">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="btn-secondary px-6 py-2"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                className="btn-primary px-6 py-2"
+                disabled={loading}
+              >
+                {loading ? '提交中...' : (editId ? '更新' : '发布')}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

@@ -2,15 +2,19 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../../context/AuthContext';
 import { GoodsType, ServerArea, TeamBadge, CreateTeamSaleRequest } from '../../types/teamSales';
 import { createTeamSale } from '../../services/teamSalesService';
+import { supabase } from '../../lib/supabase';
 import Navbar from '../../components/Navbar';
 
 export default function CreateTeamSalePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState<{
     goods_type: GoodsType;
@@ -21,6 +25,7 @@ export default function CreateTeamSalePage() {
     team_size: number | string;
     team_badge: TeamBadge;
     id_name: string;
+    image_url: string;
   }>({
     goods_type: GoodsType.TEAM,
     server_area: ServerArea.IOS_QQ,
@@ -29,8 +34,11 @@ export default function CreateTeamSalePage() {
     contact: '',
     team_size: '',
     team_badge: TeamBadge.NONE,
-    id_name: ''
+    id_name: '',
+    image_url: ''
   });
+
+  const [image, setImage] = useState<File | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -40,28 +48,111 @@ export default function CreateTeamSalePage() {
     }));
   };
 
+  // 处理图片上传
+  const handleImageUpload = async (file: File) => {
+    try {
+      // 获取当前用户
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        throw new Error('请先登录');
+      }
+
+      // 生成纯 UUID 文件名（不带后缀）
+      const fileName = crypto.randomUUID();
+      const filePath = `${authUser.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('team-images')
+        .upload(filePath, file, {
+          contentType: file.type, // 关键：指定 MIME 类型，让 Supabase 识别图片
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('上传错误详情:', uploadError);
+        throw uploadError;
+      }
+
+      // 获取公开 URL（Supabase 会自动处理，无需加后缀）
+      const { data: { publicUrl } } = supabase.storage
+        .from('team-images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('上传图片失败:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
+    // 表单验证
+    let isValid = true;
+    const newErrors: Record<string, string> = {};
+
     // 验证价格
     const price = typeof formData.price === 'string' ? parseFloat(formData.price) : formData.price;
     if (!price || price <= 0) {
-      setError('请输入有效的价格（必须大于0）');
-      return;
+      newErrors.price = '请输入有效的价格（必须大于0）';
+      isValid = false;
     }
 
     // 验证战队人数
-    const teamSize = typeof formData.team_size === 'string' ? parseInt(formData.team_size) : formData.team_size;
-    if ((formData.goods_type === GoodsType.TEAM || formData.goods_type === GoodsType.TEAM_AND_ID) && (!teamSize || teamSize <= 0)) {
-      setError('请输入有效的战队人数（必须大于0）');
+    if (formData.goods_type === GoodsType.TEAM || formData.goods_type === GoodsType.TEAM_AND_ID) {
+      const teamSize = typeof formData.team_size === 'string' ? parseInt(formData.team_size) : formData.team_size;
+      if (!teamSize || teamSize <= 0) {
+        newErrors.team_size = '请输入有效的战队人数（必须大于0）';
+        isValid = false;
+      }
+    }
+
+    // 验证ID名称
+    if (formData.goods_type === GoodsType.ID || formData.goods_type === GoodsType.TEAM_AND_ID) {
+      if (!formData.id_name.trim()) {
+        newErrors.id_name = '请输入ID名称';
+        isValid = false;
+      }
+    }
+
+    // 验证商品描述
+    if (!formData.description.trim()) {
+      newErrors.description = '请输入商品描述';
+      isValid = false;
+    }
+
+    // 验证联系方式
+    if (!formData.contact.trim()) {
+      newErrors.contact = '请输入联系方式';
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+
+    if (!isValid) {
+      setError('请检查表单填写是否正确');
       return;
     }
 
     setLoading(true);
 
     try {
+      let imageUrl = formData.image_url;
+
+      // 上传图片
+      if (image) {
+        imageUrl = await handleImageUpload(image);
+      }
+
+      // 计算战队人数
+      const teamSize = formData.goods_type === GoodsType.TEAM || formData.goods_type === GoodsType.TEAM_AND_ID
+        ? (typeof formData.team_size === 'string' ? parseInt(formData.team_size) : formData.team_size)
+        : 0;
+
       const submitData: CreateTeamSaleRequest = {
         goods_type: formData.goods_type,
         server_area: formData.server_area,
@@ -70,7 +161,8 @@ export default function CreateTeamSalePage() {
         contact: formData.contact,
         team_size: teamSize || 0,
         team_badge: formData.team_badge,
-        id_name: formData.id_name
+        id_name: formData.id_name,
+        image_url: imageUrl
       };
 
       await createTeamSale(submitData);
@@ -175,12 +267,25 @@ export default function CreateTeamSalePage() {
                 name="price"
                 value={formData.price}
                 onChange={handleChange}
+                onBlur={() => {
+                  const price = typeof formData.price === 'string' ? parseFloat(formData.price) : formData.price;
+                  if (!price || price <= 0) {
+                    setErrors(prev => ({ ...prev, price: '请输入有效的价格（必须大于0）' }));
+                  } else {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.price;
+                      return newErrors;
+                    });
+                  }
+                }}
                 min="0.01"
                 step="0.01"
                 placeholder="请输入价格"
-                className="glass-input w-full px-4 py-3"
+                className={`glass-input w-full px-4 py-3 ${errors.price ? 'border-red-500' : ''}`}
                 required
               />
+              {errors.price && <p className="mt-1 text-sm text-red-600">{errors.price}</p>}
             </div>
 
             {/* 战队人数（仅战队和组合显示） */}
@@ -192,11 +297,24 @@ export default function CreateTeamSalePage() {
                   name="team_size"
                   value={formData.team_size}
                   onChange={handleChange}
+                  onBlur={() => {
+                    const teamSize = typeof formData.team_size === 'string' ? parseInt(formData.team_size) : formData.team_size;
+                    if (!teamSize || teamSize <= 0) {
+                      setErrors(prev => ({ ...prev, team_size: '请输入有效的战队人数（必须大于0）' }));
+                    } else {
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.team_size;
+                        return newErrors;
+                      });
+                    }
+                  }}
                   min="1"
                   placeholder="请输入战队人数"
-                  className="glass-input w-full px-4 py-3"
+                  className={`glass-input w-full px-4 py-3 ${errors.team_size ? 'border-red-500' : ''}`}
                   required
                 />
+                {errors.team_size && <p className="mt-1 text-sm text-red-600">{errors.team_size}</p>}
               </div>
             )}
 
@@ -229,10 +347,22 @@ export default function CreateTeamSalePage() {
                   name="id_name"
                   value={formData.id_name}
                   onChange={handleChange}
+                  onBlur={() => {
+                    if (!formData.id_name.trim()) {
+                      setErrors(prev => ({ ...prev, id_name: '请输入ID名称' }));
+                    } else {
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.id_name;
+                        return newErrors;
+                      });
+                    }
+                  }}
                   placeholder="请输入ID名称（全区唯一）"
-                  className="glass-input w-full px-4 py-3"
+                  className={`glass-input w-full px-4 py-3 ${errors.id_name ? 'border-red-500' : ''}`}
                   required
                 />
+                {errors.id_name && <p className="mt-1 text-sm text-red-600">{errors.id_name}</p>}
               </div>
             )}
 
@@ -243,11 +373,23 @@ export default function CreateTeamSalePage() {
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
+                onBlur={() => {
+                  if (!formData.description.trim()) {
+                    setErrors(prev => ({ ...prev, description: '请输入商品描述' }));
+                  } else {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.description;
+                      return newErrors;
+                    });
+                  }
+                }}
                 rows={4}
                 placeholder="请详细描述商品信息，包括特点、优势等"
-                className="glass-input w-full px-4 py-3"
+                className={`glass-input w-full px-4 py-3 ${errors.description ? 'border-red-500' : ''}`}
                 required
               ></textarea>
+              {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
             </div>
 
             {/* 联系方式 */}
@@ -258,10 +400,46 @@ export default function CreateTeamSalePage() {
                 name="contact"
                 value={formData.contact}
                 onChange={handleChange}
+                onBlur={() => {
+                  if (!formData.contact.trim()) {
+                    setErrors(prev => ({ ...prev, contact: '请输入联系方式' }));
+                  } else {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.contact;
+                      return newErrors;
+                    });
+                  }
+                }}
                 placeholder="请输入QQ或微信等联系方式"
-                className="glass-input w-full px-4 py-3"
+                className={`glass-input w-full px-4 py-3 ${errors.contact ? 'border-red-500' : ''}`}
                 required
               />
+              {errors.contact && <p className="mt-1 text-sm text-red-600">{errors.contact}</p>}
+            </div>
+
+            {/* 商品图片 */}
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">商品图片</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setImage(e.target.files[0]);
+                  }
+                }}
+                className="glass-input w-full px-4 py-3"
+              />
+              {formData.image_url && (
+                <div className="mt-2">
+                  <img
+                    src={formData.image_url}
+                    alt="商品图片"
+                    className="w-32 h-32 object-cover rounded-lg"
+                  />
+                </div>
+              )}
             </div>
 
             <button

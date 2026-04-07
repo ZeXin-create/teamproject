@@ -97,10 +97,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (email: string, password: string) => {
     setIsLoading(true)
     try {
+      // 生成6位数字系统ID
+      const systemId = Math.floor(100000 + Math.random() * 900000).toString()
+      
       const { error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?type=signup`
+        }
       })
+      
+      if (!error) {
+        // 注册成功后更新用户元数据
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          await supabase.auth.updateUser({
+            data: {
+              system_id: systemId,
+              nickname: systemId // 将系统ID设为初始昵称
+            }
+          })
+        }
+      }
       if (error) {
         throw error
       }

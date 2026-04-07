@@ -10,8 +10,15 @@ interface VersionUpdateModalProps {
 
 export default function VersionUpdateModal({ version, updateContent }: VersionUpdateModalProps) {
   const [showModal, setShowModal] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
     // 检查是否需要显示版本更新弹窗
     const checkVersionUpdate = () => {
       const lastVersion = localStorage.getItem('lastVersion')
@@ -21,7 +28,7 @@ export default function VersionUpdateModal({ version, updateContent }: VersionUp
     }
 
     checkVersionUpdate()
-  }, [version])
+  }, [version, mounted])
 
   const handleClose = () => {
     // 存储当前版本号到 localStorage
@@ -79,7 +86,7 @@ export default function VersionUpdateModal({ version, updateContent }: VersionUp
                       transition={{ delay: index * 0.1 }}
                     >
                       <span className="text-green-500 mt-1">✓</span>
-                      <span className="text-gray-800">{item}</span>
+                      <span className="text-gray-800 text-sm">{item}</span>
                     </motion.div>
                   ))}
                 </div>

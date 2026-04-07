@@ -13,6 +13,7 @@ interface User {
   avatar: string
   status: string
   last_seen: string
+  systemId?: string
 }
 
 interface FriendRequest {
@@ -181,30 +182,50 @@ export default function FriendsPage() {
 
     setSearching(true)
     try {
-      // 搜索用户
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, email, nickname, avatar')
-        .ilike('nickname', `%${searchQuery}%`)
-        .or(`ilike(email, %${searchQuery}%)`)
-        .neq('id', user?.id)
-
-      if (error) {
-        throw error
+      // 获取用户元数据，包括system_id
+      const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers()
+      
+      if (usersError) {
+        throw usersError
       }
 
-      if (data) {
-        const processedResults: User[] = data.map((user) => ({
-          id: user.id,
-          email: user.email,
-          nickname: user.nickname || user.email?.split('@')[0] || '未知用户',
-          avatar: user.avatar || '',
-          status: 'offline',
-          last_seen: new Date().toISOString()
-        }))
+      // 过滤出符合条件的用户
+      const filteredUsers = users.filter(u => {
+        const systemId = u.user_metadata?.system_id || ''
+        const nickname = u.user_metadata?.nickname || u.email?.split('@')[0] || ''
+        const email = u.email || ''
+        
+        return (
+          u.id !== user?.id &&
+          (systemId.includes(searchQuery) ||
+           nickname.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           email.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+      })
 
-        setSearchResults(processedResults)
-      }
+      // 处理搜索结果
+      const processedResults: User[] = await Promise.all(
+        filteredUsers.map(async (u) => {
+          // 获取用户的头像等信息
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('avatar')
+            .eq('id', u.id)
+            .single()
+          
+          return {
+            id: u.id,
+            email: u.email || '',
+            nickname: u.user_metadata?.nickname || u.email?.split('@')[0] || '未知用户',
+            avatar: profileData?.avatar || '',
+            status: 'offline',
+            last_seen: new Date().toISOString(),
+            systemId: u.user_metadata?.system_id || ''
+          }
+        })
+      )
+
+      setSearchResults(processedResults)
     } catch (err: unknown) {
       console.error('搜索用户失败:', err)
       setError('搜索失败，请稍后重试')
@@ -414,7 +435,7 @@ export default function FriendsPage() {
                       {result.nickname.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-800">{result.nickname}</h3>
+                      <h3 className="font-bold text-gray-800">{result.nickname} {result.systemId && `(ID: ${result.systemId})`}</h3>
                       <p className="text-sm text-gray-500">{result.email}</p>
                     </div>
                   </div>

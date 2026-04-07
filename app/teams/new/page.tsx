@@ -53,14 +53,36 @@ export default function CreateTeamPage() {
         return
       }
 
+      // 检查战队名称是否已存在
+      const { data: existingTeams, error: checkError } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('name', teamName)
+        .eq('region', region)
+
+      if (checkError) {
+        console.error('检查战队名称失败:', checkError)
+        setError('检查战队名称失败，请稍后重试')
+        setLoading(false)
+        return
+      }
+
+      if (existingTeams && existingTeams.length > 0) {
+        setError('该大区已存在同名战队，请更改战队名称')
+        setLoading(false)
+        return
+      }
+
       let avatarUrl: string | undefined
 
       // 上传战队图标
       if (avatar) {
+        // 生成安全的文件名，移除特殊字符
+        const safeFileName = `${Date.now()}-${avatar.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
         const { data, error: uploadError } = await supabase
           .storage
           .from('team-avatars')
-          .upload(`${Date.now()}-${avatar.name}`, avatar)
+          .upload(safeFileName, avatar)
 
         if (uploadError) {
           throw uploadError

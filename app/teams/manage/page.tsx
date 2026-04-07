@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
+import ErrorBoundary from '../../components/ErrorBoundary'
 import Image from 'next/image'
 
 interface Member {
@@ -22,6 +23,12 @@ interface Member {
       birthday?: string
     }
   }
+  // 新增字段
+  game_id?: string
+  current_rank?: string
+  main_positions?: string[]
+  available_time?: any[]
+  power_score?: number
 }
 
 interface Team {
@@ -32,22 +39,63 @@ interface Team {
 
 
 const AVAILABLE_ROLES: Record<string, string[]> = {
-  '队长': ['副队长', '领队', '组长', '精英', '成员'],
-  '副队长': ['领队', '组长', '精英', '成员'],
-  '领队': ['组长', '精英', '成员'],
-  '组长': ['精英', '成员'],
-  '精英': ['成员'],
-  '成员': []
+  '队长': ['副队长', '领队', '组长', '精英', '成员', '队员'],
+  '副队长': ['领队', '组长', '精英', '成员', '队员'],
+  '领队': ['组长', '精英', '成员', '队员'],
+  '组长': ['精英', '成员', '队员'],
+  '精英': ['成员', '队员'],
+  '成员': ['队员'],
+  '队员': []
 }
 
 // 踢出权限配置
 const KICK_PERMISSIONS: Record<string, string[]> = {
-  '队长': ['副队长', '领队', '组长', '精英', '成员'],
-  '副队长': ['领队', '组长', '精英', '成员'],
-  '领队': ['组长', '精英', '成员'],
-  '组长': ['精英', '成员'],
+  '队长': ['副队长', '领队', '组长', '精英', '成员', '队员'],
+  '副队长': ['领队', '组长', '精英', '成员', '队员'],
+  '领队': [],
+  '组长': [],
   '精英': [],
-  '成员': []
+  '成员': [],
+  '队员': []
+}
+
+// 计算综合实力分
+function calculatePowerScore(player: any): number {
+  const positionStats = player.position_stats || {};
+  const mainPosition = player.main_positions?.[0] || '中单';
+  const stats = positionStats[mainPosition] || {};
+  
+  // 从 position_stats 中读取数据
+  const winRate = parseFloat(stats.win_rate || stats.winRate || '0') || 0;
+  const kda = parseFloat(stats.kda || '0') || 0;
+  const rating = parseFloat(stats.rating || '0') || 0;
+  const power = parseFloat(stats.power || '0') || 0;
+  
+  // 计算综合实力分
+  const score = (
+    (winRate / 100) * 0.3 +
+    (kda / 20) * 0.3 +
+    (rating / 100) * 0.2 +
+    (power / 10000) * 0.2
+  ) * 100;
+  
+  // 确保结果在 0-100 之间
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+// 格式化可比赛时间
+function formatAvailableTime(availableTime: any[]): string {
+  if (!availableTime || availableTime.length === 0) return '未设置';
+  
+  return availableTime.map(slot => {
+    const day = slot.day || slot.day_of_week;
+    const start = slot.start_time || slot.startTime;
+    const end = slot.end_time || slot.endTime;
+    if (day && start && end) {
+      return `${day}${start}-${end}`;
+    }
+    return '';
+  }).filter(Boolean).join('、');
 }
 
 export default function TeamManagePage() {
@@ -167,6 +215,31 @@ export default function TeamManagePage() {
             }
           }
 
+          // 获取游戏资料
+          try {
+            const { data: playerProfile } = await supabase
+              .from('player_profiles')
+              .select('*')
+              .eq('team_id', teamId)
+              .eq('user_id', member.user_id)
+              .maybeSingle()
+
+            if (playerProfile) {
+              member.game_id = playerProfile.game_id || '未设置'
+              member.current_rank = playerProfile.current_rank || '未设置'
+              member.main_positions = playerProfile.main_positions || []
+              member.available_time = playerProfile.available_time || []
+              member.power_score = calculatePowerScore(playerProfile)
+            }
+          } catch {
+            // 游戏资料获取失败，使用默认值
+            member.game_id = '未设置'
+            member.current_rank = '未设置'
+            member.main_positions = []
+            member.available_time = []
+            member.power_score = 50
+          }
+
           processedMembers.push(member)
         }
 
@@ -224,16 +297,102 @@ export default function TeamManagePage() {
     setShowKickConfirm(true)
   }
 
+  // 检查队员是否被锁定
+  const checkMemberLocked = async (user_id: string): Promise<boolean> => {
+    try {
+      if (!team?.id) return false;
+      
+      // 查询当前战队下的活跃批次
+      const { data: batch } = await supabase
+        .from('group_batches')
+        .select('id')
+        .eq('team_id', team.id)
+        .eq('status', 'active')
+        .single();
+      
+      if (!batch) return false;
+      
+      // 检查该队员是否在分组中
+      const { data: groupMember } = await supabase
+        .from('group_members')
+        .select('id')
+        .eq('batch_id', batch.id)
+        .eq('user_id', user_id)
+        .maybeSingle();
+      
+      return !!groupMember;
+    } catch (error) {
+      console.error('检查锁定状态失败:', error);
+      return false;
+    }
+  }
+
+  // 解锁队员
+  const handleUnlockMember = async () => {
+    if (!selectedMember || !team?.id) return;
+    
+    try {
+      const res = await fetch('/api/group/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ team_id: team.id, user_id: selectedMember.user_id })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      alert('队员已解锁');
+      setShowActionModal(false);
+      fetchMembers(team.id);
+    } catch (error: any) {
+      console.error('解锁队员失败:', error);
+      alert('解锁失败: ' + error.message);
+    }
+  }
+
   const confirmKick = async () => {
     if (!selectedMember) return
 
     try {
-      const { error } = await supabase
+      // 1. 清除该队员在本战队的个人游戏资料
+      const { error: deleteProfileError } = await supabase
+        .from('player_profiles')
+        .delete()
+        .eq('team_id', selectedMember.team_id)
+        .eq('user_id', selectedMember.user_id)
+
+      if (deleteProfileError) {
+        console.error('删除游戏资料失败:', deleteProfileError)
+      }
+
+      // 2. 删除队员记录
+      const { error: deleteMemberError } = await supabase
         .from('team_members')
         .delete()
         .eq('id', selectedMember.id)
 
-      if (error) throw error
+      if (deleteMemberError) throw deleteMemberError
+
+      // 3. 解锁队员（如果被锁定）
+      if (team?.id) {
+        try {
+          await fetch('/api/group/unlock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team_id: team.id, user_id: selectedMember.user_id })
+          });
+        } catch (error) {
+          console.error('解锁队员失败:', error);
+          // 解锁失败不影响踢出操作
+        }
+      }
+
+      // 4. 更新该队员的申请状态为 rejected
+      await supabase
+        .from('team_applications')
+        .update({ status: 'rejected' })
+        .eq('team_id', selectedMember.team_id)
+        .eq('user_id', selectedMember.user_id)
 
       setShowKickConfirm(false)
       setSelectedMember(null)
@@ -273,19 +432,95 @@ export default function TeamManagePage() {
     }
   }
 
+  const getPowerScoreColor = (score: number) => {
+    if (score >= 80) return 'text-red-600 font-medium'
+    if (score >= 60) return 'text-orange-600 font-medium'
+    if (score >= 40) return 'text-green-600 font-medium'
+    return 'text-gray-600'
+  }
+
+  // 骨架屏组件
+  const SkeletonMemberRow = () => (
+    <tr className="border-b border-gray-100 animate-pulse">
+      <td className="py-4 px-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gray-200"></div>
+          <div>
+            <div className="h-4 bg-gray-200 rounded w-24 mb-1"></div>
+            <div className="h-3 bg-gray-200 rounded w-32"></div>
+          </div>
+        </div>
+      </td>
+      <td className="py-4 px-4">
+        <div className="h-6 bg-gray-200 rounded w-16"></div>
+      </td>
+      <td className="py-4 px-4">
+        <div className="h-4 bg-gray-200 rounded w-24"></div>
+      </td>
+      <td className="py-4 px-4">
+        <div className="h-4 bg-gray-200 rounded w-20"></div>
+      </td>
+      <td className="py-4 px-4">
+        <div className="h-4 bg-gray-200 rounded w-32"></div>
+      </td>
+      <td className="py-4 px-4">
+        <div className="h-4 bg-gray-200 rounded w-40"></div>
+      </td>
+      <td className="py-4 px-4">
+        <div className="h-4 bg-gray-200 rounded w-16"></div>
+      </td>
+      <td className="py-4 px-4">
+        <div className="h-4 bg-gray-200 rounded w-24"></div>
+      </td>
+    </tr>
+  )
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="glass-card p-12 text-center">
-          <div className="animate-pulse text-pink-500 text-xl">✨ 加载中...</div>
+      <div className="min-h-screen py-8">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="flex items-center mb-8">
+            <div className="glass-card px-4 py-2">
+              <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+            </div>
+          </div>
+          <div className="glass-card p-8 mb-8">
+            <div className="h-8 bg-gray-200 rounded w-64 animate-pulse mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
+          </div>
+          <div className="glass-card p-8">
+            <div className="h-6 bg-gray-200 rounded w-48 animate-pulse mb-6"></div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">成员信息</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">角色</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">游戏ID</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">段位</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">擅长位置</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">可比赛时间</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">综合实力</th>
+                    <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">加入时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <SkeletonMemberRow key={i} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <ErrorBoundary>
+      <div className="min-h-screen py-8">
+      <div className="container mx-auto px-4 max-w-6xl">
         {/* 返回按钮 */}
         <div className="flex items-center mb-8">
           <button
@@ -313,65 +548,100 @@ export default function TeamManagePage() {
             <span className="text-sm font-normal text-gray-400">({members.length}人)</span>
           </h2>
 
-          <div className="space-y-3">
-            {members.map((member) => {
-              // 简化权限检查，只要不是自己就可以管理
-              const canManage = member.user_id !== user?.id
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">成员信息</th>
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">角色</th>
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">游戏ID</th>
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">段位</th>
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">擅长位置</th>
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">可比赛时间</th>
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">综合实力</th>
+                  <th className="py-3 px-4 text-left text-sm font-medium text-gray-600">加入时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((member) => {
+                  // 简化权限检查，只要不是自己就可以管理
+                  const canManage = member.user_id !== user?.id
 
-              return (
-                <div
-                  key={member.id}
-                  onClick={() => canManage && handleMemberClick(member)}
-                  className={`glass-card p-4 flex items-center gap-4 ${canManage ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''
-                    }`}
-                >
-                  {/* 头像 */}
-                  {member.user?.user_metadata?.avatar ? (
-                    <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-white/50">
-                      <Image
-                        src={member.user.user_metadata.avatar}
-                        alt="头像"
-                        width={56}
-                        height={56}
-                        className="object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold"
-                      style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
+                  return (
+                    <tr 
+                      key={member.id}
+                      onClick={() => canManage && handleMemberClick(member)}
+                      className={`border-b border-gray-100 ${canManage ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                     >
-                      {(member.user?.user_metadata?.nickname || member.user?.email || 'U').charAt(0).toUpperCase()}
-                    </div>
-                  )}
-
-                  {/* 信息 */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-bold text-gray-800">
-                        {member.user?.user_metadata?.nickname || member.user?.email?.split('@')[0]}
-                      </h3>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
-                        {member.role}
-                      </span>
-                      {member.user_id === user?.id && (
-                        <span className="text-xs text-pink-500">(我)</span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-400 mt-1">
-                      加入时间：{new Date(member.joined_at).toLocaleDateString()}
-                    </p>
-                  </div>
-
-                  {/* 管理标识 */}
-                  {canManage && (
-                    <div className="text-gray-400">
-                      ⚙️
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          {/* 头像 */}
+                          {member.user?.user_metadata?.avatar ? (
+                            <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white/50">
+                              <Image
+                                src={member.user.user_metadata.avatar}
+                                alt="头像"
+                                width={40}
+                                height={40}
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                              style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
+                            >
+                              {(member.user?.user_metadata?.nickname || member.user?.email || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          
+                          {/* 信息 */}
+                          <div>
+                            <div className="font-bold text-gray-800">
+                              {member.user?.user_metadata?.nickname || member.user?.email?.split('@')[0]}
+                              {member.user_id === user?.id && (
+                                <span className="text-xs text-pink-500 ml-2">(我)</span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {member.user?.email}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
+                          {member.role}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-700">
+                        {member.game_id || '未设置'}
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-700">
+                        {member.current_rank || '未设置'}
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-700">
+                        {member.main_positions && member.main_positions.length > 0 
+                          ? member.main_positions.join('、') 
+                          : '未设置'
+                        }
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-700">
+                        {formatAvailableTime(member.available_time)}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={getPowerScoreColor(member.power_score || 0)}>
+                          {member.power_score || 0}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-500">
+                        {new Date(member.joined_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -411,7 +681,7 @@ export default function TeamManagePage() {
                   onClick={handleViewProfile}
                   className="w-full glass-card p-4 text-left hover:bg-white/60 transition-all flex items-center gap-3"
                 >
-                  <span className="text-2xl">�</span>
+                  <span className="text-2xl">👤</span>
                   <div>
                     <div className="font-medium text-gray-800">查看资料</div>
                     <div className="text-sm text-gray-400">查看该成员的详细信息</div>
@@ -443,6 +713,18 @@ export default function TeamManagePage() {
                     </div>
                   </button>
                 )}
+
+                {/* 解锁队员按钮 */}
+                <button
+                  onClick={handleUnlockMember}
+                  className="w-full glass-card p-4 text-left hover:bg-blue-50 transition-all flex items-center gap-3"
+                >
+                  <span className="text-2xl">🔓</span>
+                  <div>
+                    <div className="font-medium text-blue-600">解锁队员</div>
+                    <div className="text-sm text-gray-400">将该成员从分组中解锁</div>
+                  </div>
+                </button>
 
                 <button
                   onClick={() => setShowActionModal(false)}
@@ -519,6 +801,38 @@ export default function TeamManagePage() {
                     <div className="font-medium text-gray-800">{selectedMember.user.user_metadata.birthday}</div>
                   </div>
                 )}
+
+                <div className="glass-card p-4">
+                  <div className="text-sm text-gray-400 mb-1">🎮 游戏ID</div>
+                  <div className="font-medium text-gray-800">{selectedMember.game_id || '未设置'}</div>
+                </div>
+
+                <div className="glass-card p-4">
+                  <div className="text-sm text-gray-400 mb-1">🏆 段位</div>
+                  <div className="font-medium text-gray-800">{selectedMember.current_rank || '未设置'}</div>
+                </div>
+
+                <div className="glass-card p-4">
+                  <div className="text-sm text-gray-400 mb-1">📍 擅长位置</div>
+                  <div className="font-medium text-gray-800">
+                    {selectedMember.main_positions && selectedMember.main_positions.length > 0 
+                      ? selectedMember.main_positions.join('、') 
+                      : '未设置'
+                    }
+                  </div>
+                </div>
+
+                <div className="glass-card p-4">
+                  <div className="text-sm text-gray-400 mb-1">⏰ 可比赛时间</div>
+                  <div className="font-medium text-gray-800">{formatAvailableTime(selectedMember.available_time)}</div>
+                </div>
+
+                <div className="glass-card p-4">
+                  <div className="text-sm text-gray-400 mb-1">💪 综合实力</div>
+                  <div className={`font-medium ${getPowerScoreColor(selectedMember.power_score || 0)}`}>
+                    {selectedMember.power_score || 0}
+                  </div>
+                </div>
 
                 <div className="glass-card p-4">
                   <div className="text-sm text-gray-400 mb-1">📅 加入时间</div>
@@ -618,6 +932,7 @@ export default function TeamManagePage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </ErrorBoundary>
   )
 }

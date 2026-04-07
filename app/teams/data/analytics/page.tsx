@@ -68,29 +68,13 @@ export default function AnalyticsPage() {
   }
 
   // 准备图表数据
-  const getStatusDistributionData = () => {
-    if (!teamStats?.statusDistribution) {
-      return { labels: [], datasets: [] }
-    }
-
-    return {
-      labels: Object.keys(teamStats.statusDistribution),
-      datasets: [
-        {
-          data: Object.values(teamStats.statusDistribution),
-          backgroundColor: ['#4CAF50', '#FFC107', '#F44336'],
-          borderWidth: 1
-        }
-      ]
-    }
-  }
-
   const getRankDistributionData = () => {
     if (!teamStats?.rankDistribution) {
       return { labels: [], datasets: [] }
     }
 
-    const ranks = ['青铜', '白银', '黄金', '铂金', '钻石', '星耀', '王者', '王者1-30星', '王者30-50星', '王者50-80星', '王者80-100星', '王者100-120星', '王者120-140星', '王者140-200星', '荣耀王者']
+    // 使用与编辑游戏资料表单相同的段位数组
+    const ranks = ['最强王者', '非凡王者', '无双王者', '绝世王者', '至圣王者', '荣耀王者', '传奇王者']
     const data = ranks.map(rank => teamStats.rankDistribution[rank] || 0)
 
     return {
@@ -214,10 +198,37 @@ export default function AnalyticsPage() {
               className="px-4 py-2 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium flex items-center gap-2"
               onClick={() => router.push('/teams/space')}
             >
-              <span>←</span> 返回战队空间
+              <span>←</span> 返回战队管理后台
             </button>
             <h1 className="text-2xl font-bold gradient-text">数据可视化</h1>
-            <div className="w-20"></div>
+            <button
+              onClick={async () => {
+                setLoading(true)
+                try {
+                  const { data: teamMember } = await supabase
+                    .from('team_members')
+                    .select('team_id')
+                    .eq('user_id', user?.id)
+                    .eq('status', 'active')
+                    .single()
+
+                  if (teamMember) {
+                    const stats = await TeamDataService.getTeamStatistics(teamMember.team_id)
+                    setTeamStats(stats)
+                    const records = await TeamDataService.getMatchRecords(teamMember.team_id)
+                    setMatchRecords(records)
+                  }
+                } catch (err) {
+                  console.error('更新数据失败:', err)
+                  setError('更新数据失败')
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              className="px-4 py-2 rounded-2xl bg-blue-500 text-white hover:bg-blue-600 transition-all duration-300 font-medium flex items-center gap-2"
+            >
+              <span>🔄</span> 更新数据
+            </button>
           </div>
 
           {error && (
@@ -249,25 +260,7 @@ export default function AnalyticsPage() {
               </div>
 
               {/* 图表区域 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* 状态分布饼图 */}
-                <div className="glass-card p-4">
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <span>📊</span> 队员状态分布
-                  </h2>
-                  <div className="h-64">
-                    <Pie data={getStatusDistributionData()} options={{ 
-                      responsive: true, 
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          position: 'bottom'
-                        }
-                      }
-                    }} />
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* 段位分布柱状图 */}
                 <div className="glass-card p-4">
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -305,7 +298,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* 胜率趋势折线图 */}
-                <div className="glass-card p-4 md:col-span-2 lg:col-span-3">
+                <div className="glass-card p-4 md:col-span-2">
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <span>📈</span> 胜率趋势
                   </h2>
@@ -329,7 +322,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* 比赛历史柱状图 */}
-                <div className="glass-card p-4 md:col-span-2 lg:col-span-3">
+                <div className="glass-card p-4 md:col-span-2">
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <span>📅</span> 比赛历史
                   </h2>

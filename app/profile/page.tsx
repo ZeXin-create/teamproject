@@ -21,7 +21,8 @@ export default function ProfilePage() {
     avatar: '',
     nickname: '',
     gender: '',
-    birthday: ''
+    birthday: '',
+    systemId: ''
   })
   const [avatar, setAvatar] = useState<File | null>(null)
   const [showAvatarModal, setShowAvatarModal] = useState(false)
@@ -39,27 +40,31 @@ export default function ProfilePage() {
 
   const fetchUserProfile = useCallback(async () => {
     try {
-      const { data } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
         .maybeSingle()
 
-      if (data) {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      
+      if (profileData) {
         setUserInfo({
-          email: data.email || user?.email || '',
-          avatar: data.avatar || '',
-          nickname: data.nickname || '',
-          gender: data.gender || '',
-          birthday: data.birthday || ''
+          email: profileData.email || user?.email || '',
+          avatar: profileData.avatar || '',
+          nickname: profileData.nickname || authUser?.user_metadata?.nickname || '',
+          gender: profileData.gender || '',
+          birthday: profileData.birthday || '',
+          systemId: authUser?.user_metadata?.system_id || ''
         })
       } else {
         setUserInfo({
           email: user?.email || '',
           avatar: '',
-          nickname: '',
+          nickname: authUser?.user_metadata?.nickname || '',
           gender: '',
-          birthday: ''
+          birthday: '',
+          systemId: authUser?.user_metadata?.system_id || ''
         })
       }
     } catch {
@@ -68,7 +73,8 @@ export default function ProfilePage() {
         avatar: '',
         nickname: '',
         gender: '',
-        birthday: ''
+        birthday: '',
+        systemId: ''
       })
     } finally {
       setLoading(false)
@@ -219,6 +225,9 @@ export default function ProfilePage() {
         throw updateError
       }
 
+      // 处理生日字段：如果为空字符串，则设置为 null
+      const birthdayValue = userInfo.birthday === '' ? null : userInfo.birthday;
+      
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -227,7 +236,7 @@ export default function ProfilePage() {
           avatar: avatarUrl,
           nickname: userInfo.nickname,
           gender: userInfo.gender,
-          birthday: userInfo.birthday,
+          birthday: birthdayValue,
           updated_at: new Date().toISOString()
         })
 
@@ -318,6 +327,9 @@ export default function ProfilePage() {
         throw updateError
       }
 
+      // 处理生日字段：如果为空字符串，则设置为 null
+      const birthdayValue = userInfo.birthday === '' ? null : userInfo.birthday;
+      
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -326,7 +338,7 @@ export default function ProfilePage() {
           avatar: avatarUrl,
           nickname: userInfo.nickname,
           gender: userInfo.gender,
-          birthday: userInfo.birthday,
+          birthday: birthdayValue,
           updated_at: new Date().toISOString()
         })
 
@@ -462,6 +474,19 @@ export default function ProfilePage() {
 
                 {/* 表单字段 */}
                 <div className="space-y-6">
+                  <div>
+                    <label htmlFor="systemId" className="block text-gray-700 font-medium mb-2">
+                      🔢 系统ID
+                    </label>
+                    <input
+                      type="text"
+                      id="systemId"
+                      className="glass-input w-full px-4 py-3 outline-none bg-gray-100"
+                      value={userInfo.systemId}
+                      readOnly
+                      placeholder="系统生成的唯一ID"
+                    />
+                  </div>
                   <div>
                     <label htmlFor="nickname" className="block text-gray-700 font-medium mb-2">
                       ✨ 昵称

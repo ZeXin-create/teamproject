@@ -7,21 +7,31 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "npx playwright test",
+    "test:smoke": "npx playwright test tests/smoke"
   },
   "keywords": [],
   "license": "ISC",
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@supabase/supabase-js": "^2.0.0",
+    "@types/nprogress": "^0.2.3",
     "chart.js": "^4.5.1",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.7.0",
     "next": "^14.0.0",
+    "nprogress": "^0.2.0",
     "react": "^18.0.0",
     "react-chartjs-2": "^5.3.1",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "react-error-boundary": "^6.1.1",
+    "react-window": "^2.2.7"
   },
   "devDependencies": {
+    "@playwright/test": "1.44",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",

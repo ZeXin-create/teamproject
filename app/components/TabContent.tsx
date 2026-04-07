@@ -22,23 +22,14 @@ interface Recruit {
   team?: {
     name: string
     region: string
+    avatar_url?: string
   }
 }
 
 export default function TabContent({ activeTab }: TabContentProps) {
   const router = useRouter()
 
-  // 当切换到出售标签时，重定向到出售页面
-  useEffect(() => {
-    if (activeTab === 2) {
-      router.push('/team-sales')
-    }
-    // 当切换到贴吧社区标签时，重定向到贴吧页面
-    if (activeTab === 3) {
-      router.push('/forum')
-    }
-  }, [activeTab, router])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [teams, setTeams] = useState<Array<{ id: string; name: string; avatar_url?: string; region?: string; declaration?: string; city?: string; member_count?: number; images?: string[] }>>([])
   // 战队排行状态
   const [rankedTeams, setRankedTeams] = useState<Array<{ id: string; name: string; rank: number; avatar_url?: string; region?: string }>>([])
@@ -47,6 +38,20 @@ export default function TabContent({ activeTab }: TabContentProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchRegion, setSearchRegion] = useState('')
   const [selectedTeam, setSelectedTeam] = useState<{ id: string; name: string; avatar_url?: string; region?: string; declaration?: string; city?: string; member_count?: number; images?: string[] } | null>(null)
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({})
+
+  // 当切换到出售标签时，重定向到出售页面
+  useEffect(() => {
+    if (activeTab === 1) {
+      router.push('/teams/space')
+    } else if (activeTab === 2) {
+      router.push('/team-sales')
+    } else if (activeTab === 3) {
+      router.push('/forum')
+    }
+    // 切换标签时重置选中的战队
+    setSelectedTeam(null)
+  }, [activeTab, router, setSelectedTeam])
 
   const fetchTeams = useCallback(async () => {
     setLoading(true)
@@ -142,7 +147,8 @@ export default function TabContent({ activeTab }: TabContentProps) {
           status,
           team:teams(
             name,
-            region
+            region,
+            avatar_url
           )
         `)
         .eq('status', 'active')
@@ -181,10 +187,39 @@ export default function TabContent({ activeTab }: TabContentProps) {
       case 0:
         return (
           <div className="p-6">
-            <h2 className="text-2xl font-bold gradient-text mb-6 flex items-center gap-2">
-              <span>🎯</span> 招募大厅
-            </h2>
-            <p className="text-gray-600 mb-6">这里展示所有队长发布的招募信息</p>
+            {/* 搜索和筛选 */}
+            <div className="mb-6 glass-card p-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                <input
+                  type="text"
+                  placeholder="搜索战队名称或招募要求..."
+                  className="flex-1 glass-input px-4 py-3"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <select className="glass-input px-4 py-3 text-sm">
+                    <option value="">所有段位</option>
+                    <option value="王者">王者</option>
+                    <option value="星耀">星耀</option>
+                    <option value="钻石">钻石</option>
+                    <option value="铂金">铂金</option>
+                  </select>
+                  <select className="glass-input px-4 py-3 text-sm">
+                    <option value="">所有位置</option>
+                    <option value="上单">上单</option>
+                    <option value="打野">打野</option>
+                    <option value="中单">中单</option>
+                    <option value="射手">射手</option>
+                    <option value="辅助">辅助</option>
+                  </select>
+                  <select className="glass-input px-4 py-3 text-sm">
+                    <option value="">战队规模</option>
+                    <option value="5-10">5-10人</option>
+                    <option value="10-20">10-20人</option>
+                    <option value="20+">20人以上</option>
+                  </select>
+                </div>
+              </div>
+            </div>
 
             {loading ? (
               <div className="glass-card p-12 text-center">
@@ -197,63 +232,188 @@ export default function TabContent({ activeTab }: TabContentProps) {
                 <p className="text-gray-400 text-sm mt-2">队长们还没有发布招募信息</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {recruits.map((recruit) => (
-                  <div key={recruit.id} className="glass-card p-6 hover:scale-[1.02] transition-transform duration-300">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-800">{recruit.team?.name || '未知战队'}</h3>
-                        {recruit.team?.region && (
-                          <span className="text-xs text-pink-500 mt-1 inline-block px-2 py-1 bg-pink-100 rounded-full">
-                            {recruit.team.region}
-                          </span>
+              <div className="flex flex-col lg:flex-row gap-6">
+                {/* 左侧卡片列表 */}
+                <div className="lg:w-1/3">
+                  <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
+                    {recruits.map((recruit, index) => {
+                      const isSelected = selectedTeam?.id === recruit.team_id;
+                      return (
+                        <div
+                          key={recruit.id}
+                          className={`glass-card p-4 transition-all duration-300 cursor-pointer ${isSelected ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md hover:translate-y-[-2px]'}`}
+                          onClick={() => setSelectedTeam({
+                            id: recruit.team_id,
+                            name: recruit.team?.name || '未知战队',
+                            region: recruit.team?.region,
+                            avatar_url: recruit.team?.avatar_url,
+                            declaration: '',
+                            city: '',
+                            member_count: 0,
+                            images: []
+                          })}
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            {recruit.team?.avatar_url ? (
+                              <div className="w-10 h-10 rounded-full overflow-hidden">
+                                <img
+                                  src={recruit.team.avatar_url?.replace(/[`]/g, '') || ''}
+                                  alt={recruit.team.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                                {recruit.team?.name?.charAt(0).toUpperCase() || '未'}
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-base">{recruit.team?.name || '未知战队'}</h3>
+                            </div>
+                            <button className="text-gray-400 hover:text-yellow-500 transition-colors">
+                              ⭐
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {recruit.rank_requirement && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                {recruit.rank_requirement}
+                              </span>
+                            )}
+                            {recruit.positions && recruit.positions.length > 0 && (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                {recruit.positions.join('、')}
+                              </span>
+                            )}
+                            {recruit.recruit_count && (
+                              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                缺{recruit.recruit_count}人
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600 line-clamp-2 mb-3">
+                            {recruit.requirements.substring(0, 50)}{recruit.requirements.length > 50 ? '...' : ''}
+                          </div>
+                          <div className="flex justify-between items-center text-xs text-gray-400">
+                            <span>{recruit.team?.region || '未知区域'}</span>
+                            <span suppressHydrationWarning>{new Date(recruit.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 右侧详情页 */}
+                <div className="lg:w-2/3">
+                  {selectedTeam ? (
+                    <div className="glass-card p-6">
+                      {/* 战队信息 */}
+                      <div className="mb-6">
+                        <div className="flex items-center gap-4 mb-4">
+                          {selectedTeam.avatar_url ? (
+                            <div className="w-16 h-16 rounded-2xl overflow-hidden">
+                              <img
+                                src={selectedTeam.avatar_url?.replace(/[`]/g, '') || ''}
+                                alt={selectedTeam.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-2xl font-bold">
+                              {selectedTeam.name?.charAt(0).toUpperCase() || '未'}
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="text-xl font-bold">{selectedTeam.name}</h3>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <span className="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-sm font-medium">
+                                🎮 {selectedTeam.region}
+                              </span>
+                              <span className="px-3 py-1 bg-green-100 text-green-600 rounded-full text-sm font-medium">
+                                👥 {selectedTeam.member_count || 0} 名成员
+                              </span>
+                              <span className="px-3 py-1 bg-purple-100 text-purple-600 rounded-full text-sm font-medium">
+                                📍 {selectedTeam.city || '未知城市'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 战队照片 */}
+                        <div className="mb-4">
+                          <h4 className="font-bold text-lg mb-3">战队风采</h4>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[1, 2, 3].map((i) => (
+                              <div key={i} className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center">
+                                <span className="text-gray-400">📷</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 战队简介 */}
+                        {selectedTeam.declaration && (
+                          <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 mb-4">
+                            <h4 className="font-bold text-lg mb-2">战队简介</h4>
+                            <p className="text-gray-700 italic">"{selectedTeam.declaration}"</p>
+                          </div>
                         )}
                       </div>
-                      <span className="text-sm text-gray-400">
-                        {new Date(recruit.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
 
-                    <div className="space-y-2 mb-4">
-                      {recruit.rank_requirement && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-pink-500">🏆</span>
-                          <span className="text-gray-700">段位要求：{recruit.rank_requirement}</span>
+                      {/* 招募详情 */}
+                      <div className="mb-6">
+                        <h4 className="font-bold text-lg mb-3">招募详情</h4>
+                        {recruits.find(r => r.team_id === selectedTeam.id)?.requirements && (
+                          <div className="text-gray-700 leading-relaxed">
+                            {recruits.find(r => r.team_id === selectedTeam.id)?.requirements}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 联系方式 */}
+                      <div className="mb-6">
+                        <h4 className="font-bold text-lg mb-3">联系方式</h4>
+                        {recruits.find(r => r.team_id === selectedTeam.id)?.contact && (
+                          <div className="bg-gray-50 rounded-xl p-4">
+                            <p className="text-gray-700">{recruits.find(r => r.team_id === selectedTeam.id)?.contact}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 成员列表 */}
+                      <div>
+                        <h4 className="font-bold text-lg mb-3">核心成员</h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold">
+                              队
+                            </div>
+                            <div>
+                              <div className="font-medium">队长</div>
+                              <div className="text-xs text-gray-500">创建者</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white font-bold">
+                              副
+                            </div>
+                            <div>
+                              <div className="font-medium">副队长</div>
+                              <div className="text-xs text-gray-500">核心成员</div>
+                            </div>
+                          </div>
                         </div>
-                      )}
-
-                      {recruit.positions && recruit.positions.length > 0 && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-pink-500">🎯</span>
-                          <span className="text-gray-700">擅长位置：{recruit.positions.join('、')}</span>
-                        </div>
-                      )}
-
-                      {recruit.online_time && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-pink-500">⏰</span>
-                          <span className="text-gray-700">在线时间：{recruit.online_time}</span>
-                        </div>
-                      )}
-
-                      {recruit.recruit_count && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-pink-500">👥</span>
-                          <span className="text-gray-700">招募人数：{recruit.recruit_count}人</span>
-                        </div>
-                      )}
+                      </div>
                     </div>
-
-                    <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 mb-4">
-                      <p className="text-gray-700 leading-relaxed">{recruit.requirements}</p>
+                  ) : (
+                    <div className="glass-card p-12 text-center">
+                      <div className="text-6xl mb-4">👀</div>
+                      <p className="text-gray-600 text-lg">请选择一个招募信息</p>
+                      <p className="text-gray-400 text-sm mt-2">从左侧列表中选择一个招募信息查看详情</p>
                     </div>
-
-                    <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-xl p-3">
-                      <span className="text-pink-400">📞</span>
-                      <span>联系方式：{recruit.contact}</span>
-                    </div>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -530,8 +690,8 @@ export default function TabContent({ activeTab }: TabContentProps) {
     }
   }
 
-  // 当activeTab为2或3时，不渲染任何内容，因为会通过useEffect重定向
-  if (activeTab === 2 || activeTab === 3) {
+  // 当activeTab为1、2或3时，不渲染任何内容，因为会通过useEffect重定向
+  if (activeTab === 1 || activeTab === 2 || activeTab === 3) {
     return null
   }
 

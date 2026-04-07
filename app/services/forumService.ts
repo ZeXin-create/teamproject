@@ -8,6 +8,7 @@ import {
   CreateCommentRequest,
   PostQueryParams
 } from '../types/forum';
+import { sendNotification } from './notificationService';
 
 // 创建帖子
 export const createPost = async (data: CreatePostRequest): Promise<ForumPost> => {
@@ -238,6 +239,31 @@ export const createComment = async (data: CreateCommentRequest, userId: string):
 
   if (error) {
     throw new Error(`创建评论失败: ${error.message}`);
+  }
+
+  // 通知帖子作者
+  try {
+    // 获取帖子信息，包括作者ID
+    const { data: post } = await supabase
+      .from('forum_posts')
+      .select('author_id, title')
+      .eq('id', data.post_id)
+      .single();
+
+    // 检查评论者是否是帖子作者
+    if (post && post.author_id !== userId) {
+      // 发送通知给帖子作者
+      await sendNotification({
+        user_id: post.author_id,
+        title: '新的评论',
+        message: `您的帖子《${post.title}》收到了新的评论，快去看看吧！`,
+        type: 'info',
+        link: `/forum/${data.post_id}`
+      });
+    }
+  } catch (err) {
+    console.error('发送评论通知失败:', err);
+    // 通知失败不影响评论创建
   }
 
   return newComment as ForumComment;

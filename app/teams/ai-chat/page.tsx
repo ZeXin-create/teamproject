@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Navbar from '../../components/Navbar'
 
+
 interface Message {
   id: string
   role: 'user' | 'ai'
@@ -29,20 +30,30 @@ export default function AIChatPage() {
     if (!user) return
 
     try {
-      const { data: sessions } = await supabase
+      const { data: sessions, error: sessionError } = await supabase
         .from('chat_sessions')
         .select('id')
         .eq('user_id', user.id)
         .single()
 
+      if (sessionError) {
+        console.error('获取会话失败:', sessionError)
+        return
+      }
+
       if (sessions) {
         setSessionId(sessions.id)
 
-        const { data: chatMessages } = await supabase
+        const { data: chatMessages, error: chatError } = await supabase
           .from('chat_messages')
           .select('*')
           .eq('session_id', sessions.id)
           .order('created_at', { ascending: true })
+
+        if (chatError) {
+          console.error('获取聊天消息失败:', chatError)
+          return
+        }
 
         if (chatMessages) {
           setMessages(chatMessages.map(msg => ({
@@ -66,7 +77,9 @@ export default function AIChatPage() {
 
   // 自动滚动到底部
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'instant' })
+    }
   }, [messages])
 
   // 保存消息到数据库
@@ -74,7 +87,7 @@ export default function AIChatPage() {
     if (!sessionId) return
 
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           session_id: sessionId,
@@ -83,6 +96,11 @@ export default function AIChatPage() {
         })
         .select()
         .single()
+
+      if (error) {
+        console.error('保存消息失败:', error)
+        return null
+      }
 
       if (data) {
         return {
@@ -95,6 +113,7 @@ export default function AIChatPage() {
     } catch (error) {
       console.error('保存消息失败:', error)
     }
+    return null
   }
 
   // 创建或获取会话
@@ -204,7 +223,7 @@ export default function AIChatPage() {
               onClick={() => router.push('/teams/space')}
               className="px-4 py-2 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium flex items-center gap-2"
             >
-              <span>←</span> 返回战队空间
+              <span>←</span> 返回战队管理后台
             </button>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
@@ -226,25 +245,24 @@ export default function AIChatPage() {
                 <p className="text-lg font-medium">你好！我是你的智能战队助手</p>
                 <p className="mt-2 text-sm">可以询问战队成员数据、战队赛分组、规则等问题</p>
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-2 w-full max-w-xl">
-                  {[
-                    { text: '查询战队成员数据', icon: '👥' },
-                    { text: '生成战队赛分组', icon: '🎯' },
-                    { text: '推荐最佳阵容', icon: '⭐' },
-                    { text: '获取段位提升建议', icon: '📈' },
-                    { text: '团队建设建议', icon: '🏆' },
-                    { text: '预测比赛结果', icon: '🔮' },
+                  {
+                    [
+                    { text: '查询战队成员数据', icon: '👥', action: () => setInput('查询战队成员数据') },
+                    { text: '推荐最佳阵容', icon: '⭐', action: () => setInput('推荐最佳阵容') },
+                    { text: '获取段位提升建议', icon: '📈', action: () => setInput('获取段位提升建议') },
+                    { text: '团队建设建议', icon: '🏆', action: () => setInput('团队建设建议') },
+                    { text: '预测比赛结果', icon: '🔮', action: () => setInput('预测比赛结果') },
                   ].map((item, index) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setInput(item.text)
-                      }}
-                      className="px-4 py-2 bg-white/50 rounded-lg hover:bg-white/80 transition-colors text-sm flex items-center gap-2"
-                    >
-                      <span>{item.icon}</span>
-                      <span>{item.text}</span>
-                    </button>
-                  ))}
+                      <button
+                        key={index}
+                        onClick={item.action}
+                        className="px-4 py-2 bg-white/50 rounded-lg hover:bg-white/80 transition-colors text-sm flex items-center gap-2"
+                      >
+                        <span>{item.icon}</span>
+                        <span>{item.text}</span>
+                      </button>
+                    ))
+                  }
                 </div>
               </div>
             ) : (
@@ -312,26 +330,25 @@ export default function AIChatPage() {
           <div className="mt-4">
             <p className="text-xs text-gray-500 mb-2">快捷问题：</p>
             <div className="flex flex-wrap gap-2">
-              {[
-                '查询战队成员数据',
-                '生成战队赛分组',
-                '推荐最佳阵容',
-                '获取段位提升建议',
-                '团队建设建议',
-                '预测比赛结果',
-                '战队赛规则是什么？',
-                '如何提升战队赛胜率？'
-              ].map((question, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setInput(question)
-                  }}
-                  className="px-3 py-1 text-xs bg-white/50 rounded-full hover:bg-white/80 transition-colors"
-                >
-                  {question}
-                </button>
-              ))}
+              {
+                [
+                  { text: '查询战队成员数据', action: () => setInput('查询战队成员数据') },
+                  { text: '推荐最佳阵容', action: () => setInput('推荐最佳阵容') },
+                  { text: '获取段位提升建议', action: () => setInput('获取段位提升建议') },
+                  { text: '团队建设建议', action: () => setInput('团队建设建议') },
+                  { text: '预测比赛结果', action: () => setInput('预测比赛结果') },
+                  { text: '战队赛规则是什么？', action: () => setInput('战队赛规则是什么？') },
+                  { text: '如何提升战队赛胜率？', action: () => setInput('如何提升战队赛胜率？') }
+                ].map((item, index) => (
+                  <button
+                    key={index}
+                    onClick={item.action}
+                    className="px-3 py-1 text-xs bg-white/50 rounded-full hover:bg-white/80 transition-colors"
+                  >
+                    {item.text}
+                  </button>
+                ))
+              }
             </div>
           </div>
         </div>
