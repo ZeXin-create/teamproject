@@ -32,3 +32,4 @@ logs
 ehthumbs.db
 Thumbs.dbnode_modules/
 node_modules/
+.env*
