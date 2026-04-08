@@ -1,7 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+import { supabase } from '../../../lib/supabase';
 const POSITIONS = ['对抗路', '打野', '中单', '发育路', '辅助'];
 const POSITION_MAP: Record<string, string> = { '上单': '对抗路', '射手': '发育路', '游走': '辅助' };
 

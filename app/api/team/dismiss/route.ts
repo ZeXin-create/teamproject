@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!; // 使用服务端密钥
+import { supabase } from '../../../lib/supabase'; // 使用服务端密钥
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,13 +9,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少战队 ID 或用户 ID' }, { status: 400 });
     }
 
-    // 使用服务端密钥创建 supabase 客户端
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
+
 
     // 开始事务
 

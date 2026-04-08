@@ -1,10 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { supabase } from '../../../lib/supabase'
 
 export async function POST(req: Request) {
   try {
@@ -17,7 +12,7 @@ export async function POST(req: Request) {
     }
 
     // 1. 检查操作者权限（队长或副队长）
-    const { data: operator, error: operatorError } = await supabaseAdmin
+    const { data: operator, error: operatorError } = await supabase
       .from('team_members')
       .select('role')
       .eq('user_id', kickedBy)
@@ -37,7 +32,7 @@ export async function POST(req: Request) {
     }
 
     // 2. 检查被踢者身份
-    const { data: target, error: targetError } = await supabaseAdmin
+    const { data: target, error: targetError } = await supabase
       .from('team_members')
       .select('role')
       .eq('user_id', userId)
@@ -58,7 +53,7 @@ export async function POST(req: Request) {
 
     // 3. 删除 player_profiles 记录
     console.log('开始删除 player_profiles:', { userId, teamId })
-    const { error: deleteProfileError, data: deleteProfileData } = await supabaseAdmin
+    const { error: deleteProfileError, data: deleteProfileData } = await supabase
       .from('player_profiles')
       .delete()
       .eq('user_id', userId)
@@ -73,7 +68,7 @@ export async function POST(req: Request) {
 
     // 4. 删除 team_members 记录
     console.log('开始删除 team_members:', { userId, teamId })
-    const { error: deleteMemberError } = await supabaseAdmin
+    const { error: deleteMemberError } = await supabase
       .from('team_members')
       .delete()
       .eq('user_id', userId)
@@ -85,7 +80,7 @@ export async function POST(req: Request) {
 
     // 5. 更新申请状态为 rejected
     console.log('更新申请状态为 rejected:', { userId, teamId })
-    const { error: updateAppError } = await supabaseAdmin
+    const { error: updateAppError } = await supabase
       .from('team_applications')
       .update({ status: 'rejected' })
       .eq('user_id', userId)
