@@ -152,7 +152,7 @@ export default function JoinTeamPage() {
   }
 
   // 实时校验函数
-  const validateField = (field: string, value: any, position?: string, statField?: string) => {
+  const validateField = (field: string, value: string | string[] | number[] | boolean, position?: string, statField?: string) => {
     let errorMessage = '';
 
     switch (field) {
@@ -358,29 +358,7 @@ export default function JoinTeamPage() {
     }))
   }
 
-  const addTimeSlot = () => {
-    setFormData(prev => ({
-      ...prev,
-      availableTime: [...prev.availableTime, {
-        day: newTimeSlot.day,
-        start_time: newTimeSlot.startTime,
-        end_time: newTimeSlot.endTime
-      }]
-    }))
-    // 重置表单
-    setNewTimeSlot({
-      day: '周五',
-      startTime: '12:00',
-      endTime: '23:59'
-    })
-  }
 
-  const removeTimeSlot = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      availableTime: prev.availableTime.filter((_, i) => i !== index)
-    }))
-  }
 
   const handleJoin = (teamId: string) => {
     if (!user) {
@@ -398,7 +376,19 @@ export default function JoinTeamPage() {
 
     // 表单验证
     let isValid = true;
-    const newErrors: any = {
+    const newErrors: {
+      gameId?: string;
+      currentRank?: string;
+      mainPositions?: string;
+      availableTime?: string;
+      positionStats: Record<string, {
+        winRate?: string;
+        kda?: string;
+        rating?: string;
+        power?: string;
+        heroes?: string;
+      }>;
+    } = {
       positionStats: {
         '上单': {},
         '打野': {},

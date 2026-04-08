@@ -2,15 +2,14 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../context/AuthContext';
 import { GoodsType, ServerArea, TeamBadge, CreateTeamSaleRequest } from '../../types/teamSales';
 import { createTeamSale } from '../../services/teamSalesService';
 import { supabase } from '../../lib/supabase';
 import Navbar from '../../components/Navbar';
+import Image from 'next/image';
 
 export default function CreateTeamSalePage() {
   const router = useRouter();
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -432,11 +431,13 @@ export default function CreateTeamSalePage() {
                 className="glass-input w-full px-4 py-3"
               />
               {formData.image_url && (
-                <div className="mt-2">
-                  <img
+                <div className="mt-2 relative w-32 h-32">
+                  <Image
                     src={formData.image_url}
                     alt="商品图片"
-                    className="w-32 h-32 object-cover rounded-lg"
+                    width={128}
+                    height={128}
+                    className="object-cover rounded-lg"
                   />
                 </div>
               )}

@@ -787,11 +787,11 @@ ${王者荣耀知识库.胜率提升}
           .single();
 
         // 从position_stats中获取常用英雄
-        let heroes: any[] = [];
+        const heroes: Array<{ name: string; position: string }> = [];
         if (profile.position_stats && typeof profile.position_stats === 'object') {
           Object.entries(profile.position_stats).forEach(([position, stats]) => {
             if (stats && typeof stats === 'object') {
-              const statsObj = stats as any;
+              const statsObj = stats as Record<string, any>;
               if (statsObj.heroes && Array.isArray(statsObj.heroes) && statsObj.heroes.length > 0) {
                 statsObj.heroes.forEach((heroId: string | number) => {
                   if (heroId) {

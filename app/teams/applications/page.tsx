@@ -44,7 +44,7 @@ interface Application {
     avatar_url?: string
     systemId?: string
     level?: number
-    game_data?: Record<string, any>
+    game_data?: Record<string, unknown>
   }
 }
 
@@ -58,7 +58,11 @@ export default function ApplicationsPage() {
   const [success, setSuccess] = useState('')
   
   // 英雄数据状态
-  const [heroes, setHeroes] = useState<any[]>([])
+  interface Hero {
+    id: number;
+    name: string;
+  }
+  const [heroes, setHeroes] = useState<Hero[]>([])
 
   // 初始化英雄数据
   useEffect(() => {
