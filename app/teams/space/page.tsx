@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Link from 'next/link'
-import Image from 'next/image'
 import Navbar from '../../components/Navbar'
 import Sidebar from '../../components/Sidebar'
 import ErrorBoundary from '../../components/ErrorBoundary'
@@ -211,10 +210,7 @@ export default function TeamSpacePage() {
     )
   }
 
-  // 检查用户是否有管理权限（副队或队长）
-  const hasManagementPermission = () => {
-    return ['队长', '副队长'].includes(userRole)
-  }
+
 
   // 显示退出战队对话框
   const handleQuitClick = () => {

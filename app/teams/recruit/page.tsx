@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Navbar from '../../components/Navbar'
+import Image from 'next/image'
 
 export default function RecruitPage() {
   const { user } = useAuth()
@@ -251,9 +252,9 @@ export default function RecruitPage() {
       setTimeout(() => {
         router.push('/teams/recruitment-management')
       }, 1000)
-    } catch (error: any) {
+    } catch (error) {
       console.error('提交失败:', error)
-      setError(error.message || '提交失败，请稍后重试')
+      setError(error instanceof Error ? error.message : '提交失败，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -472,11 +473,13 @@ export default function RecruitPage() {
                     className="input w-full"
                   />
                   {imageUrl && (
-                    <div className="mt-2">
-                      <img
+                    <div className="mt-2 relative w-32 h-32">
+                      <Image
                         src={imageUrl}
                         alt="招募图片"
-                        className="w-32 h-32 object-cover rounded-lg"
+                        width={128}
+                        height={128}
+                        className="object-cover rounded-lg"
                       />
                     </div>
                   )}

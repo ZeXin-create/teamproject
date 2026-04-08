@@ -27,7 +27,7 @@ interface Member {
   game_id?: string
   current_rank?: string
   main_positions?: string[]
-  available_time?: any[]
+  available_time?: TimeSlot[]
   power_score?: number
 }
 
@@ -59,8 +59,19 @@ const KICK_PERMISSIONS: Record<string, string[]> = {
   '队员': []
 }
 
+interface PlayerStats {
+  position_stats?: Record<string, {
+    win_rate?: string;
+    winRate?: string;
+    kda?: string;
+    rating?: string;
+    power?: string;
+  }>;
+  main_positions?: string[];
+}
+
 // 计算综合实力分
-function calculatePowerScore(player: any): number {
+function calculatePowerScore(player: PlayerStats): number {
   const positionStats = player.position_stats || {};
   const mainPosition = player.main_positions?.[0] || '中单';
   const stats = positionStats[mainPosition] || {};
@@ -84,7 +95,16 @@ function calculatePowerScore(player: any): number {
 }
 
 // 格式化可比赛时间
-function formatAvailableTime(availableTime: any[]): string {
+interface TimeSlot {
+  day?: string;
+  day_of_week?: string;
+  start_time?: string;
+  startTime?: string;
+  end_time?: string;
+  endTime?: string;
+}
+
+function formatAvailableTime(availableTime: TimeSlot[]): string {
   if (!availableTime || availableTime.length === 0) return '未设置';
   
   return availableTime.map(slot => {
@@ -297,36 +317,6 @@ export default function TeamManagePage() {
     setShowKickConfirm(true)
   }
 
-  // 检查队员是否被锁定
-  const checkMemberLocked = async (user_id: string): Promise<boolean> => {
-    try {
-      if (!team?.id) return false;
-      
-      // 查询当前战队下的活跃批次
-      const { data: batch } = await supabase
-        .from('group_batches')
-        .select('id')
-        .eq('team_id', team.id)
-        .eq('status', 'active')
-        .single();
-      
-      if (!batch) return false;
-      
-      // 检查该队员是否在分组中
-      const { data: groupMember } = await supabase
-        .from('group_members')
-        .select('id')
-        .eq('batch_id', batch.id)
-        .eq('user_id', user_id)
-        .maybeSingle();
-      
-      return !!groupMember;
-    } catch (error) {
-      console.error('检查锁定状态失败:', error);
-      return false;
-    }
-  }
-
   // 解锁队员
   const handleUnlockMember = async () => {
     if (!selectedMember || !team?.id) return;
@@ -339,14 +329,14 @@ export default function TeamManagePage() {
       });
       
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error as string);
       
       alert('队员已解锁');
       setShowActionModal(false);
       fetchMembers(team.id);
-    } catch (error: any) {
+    } catch (error) {
       console.error('解锁队员失败:', error);
-      alert('解锁失败: ' + error.message);
+      alert('解锁失败: ' + (error instanceof Error ? error.message : '未知错误'));
     }
   }
 

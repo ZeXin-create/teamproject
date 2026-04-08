@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Navbar from '../../components/Navbar'
 import Sidebar from '../../components/Sidebar'
+import Image from 'next/image'
 
 interface TeamRecruit {
   id: string
@@ -86,7 +87,7 @@ export default function RecruitmentManagementPage() {
         console.error('获取招募帖子失败:', error)
       } else {
         // 为每个招募帖子获取战队信息
-        const formattedRecruits = await Promise.all((data || []).map(async (recruit: any) => {
+        const formattedRecruits = await Promise.all((data || []).map(async (recruit: Omit<TeamRecruit, 'team'>) => {
           const { data: teamData } = await supabase
             .from('teams')
             .select('id, name, avatar_url')
@@ -296,10 +297,12 @@ export default function RecruitmentManagementPage() {
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
                               {recruit.team.avatar_url ? (
-                                <div className="w-10 h-10 rounded-full overflow-hidden">
-                                  <img
+                                <div className="w-10 h-10 rounded-full overflow-hidden relative">
+                                  <Image
                                     src={recruit.team.avatar_url}
                                     alt={recruit.team.name}
+                                    width={40}
+                                    height={40}
                                     className="w-full h-full object-cover"
                                   />
                                 </div>
@@ -345,10 +348,12 @@ export default function RecruitmentManagementPage() {
                     <div className="space-y-4">
                       <div className="flex items-center gap-4">
                         {selectedRecruit.team.avatar_url ? (
-                          <div className="w-16 h-16 rounded-full overflow-hidden">
-                            <img
+                          <div className="w-16 h-16 rounded-full overflow-hidden relative">
+                            <Image
                               src={selectedRecruit.team.avatar_url}
                               alt={selectedRecruit.team.name}
+                              width={64}
+                              height={64}
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -460,10 +465,12 @@ export default function RecruitmentManagementPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   {selectedRecruit.team.avatar_url ? (
-                    <div className="w-16 h-16 rounded-full overflow-hidden">
-                      <img
+                    <div className="w-16 h-16 rounded-full overflow-hidden relative">
+                      <Image
                         src={selectedRecruit.team.avatar_url}
                         alt={selectedRecruit.team.name}
+                        width={64}
+                        height={64}
                         className="w-full h-full object-cover"
                       />
                     </div>
