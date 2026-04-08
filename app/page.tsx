@@ -5,12 +5,16 @@ import Navbar from './components/Navbar'
 import { useAuth } from './context/AuthContext'
 import { supabase } from './lib/supabase'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState(0)
   const { user } = useAuth()
   const [hasTeam, setHasTeam] = useState(false)
-  const [teamInfo, setTeamInfo] = useState<any>(null)
+  const [teamInfo, setTeamInfo] = useState<{
+    team_name: string;
+    team_description?: string;
+  } | null>(null)
   const [teamMembers, setTeamMembers] = useState(0)
   const [pendingApplications, setPendingApplications] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -99,11 +103,26 @@ export default function Home() {
   const TabContent = ({ activeTab }: { activeTab: number }) => {
     // 招募大厅组件
     const RecruitmentHall = () => {
-      const [recruits, setRecruits] = useState<any[]>([])
+      interface Recruit {
+        id: string;
+        title: string;
+        image_url?: string;
+        teams?: {
+          name: string;
+        };
+        position: string;
+        rank: string;
+        members_needed: number;
+        contact: string;
+        requirements?: string;
+        created_at: string;
+      }
+
+      const [recruits, setRecruits] = useState<Recruit[]>([])
       const [loading, setLoading] = useState(true)
       const [error, setError] = useState('')
       const [showModal, setShowModal] = useState(false)
-      const [selectedRecruit, setSelectedRecruit] = useState<any>(null)
+      const [selectedRecruit, setSelectedRecruit] = useState<Recruit | null>(null)
 
       useEffect(() => {
         const fetchRecruits = async () => {
@@ -118,9 +137,9 @@ export default function Home() {
 
             if (error) throw error
             setRecruits(data || [])
-          } catch (err: any) {
+          } catch (err) {
             console.error('获取招募信息失败:', err)
-            setError(err.message || '获取招募信息失败')
+            setError(err instanceof Error ? err.message : '获取招募信息失败')
           } finally {
             setLoading(false)
           }
@@ -129,7 +148,7 @@ export default function Home() {
         fetchRecruits()
       }, [])
 
-      const handleCardClick = (recruit: any) => {
+      const handleCardClick = (recruit: Recruit) => {
         setSelectedRecruit(recruit)
         setShowModal(true)
       }
@@ -185,14 +204,17 @@ export default function Home() {
                     onClick={() => handleCardClick(recruit)}
                   >
                     {/* 图片显示 */}
-                    <div className="w-full h-32 mb-3 rounded-t-xl overflow-hidden">
+                    <div className="w-full h-32 mb-3 rounded-t-xl overflow-hidden relative">
                       {recruit.image_url ? (
-                        <img 
+                        <Image 
                           src={recruit.image_url} 
                           alt={recruit.title} 
+                          width={400}
+                          height={200}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=esports%20team%20recruitment%20poster&image_size=square`;
+                            const img = e.target as HTMLImageElement;
+                            img.src = `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=esports%20team%20recruitment%20poster&image_size=square`;
                           }}
                         />
                       ) : (
@@ -310,7 +332,14 @@ export default function Home() {
 
     // 战队空间组件
     const TeamSpace = () => {
-      const [team, setTeam] = useState<any>(null)
+      interface Team {
+        id: string;
+        name: string;
+        declaration?: string;
+        created_at: string;
+      }
+
+      const [team, setTeam] = useState<Team | null>(null)
       const [memberCount, setMemberCount] = useState(0)
       const [winRate, setWinRate] = useState('暂无')
       const [loading, setLoading] = useState(true)
@@ -381,7 +410,7 @@ export default function Home() {
         }
 
         fetchUserTeam()
-      }, [user])
+      }, [])
 
       if (loading) {
         return (
@@ -481,11 +510,22 @@ export default function Home() {
 
     // 战队/ID出售组件
     const TeamSales = () => {
-      const [sales, setSales] = useState<any[]>([])
+      interface Sale {
+        id: string;
+        description: string;
+        image_url?: string;
+        goods_type: 'TEAM' | 'ID' | 'TEAM_AND_ID';
+        server_area: string;
+        price: number;
+        contact: string;
+        created_at: string;
+      }
+
+      const [sales, setSales] = useState<Sale[]>([])
       const [loading, setLoading] = useState(true)
       const [error, setError] = useState('')
       const [showModal, setShowModal] = useState(false)
-      const [selectedSale, setSelectedSale] = useState<any>(null)
+      const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
 
       useEffect(() => {
         const fetchSales = async () => {
@@ -500,9 +540,9 @@ export default function Home() {
 
             if (error) throw error
             setSales(data || [])
-          } catch (err: any) {
+          } catch (err) {
             console.error('获取出售信息失败:', err)
-            setError(err.message || '获取出售信息失败')
+            setError(err instanceof Error ? err.message : '获取出售信息失败')
           } finally {
             setLoading(false)
           }
@@ -511,7 +551,7 @@ export default function Home() {
         fetchSales()
       }, [])
 
-      const handleCardClick = (sale: any) => {
+      const handleCardClick = (sale: Sale) => {
         setSelectedSale(sale)
         setShowModal(true)
       }
@@ -566,14 +606,17 @@ export default function Home() {
                     onClick={() => handleCardClick(sale)}
                   >
                     {/* 图片显示 */}
-                    <div className="w-full h-32 mb-3 rounded-t-xl overflow-hidden">
+                    <div className="w-full h-32 mb-3 rounded-t-xl overflow-hidden relative">
                       {sale.image_url ? (
-                        <img 
+                        <Image 
                           src={sale.image_url} 
                           alt={sale.description} 
+                          width={400}
+                          height={200}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=esports%20team%20sale%20poster&image_size=square`;
+                            const img = e.target as HTMLImageElement;
+                            img.src = `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=esports%20team%20sale%20poster&image_size=square`;
                           }}
                         />
                       ) : (
@@ -681,7 +724,21 @@ export default function Home() {
 
     // 贴吧社区组件
     const ForumCommunity = () => {
-      const [posts, setPosts] = useState<any[]>([])
+      interface Post {
+        id: string;
+        title: string;
+        content: string;
+        category: string;
+        view_count: number;
+        like_count: number;
+        comment_count: number;
+        created_at: string;
+        profiles?: {
+          nickname: string;
+        };
+      }
+
+      const [posts, setPosts] = useState<Post[]>([])
       const [loading, setLoading] = useState(true)
 
       useEffect(() => {
