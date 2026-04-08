@@ -30,9 +30,15 @@ export async function POST(req: Request) {
     if (error) throw error;
     if (!profiles?.length) return NextResponse.json({ groups: [], unassigned: [], total_players: 0 });
 
-    const players: any[] = [];
+    interface Player {
+      user_id: string;
+      game_id: string;
+      main_position: string;
+      score: number;
+    }
+    const players: Player[] = [];
     for (const p of profiles) {
-      let rawPos = p.main_positions?.[0] || '';
+      const rawPos = p.main_positions?.[0] || '';
       const pos = POSITION_MAP[rawPos] || rawPos;
       if (!POSITIONS.includes(pos)) continue;
       const rankKey = getRankKey(p.current_rank);
@@ -41,13 +47,13 @@ export async function POST(req: Request) {
     }
     if (players.length === 0) return NextResponse.json({ groups: [], unassigned: [], total_players: 0 });
 
-    const byPos: Record<string, any[]> = {};
+    const byPos: Record<string, Player[]> = {};
     for (const pos of POSITIONS) byPos[pos] = [];
     for (const p of players) byPos[p.main_position].push(p);
     for (const pos of POSITIONS) byPos[pos].sort((a, b) => b.score - a.score);
 
     const groups = [];
-    let unassigned: any[] = [];
+    const unassigned: Player[] = [];
     const hasAllPositions = POSITIONS.every(pos => byPos[pos].length > 0);
 
     if (hasAllPositions) {
@@ -68,8 +74,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, groups, unassigned, total_players: players.length });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : '分组过程中发生错误' }, { status: 500 });
   }
 }

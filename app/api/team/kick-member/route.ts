@@ -101,8 +101,8 @@ export async function POST(req: Request) {
         memberDeleted: !deleteMemberError
       }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('踢出队员错误:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : '踢出队员时发生错误' }, { status: 500 })
   }
 }

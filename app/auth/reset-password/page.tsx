@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function ResetPasswordPage() {
@@ -11,16 +11,20 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const [session, setSession] = useState<any>(null)
+  const [session, setSession] = useState<{ user: { id: string; email: string } } | null>(null)
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   // 检查URL中的token
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        setSession(session)
+      if (session && session.user) {
+        setSession({
+          user: {
+            id: session.user.id,
+            email: session.user.email || ''
+          }
+        })
       } else {
         setError('重置链接无效或已过期')
       }
@@ -59,8 +63,8 @@ export default function ResetPasswordPage() {
       setTimeout(() => {
         router.push('/auth/login')
       }, 2000)
-    } catch (err: any) {
-      setError(err.message || '密码重置失败，请稍后重试')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '密码重置失败，请稍后重试')
     } finally {
       setLoading(false)
     }

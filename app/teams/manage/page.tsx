@@ -617,7 +617,7 @@ export default function TeamManagePage() {
                         }
                       </td>
                       <td className="py-4 px-4 text-sm text-gray-700">
-                        {formatAvailableTime(member.available_time)}
+                        {formatAvailableTime(member.available_time || [])}
                       </td>
                       <td className="py-4 px-4">
                         <span className={getPowerScoreColor(member.power_score || 0)}>
@@ -814,7 +814,7 @@ export default function TeamManagePage() {
 
                 <div className="glass-card p-4">
                   <div className="text-sm text-gray-400 mb-1">⏰ 可比赛时间</div>
-                  <div className="font-medium text-gray-800">{formatAvailableTime(selectedMember.available_time)}</div>
+                  <div className="font-medium text-gray-800">{formatAvailableTime(selectedMember.available_time || [])}</div>
                 </div>
 
                 <div className="glass-card p-4">

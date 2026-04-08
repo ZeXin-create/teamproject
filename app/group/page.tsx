@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { useCache } from '@/app/hooks/useCache';
 import { motion } from 'framer-motion';
-import { DndContext, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
+import { DndContext, useSensor, useSensors, PointerSensor, TouchSensor, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove } from '@dnd-kit/sortable';
 import { Users, RefreshCw, CheckCircle, AlertCircle, UserPlus, Clock, History } from 'lucide-react';
 
@@ -33,7 +33,7 @@ export default function GroupPage() {
   useEffect(() => { setMounted(true); }, []);
 
   // 使用 useCache 缓存战队信息
-  const { data: userTeam, loading: teamLoading } = useCache(async () => {
+  const { data: userTeam } = useCache(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     const { data: member } = await supabase.from('team_members').select('team_id').eq('user_id', user.id).maybeSingle();
@@ -197,13 +197,13 @@ export default function GroupPage() {
     useSensor(TouchSensor)
   );
 
-  const handleDragEnd = useCallback((event: any) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
     if (active.id !== over.id) {
       setGroups((items) => {
-        const oldIndex = items.findIndex((item) => item.name === active.id);
-        const newIndex = items.findIndex((item) => item.name === over.id);
+        const oldIndex = items.findIndex((item) => item.name === String(active.id));
+        const newIndex = items.findIndex((item) => item.name === String(over.id));
         return arrayMove(items, oldIndex, newIndex);
       });
     }
@@ -357,7 +357,10 @@ export default function GroupPage() {
                             平均分: {group.average_score} | 英雄重叠度: {group.hero_overlap_rate}%
                           </div>
                           <div className="space-y-2">
-                            {group.members.map((member: any, memberIdx) => (
+                            {group.members.map((member: {
+                              game_id: string;
+                              main_position: string;
+                            }, memberIdx) => (
                               <div key={memberIdx} className="flex items-center gap-2 text-sm">
                                 <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-400 to-green-500 flex items-center justify-center">
                                   <span className="text-white text-xs font-medium">{member.game_id.charAt(0).toUpperCase()}</span>

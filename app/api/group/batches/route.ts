@@ -29,8 +29,8 @@ export async function GET(req: Request) {
       success: true,
       batches: batches || []
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('获取分组批次失败:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : '获取分组批次时发生错误' }, { status: 500 });
   }
 }

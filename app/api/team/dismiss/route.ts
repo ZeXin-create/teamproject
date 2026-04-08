@@ -98,8 +98,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, message: '战队已成功解散' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('解散战队失败:', error);
-    return NextResponse.json({ error: error.message || '解散战队失败' }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : '解散战队失败' }, { status: 500 });
   }
 }

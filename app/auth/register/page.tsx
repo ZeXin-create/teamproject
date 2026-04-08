@@ -20,7 +20,7 @@ export default function RegisterPage() {
   const [emailChecking, setEmailChecking] = useState(false)
   const [emailStatus, setEmailStatus] = useState<'idle' | 'valid' | 'registered' | 'error'>('idle')
   const [emailMessage, setEmailMessage] = useState('')
-  const { register, isLoading, successMessage, setSuccessMessage } = useAuth()
+  const { isLoading, successMessage, setSuccessMessage } = useAuth()
   const codeInputRef = useRef<HTMLInputElement>(null)
 
   // 倒计时效果
@@ -93,17 +93,7 @@ export default function RegisterPage() {
     }
   }
 
-  // 处理验证码输入变化
-  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // 只允许输入数字
-    const value = e.target.value.replace(/[^0-9]/g, '')
-    setVerificationCode(value)
-    
-    // 输入完成6位后自动提交
-    if (value.length === 6) {
-      handleSubmit(e as any)
-    }
-  }
+
 
   // 发送验证码
   const handleSendCode = async () => {
@@ -148,7 +138,7 @@ export default function RegisterPage() {
         return
       }
 
-      // 发送验证码，显式设置有效期为 300 秒
+      // 发送验证码
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -156,9 +146,7 @@ export default function RegisterPage() {
           shouldCreateUser: true,
           data: {
             password
-          },
-          // 设置验证码有效期为 300 秒，与阿里云设置一致
-          emailOtpExpiry: 300
+          }
         }
       })
 
@@ -297,14 +285,12 @@ export default function RegisterPage() {
       // 重置验证码有效期倒计时
       setOtpExpiryCountdown(300)
 
-      // 重新发送验证码，显式设置有效期为 300 秒
+      // 重新发送验证码
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: window.location.origin,
-          shouldCreateUser: true,
-          // 设置验证码有效期为 300 秒，与阿里云设置一致
-          emailOtpExpiry: 300
+          shouldCreateUser: true
         }
       })
 

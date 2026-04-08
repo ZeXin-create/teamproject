@@ -21,7 +21,14 @@ const ROLE_BALANCE_REQUIREMENTS = {
 };
 
 // 英雄功能标签系统
-const HERO_FUNCTIONS = {
+interface HeroFunction {
+  tank: number;
+  control: number;
+  output: number;
+  push: number;
+}
+
+const HERO_FUNCTIONS: Record<string, HeroFunction> = {
   // 坦克类英雄
   '廉颇': { tank: 5, control: 4, output: 2, push: 3 },
   '白起': { tank: 5, control: 4, output: 2, push: 2 },
@@ -65,15 +72,8 @@ const HERO_FUNCTIONS = {
   '庄周': { tank: 2, control: 3, output: 1, push: 2 }
 };
 
-// 功能覆盖要求
-const FUNCTION_REQUIREMENTS = {
-  'control': 1, // 至少1个控制
-  'push': 1,    // 至少1个带线
-  'output': 1   // 至少1个输出
-};
-
 // 计算实力分
-function calculateStrength(positionStats: any, currentRank: string) {
+function calculateStrength(positionStats: Record<string, number>, currentRank: string) {
   if (!positionStats) {
     // 回退到段位映射
     return getRankScore(currentRank);
@@ -126,7 +126,60 @@ function getRankScore(rank: string) {
 }
 
 // 缓存机制
-const cache: Record<string, { data: any, timestamp: number }> = {};
+interface Player {
+  user_id: string;
+  game_id: string;
+  main_position: string;
+  second_position: string | null;
+  accept_position_adjustment: boolean;
+  available_time: Array<{
+    day: string;
+    start_time: string;
+    end_time: string;
+  }>;
+  heroes: string[];
+  score: number;
+  original_position?: string;
+  position_adjusted?: boolean;
+  recommended_heroes?: string[];
+  hero_reasons?: Record<string, string>;
+  unassigned_reason?: string;
+}
+
+interface Group {
+  id: number;
+  name: string;
+  members: Player[];
+  average_score: number;
+  missing_positions: string[];
+  repeated_positions: string[];
+  hero_overlap_rate: number;
+  function_coverage: {
+    functionScores: Record<string, number>;
+    issues: string[];
+  };
+  role_balance: {
+    roleCount: Record<string, number>;
+    issues: string[];
+  };
+  warning: string | null;
+  common_time?: string;
+  suggested_time: string;
+  time_fallback_reason?: string;
+}
+
+interface ResponseData {
+  success: boolean;
+  groups: Group[];
+  unassigned: Player[];
+  total_players: number;
+  time_fallback_reason: string | null;
+  fallback_reason: string | null;
+  tips: string[];
+}
+
+// 缓存机制
+const cache: Record<string, { data: ResponseData, timestamp: number }> = {};
 const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
 
 export async function POST(req: Request) {
@@ -147,18 +200,18 @@ export async function POST(req: Request) {
     console.log('开始处理分组请求，team_id:', team_id);
     
     // 构建队员列表（排除已锁定的队员）
-    let players: any[] = [];
+    let players: Player[] = [];
     
     // 使用真实数据
     const useMockData = false; // 设置为 true 使用模拟数据，false 使用真实数据
     
-    const groups: any[] = [];
-    const unassigned: any[] = [];
-    let lockedUserIds = new Set<string>();
+    const groups: Group[] = [];
+    const unassigned: Player[] = [];
+    const lockedUserIds = new Set<string>();
     
     if (!useMockData) {
       // 获取已锁定的队员（在 active 批次中的队员）
-      const { data: activeBatches, error: batchError } = await supabase
+      const { data: activeBatches } = await supabase
         .from('group_batches')
         .select('id')
         .eq('team_id', team_id)
@@ -440,7 +493,7 @@ export async function POST(req: Request) {
           continue;
         }
         
-        let pos = POSITION_MAP[p.main_positions?.[0] || ''] || p.main_positions?.[0] || '';
+        const pos = POSITION_MAP[p.main_positions?.[0] || ''] || p.main_positions?.[0] || '';
         if (!POSITIONS.includes(pos)) {
           console.log('排除位置无效的队员:', p.user_id, p.game_id, '位置:', pos);
           unassigned.push({
@@ -486,9 +539,17 @@ export async function POST(req: Request) {
     }
     
     // 时间优先分组
-    function timeBasedGrouping() {
+    const timeBasedGrouping = () => {
+      interface TimeSlot {
+        day: string;
+        start_time: string;
+        end_time: string;
+        count: number;
+        players: Player[];
+      }
+
       // 收集所有时间段
-      const timeSlots: Record<string, any> = {};
+      const timeSlots: Record<string, TimeSlot> = {};
       
       // 遍历所有队员的可用时间
       for (const player of players) {
@@ -523,16 +584,16 @@ export async function POST(req: Request) {
       });
       
       // 标记已分组的队员
-      const groupedUserIds = new Set();
+      const groupedUserIds = new Set<string>();
       
       // 遍历时间段，创建小组
       for (const timeSlot of sortedTimeSlots) {
         // 过滤出未分组的队员
-        const availablePlayers = timeSlot.players.filter((p: any) => !groupedUserIds.has(p.user_id));
+        const availablePlayers = timeSlot.players.filter(p => !groupedUserIds.has(p.user_id));
         
         if (availablePlayers.length >= 5) {
           // 按位置分类并排序
-          const byPos: Record<string, any[]> = {};
+          const byPos: Record<string, Player[]> = {};
           for (const pos of POSITIONS) byPos[pos] = [];
           for (const p of availablePlayers) {
             // 确保只将队员添加到有效的位置类别中
@@ -543,24 +604,24 @@ export async function POST(req: Request) {
           for (const pos of POSITIONS) byPos[pos].sort((a, b) => b.score - a.score);
           
           // 尝试组成完整的5人组，每个位置一个人
-          const members: any[] = [];
+          const members: Player[] = [];
           const selectedUserIds = new Set<string>();
           
           // 优先选择只会单一位置的队员，让会多个位置的队员留作补位
           for (const pos of POSITIONS) {
             if (byPos[pos].length > 0) {
               // 优先选择没有第二位置的队员，或第二位置不有效的队员
-              const singlePositionPlayers = byPos[pos].filter((p: any) => !p.second_position || !POSITIONS.includes(p.second_position));
+              const singlePositionPlayers = byPos[pos].filter(p => !p.second_position || !POSITIONS.includes(p.second_position));
               
               if (singlePositionPlayers.length > 0) {
                 // 选择最强的单一位置队员
-                singlePositionPlayers.sort((a: any, b: any) => b.score - a.score);
+                singlePositionPlayers.sort((a, b) => b.score - a.score);
                 const player = singlePositionPlayers[0];
                 members.push(player);
                 selectedUserIds.add(player.user_id);
               } else {
                 // 如果没有单一位置队员，选择最强的队员
-                byPos[pos].sort((a: any, b: any) => b.score - a.score);
+                byPos[pos].sort((a, b) => b.score - a.score);
                 const player = byPos[pos][0];
                 members.push(player);
                 selectedUserIds.add(player.user_id);
@@ -575,14 +636,14 @@ export async function POST(req: Request) {
             
             for (const pos of missingPositions) {
               // 寻找有第二位置且未被选中的队员
-              const potentialPlayers = availablePlayers.filter((p: any) => 
+              const potentialPlayers = availablePlayers.filter(p => 
                 !selectedUserIds.has(p.user_id) && 
                 (p.second_position === pos || (p.accept_position_adjustment && p.second_position))
               );
               
               if (potentialPlayers.length > 0) {
                 // 按实力分排序，选择最强的
-                potentialPlayers.sort((a: any, b: any) => b.score - a.score);
+                potentialPlayers.sort((a, b) => b.score - a.score);
                 const selected = potentialPlayers[0];
                 // 标记队员的位置调整
                 selected.original_position = selected.main_position;
@@ -602,7 +663,7 @@ export async function POST(req: Request) {
             const roleBalance = checkRoleBalance(members);
             const functionCoverage = checkFunctionCoverage(members);
             
-            let warnings = [];
+            const warnings: string[] = [];
             if (overlapRate > 25) {
               warnings.push(`英雄重叠度较高: ${overlapRate}%`);
             }
@@ -649,7 +710,7 @@ export async function POST(req: Request) {
       // 尝试处理部分重叠的时间段
       if (groups.length === 0 && players.length >= 5) {
         // 按天分组
-        const playersByDay: Record<string, any[]> = {};
+        const playersByDay: Record<string, Player[]> = {};
         for (const player of players) {
           if (player.available_time && Array.isArray(player.available_time)) {
             for (const time of player.available_time) {
@@ -667,7 +728,7 @@ export async function POST(req: Request) {
         for (const [day, dayPlayers] of Object.entries(playersByDay)) {
           if (dayPlayers.length >= 5) {
             // 按位置分类并排序
-            const byPos: Record<string, any[]> = {};
+            const byPos: Record<string, Player[]> = {};
             for (const pos of POSITIONS) byPos[pos] = [];
             for (const p of dayPlayers) {
               if (POSITIONS.includes(p.main_position)) {
@@ -677,7 +738,7 @@ export async function POST(req: Request) {
             for (const pos of POSITIONS) byPos[pos].sort((a, b) => b.score - a.score);
             
             // 尝试组成完整的5人组
-            const members: any[] = [];
+            const members: Player[] = [];
             for (const pos of POSITIONS) {
               if (byPos[pos].length > 0) {
                 const player = byPos[pos][0];
@@ -698,7 +759,7 @@ export async function POST(req: Request) {
               // 为队员推荐英雄
               const membersWithRecommendations = recommendHeroes(members);
               
-              let warnings = [];
+              const warnings: string[] = [];
               if (overlapRate > 25) {
                 warnings.push(`英雄重叠度较高: ${overlapRate}%`);
               }
@@ -743,7 +804,7 @@ export async function POST(req: Request) {
     }
     
     // 计算时间段持续时间（分钟）
-    function calculateDuration(startTime: string, endTime: string) {
+    const calculateDuration = (startTime: string, endTime: string) => {
       const [startHour, startMinute] = startTime.split(':').map(Number);
       const [endHour, endMinute] = endTime.split(':').map(Number);
       return (endHour - startHour) * 60 + (endMinute - startMinute);
@@ -763,13 +824,13 @@ export async function POST(req: Request) {
     }
     
     // 对剩余队员按位置分类并排序
-    const byPos: Record<string, any[]> = {};
+    const byPos: Record<string, Player[]> = {};
     for (const pos of POSITIONS) byPos[pos] = [];
     for (const p of remainingPlayers) byPos[p.main_position].push(p);
     for (const pos of POSITIONS) byPos[pos].sort((a, b) => b.score - a.score);
     
     // 处理位置重复和缺失的情况
-    function checkPositionBalance(members: any[]) {
+    const checkPositionBalance = (members: Player[]) => {
       const positionCount: Record<string, number> = {};
       for (const pos of POSITIONS) positionCount[pos] = 0;
       
@@ -778,7 +839,7 @@ export async function POST(req: Request) {
       }
       
       const repeatedPositions = Object.entries(positionCount)
-        .filter(([_, count]) => count > 1)
+        .filter((entry) => entry[1] > 1)
         .map(([pos, count]) => `${pos} (${count}人)`);
       
       const missingPositions = POSITIONS.filter(pos => positionCount[pos] === 0);
@@ -790,7 +851,7 @@ export async function POST(req: Request) {
     }
     
     // 检查角色平衡（前排/后排比例）
-    function checkRoleBalance(members: any[]) {
+    const checkRoleBalance = (members: Player[]) => {
       const roleCount: Record<string, number> = {
         '前排': 0,
         '后排': 0,
@@ -802,7 +863,7 @@ export async function POST(req: Request) {
         roleCount[role]++;
       }
       
-      const issues = [];
+      const issues: string[] = [];
       if (roleCount['前排'] < ROLE_BALANCE_REQUIREMENTS['前排']) {
         issues.push(`缺少前排，当前只有${roleCount['前排']}个`);
       }
@@ -817,7 +878,7 @@ export async function POST(req: Request) {
     }
     
     // 检查功能覆盖（带线、控制、输出）
-    function checkFunctionCoverage(members: any[]) {
+    const checkFunctionCoverage = (members: Player[]) => {
       const functionScores: Record<string, number> = {
         'control': 0, // 控制
         'push': 0,    // 带线
@@ -839,7 +900,7 @@ export async function POST(req: Request) {
       }
       
       // 检查功能覆盖是否满足要求
-      const issues = [];
+      const issues: string[] = [];
       if (functionScores['control'] < 3) { // 控制得分低于3视为缺少控制
         issues.push('缺少控制能力');
       }
@@ -857,7 +918,7 @@ export async function POST(req: Request) {
     }
     
     // 为队员推荐英雄
-    function recommendHeroes(members: any[]) {
+    const recommendHeroes = (members: Player[]) => {
       // 计算小组的功能需求
       const functionCoverage = checkFunctionCoverage(members);
       
@@ -875,15 +936,11 @@ export async function POST(req: Request) {
               const isPositionMatch = true; // 简化处理，实际应该根据位置匹配
               
               // 检查英雄是否能满足小组的功能需求
-              let canFulfillNeed = false;
               if (functionCoverage.functionScores.control < 3 && heroFunctions.control >= 3) {
-                canFulfillNeed = true;
                 reasons[hero] = '满足小组控制需求';
               } else if (functionCoverage.functionScores.push < 3 && heroFunctions.push >= 3) {
-                canFulfillNeed = true;
                 reasons[hero] = '满足小组带线需求';
               } else if (functionCoverage.functionScores.output < 4 && heroFunctions.output >= 4) {
-                canFulfillNeed = true;
                 reasons[hero] = '满足小组输出需求';
               } else {
                 reasons[hero] = '个人常用英雄';
@@ -926,10 +983,10 @@ export async function POST(req: Request) {
     }
     
     // 计算英雄重复率
-    function calculateHeroOverlap(members: any[]) {
+    const calculateHeroOverlap = (members: Player[]) => {
       if (members.length < 2) return 0;
       
-      const heroSet = new Set();
+      const heroSet = new Set<string>();
       let totalHeroes = 0;
       const heroCount: Record<string, number> = {};
       
@@ -967,7 +1024,7 @@ export async function POST(req: Request) {
     }
     
     // 尝试用第二位置填补缺失位置
-    function fillMissingPositions(members: any[], missingPositions: string[]) {
+    const fillMissingPositions = (members: Player[], missingPositions: string[]) => {
       if (missingPositions.length === 0) return members;
       
       // 从剩余队员中寻找可以填补缺失位置的队员
@@ -1016,7 +1073,7 @@ export async function POST(req: Request) {
     }
     
     // 为未分组的队员生成未分组原因
-    function generateUnassignedReasons(unassignedPlayers: any[]) {
+    const generateUnassignedReasons = (unassignedPlayers: Player[]) => {
       return unassignedPlayers.map(player => {
         // 检查是否有可用时间
         const hasAvailableTime = player.available_time && player.available_time.length > 0;
@@ -1025,7 +1082,7 @@ export async function POST(req: Request) {
         const hasValidPosition = POSITIONS.includes(player.main_position);
         
         // 生成未分组原因
-        let reasons = [];
+        const reasons = [];
         if (!hasAvailableTime) {
           reasons.push('无可用时间');
         }
@@ -1068,7 +1125,7 @@ export async function POST(req: Request) {
         // 为队员推荐英雄
         const membersWithRecommendations = recommendHeroes(members);
         
-        let warnings = [];
+        const warnings = [];
         if (overlapRate > 25) {
           warnings.push(`英雄重叠度较高: ${overlapRate}%`);
         }
@@ -1105,7 +1162,7 @@ export async function POST(req: Request) {
       }
     } else {
       // 无法组成完整5人组，生成一个尽可能平衡的小组
-      const members: any[] = [];
+      const members: Player[] = [];
       
       // 从每个位置取最强队员
       for (const pos of POSITIONS) {
@@ -1116,7 +1173,7 @@ export async function POST(req: Request) {
       
       if (members.length > 0) {
         // 尝试用第二位置填补缺失位置
-        let initialBalance = checkPositionBalance(members);
+        const initialBalance = checkPositionBalance(members);
         const filledMembers = fillMissingPositions(members, initialBalance.missingPositions);
         
         // 再次检查位置平衡
@@ -1129,7 +1186,7 @@ export async function POST(req: Request) {
         // 为队员推荐英雄
         const membersWithRecommendations = recommendHeroes(filledMembers);
         
-        let warnings = [];
+        const warnings = [];
         if (overlapRate > 25) {
           warnings.push(`英雄重叠度较高: ${overlapRate}%`);
         }
@@ -1239,8 +1296,8 @@ export async function POST(req: Request) {
     console.log('缓存分组结果');
     
     return NextResponse.json(responseData);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : '分组过程中发生错误' }, { status: 500 });
   }
 }

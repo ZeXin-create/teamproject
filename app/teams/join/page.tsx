@@ -152,12 +152,12 @@ export default function JoinTeamPage() {
   }
 
   // 实时校验函数
-  const validateField = (field: string, value: string | string[] | number[] | boolean, position?: string, statField?: string) => {
+  const validateField = (field: string, value: string | string[] | number[] | boolean | AvailableTime[], position?: string, statField?: string) => {
     let errorMessage = '';
 
     switch (field) {
       case 'gameId':
-        if (!value.trim()) {
+        if (typeof value !== 'string' || !value.trim()) {
           errorMessage = '请输入游戏ID';
         }
         break;
@@ -167,12 +167,12 @@ export default function JoinTeamPage() {
         }
         break;
       case 'mainPositions':
-        if (value.length === 0) {
+        if (!Array.isArray(value) || value.length === 0) {
           errorMessage = '请至少选择一个擅长位置';
         }
         break;
       case 'availableTime':
-        if (value.length === 0) {
+        if (!Array.isArray(value) || value.length === 0) {
           errorMessage = '请至少添加一个可比赛时间段';
         }
         break;
@@ -208,7 +208,7 @@ export default function JoinTeamPage() {
               }
               break;
             case 'heroes':
-              if (value.length === 0) {
+              if (!Array.isArray(value) || value.length === 0) {
                 errorMessage = '请至少选择一个常用英雄';
               }
               break;
@@ -417,13 +417,18 @@ export default function JoinTeamPage() {
     for (const key in newErrors) {
       if (key === 'positionStats') {
         for (const position in newErrors.positionStats) {
-          for (const statKey in newErrors.positionStats[position]) {
-            if (newErrors.positionStats[position][statKey]) {
-              isValid = false;
-            }
+          const positionStats = newErrors.positionStats[position];
+          if (positionStats.winRate || positionStats.kda || positionStats.rating || positionStats.power || positionStats.heroes) {
+            isValid = false;
           }
         }
-      } else if (newErrors[key]) {
+      } else if (key === 'gameId' && newErrors.gameId) {
+        isValid = false;
+      } else if (key === 'currentRank' && newErrors.currentRank) {
+        isValid = false;
+      } else if (key === 'mainPositions' && newErrors.mainPositions) {
+        isValid = false;
+      } else if (key === 'availableTime' && newErrors.availableTime) {
         isValid = false;
       }
     }

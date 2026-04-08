@@ -104,7 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email,
         password,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?type=signup`
+          emailRedirectTo: `${window.location.origin}/auth/callback?type=signup`
         }
       })
       

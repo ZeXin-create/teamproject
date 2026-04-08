@@ -26,7 +26,15 @@ export async function GET(req: Request) {
     }
     
     // 按组名分组
-    const groupsMap: Record<string, any> = {};
+    interface GroupData {
+      name: string;
+      members: Array<{
+        user_id: string;
+        position: string | null;
+        score: number;
+      }>;
+    }
+    const groupsMap: Record<string, GroupData> = {};
     
     for (const member of members || []) {
       if (!groupsMap[member.group_name]) {
@@ -44,9 +52,9 @@ export async function GET(req: Request) {
     }
     
     // 转换为数组并计算平均分
-    const groups = Object.values(groupsMap).map((group: any, idx: number) => {
+    const groups = Object.values(groupsMap).map((group: GroupData, idx: number) => {
       const averageScore = group.members.length > 0 
-        ? Math.round(group.members.reduce((sum: number, member: any) => sum + member.score, 0) / group.members.length)
+        ? Math.round(group.members.reduce((sum: number, member) => sum + member.score, 0) / group.members.length)
         : 0;
       
       return {
@@ -62,8 +70,8 @@ export async function GET(req: Request) {
       success: true,
       groups
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('获取分组结果失败:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : '获取分组结果时发生错误' }, { status: 500 });
   }
 }

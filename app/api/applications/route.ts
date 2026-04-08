@@ -187,8 +187,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: false, error: '无效的操作' }, { status: 400 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('处理申请错误:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : '处理申请时发生错误' }, { status: 500 })
   }
 }

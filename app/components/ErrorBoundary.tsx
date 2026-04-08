@@ -4,12 +4,12 @@ import React from 'react';
 import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary';
 
 interface ErrorFallbackProps {
-  error: Error;
+  error: unknown;
   resetErrorBoundary: () => void;
 }
 
 // 错误回退组件
-export function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
+export function ErrorFallback({ resetErrorBoundary }: ErrorFallbackProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center p-8 max-w-md">

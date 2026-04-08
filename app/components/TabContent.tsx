@@ -38,7 +38,6 @@ export default function TabContent({ activeTab }: TabContentProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchRegion, setSearchRegion] = useState('')
   const [selectedTeam, setSelectedTeam] = useState<{ id: string; name: string; avatar_url?: string; region?: string; declaration?: string; city?: string; member_count?: number; images?: string[] } | null>(null)
-  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({})
 
   // 当切换到出售标签时，重定向到出售页面
   useEffect(() => {
@@ -236,7 +235,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                 {/* 左侧卡片列表 */}
                 <div className="lg:w-1/3">
                   <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
-                    {recruits.map((recruit, index) => {
+                    {recruits.map((recruit) => {
                       const isSelected = selectedTeam?.id === recruit.team_id;
                       return (
                         <div
@@ -256,9 +255,11 @@ export default function TabContent({ activeTab }: TabContentProps) {
                           <div className="flex items-center gap-3 mb-3">
                             {recruit.team?.avatar_url ? (
                               <div className="w-10 h-10 rounded-full overflow-hidden">
-                                <img
+                                <Image
                                   src={recruit.team.avatar_url?.replace(/[`]/g, '') || ''}
                                   alt={recruit.team.name}
+                                  width={40}
+                                  height={40}
                                   className="w-full h-full object-cover"
                                 />
                               </div>
@@ -313,9 +314,11 @@ export default function TabContent({ activeTab }: TabContentProps) {
                         <div className="flex items-center gap-4 mb-4">
                           {selectedTeam.avatar_url ? (
                             <div className="w-16 h-16 rounded-2xl overflow-hidden">
-                              <img
+                              <Image
                                 src={selectedTeam.avatar_url?.replace(/[`]/g, '') || ''}
                                 alt={selectedTeam.name}
+                                width={64}
+                                height={64}
                                 className="w-full h-full object-cover"
                               />
                             </div>
@@ -356,7 +359,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
                         {selectedTeam.declaration && (
                           <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 mb-4">
                             <h4 className="font-bold text-lg mb-2">战队简介</h4>
-                            <p className="text-gray-700 italic">"{selectedTeam.declaration}"</p>
+                            <p className="text-gray-700 italic">&quot;{selectedTeam.declaration}&quot;</p>
                           </div>
                         )}
                       </div>

@@ -137,7 +137,7 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, locked, index }) => {
             <TeamMember key={i} member={member} />
           ))}
         </div>
-        {group.missing_positions?.length > 0 && (
+        {Array.isArray(group.missing_positions) && group.missing_positions.length > 0 && (
           <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 p-3 rounded-lg text-sm mt-4 border border-yellow-200 dark:border-yellow-800 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <p>缺少: {group.missing_positions.join(', ')}</p>

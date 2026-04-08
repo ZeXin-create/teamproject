@@ -31,8 +31,8 @@ export default function ForgotPasswordPage() {
       setTimeout(() => {
         router.push('/auth/login')
       }, 3000)
-    } catch (err: any) {
-      setError(err.message || '发送邮件失败，请稍后重试')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '发送邮件失败，请稍后重试')
     } finally {
       setLoading(false)
     }

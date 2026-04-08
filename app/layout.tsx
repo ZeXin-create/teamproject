@@ -3,7 +3,7 @@
 import './globals.css'
 import { AuthProvider } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { Inter } from 'next/font/google'
 
@@ -24,11 +24,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [mounted, setMounted] = useState(false)
-
   useEffect(() => {
-    setMounted(true)
-    
     const hasVisited = localStorage.getItem('hasVisited')
     if (!hasVisited) {
       localStorage.setItem('hasVisited', 'true')

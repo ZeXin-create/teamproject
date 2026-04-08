@@ -48,7 +48,14 @@ export async function POST(req: Request) {
     }
 
     // 3. 插入分组结果到 group_members 表
-    const groupMembers: any[] = [];
+    interface GroupMember {
+      batch_id: string;
+      user_id: string;
+      group_name: string;
+      position: string | null;
+      score: number;
+    }
+    const groupMembers: GroupMember[] = [];
     
     for (const group of groups) {
       for (const member of group.members) {
@@ -77,8 +84,8 @@ export async function POST(req: Request) {
       total_groups: groups.length,
       total_members: groupMembers.length
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('确认分组失败:', err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: err instanceof Error ? err.message : '确认分组时发生错误' }, { status: 500 });
   }
 }

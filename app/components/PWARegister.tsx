@@ -11,15 +11,8 @@ interface BeforeInstallPromptEvent extends Event {
 export default function PWARegister() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallButton, setShowInstallButton] = useState(false)
-  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!mounted) return
-
     // 检查是否已经安装过或用户已拒绝
     const hasInstalled = localStorage.getItem('pwa_installed') === 'true'
     const hasDismissed = localStorage.getItem('pwa_dismissed') === 'true'
@@ -108,7 +101,7 @@ export default function PWARegister() {
       window.removeEventListener('touchstart', handleUserInteraction)
       window.removeEventListener('scroll', handleUserInteraction)
     }
-  }, [deferredPrompt, mounted])
+  }, [deferredPrompt])
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
@@ -132,18 +125,13 @@ export default function PWARegister() {
 
   // 检查是否已安装
   const isStandalone = () => {
-    if (!mounted) {
-      return false
-    }
     return (
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as Navigator & { standalone?: boolean }).standalone === true
     )
   }
 
-
-
-  if (!mounted || isStandalone()) {
+  if (isStandalone()) {
     return null
   }
 

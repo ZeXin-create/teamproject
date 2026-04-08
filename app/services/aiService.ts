@@ -237,7 +237,7 @@ const generateOptimalGroups = (players: PlayerProfile[], groupSize: number = 5) 
 async function callZhipuAI(prompt: string, context: string): Promise<string> {
   try {
     // 检查API密钥是否设置
-    if (!ZHIPU_API_KEY || ZHIPU_API_KEY === 'your_zhipu_api_key' || ZHIPU_API_KEY === 'your_actual_zhipu_api_key_here') {
+    if (!ZHIPU_API_KEY) {
       throw new Error('智谱AI API密钥未设置');
     }
 
@@ -369,7 +369,7 @@ ${王者荣耀知识库.胜率提升}
       });
 
       // 检查API密钥是否设置
-      if (!ZHIPU_API_KEY || ZHIPU_API_KEY === 'your_zhipu_api_key' || ZHIPU_API_KEY === 'your_actual_zhipu_api_key_here') {
+      if (!ZHIPU_API_KEY) {
         throw new Error('智谱AI API密钥未设置');
       }
 
@@ -660,7 +660,7 @@ ${王者荣耀知识库.胜率提升}
 
           // 从position_stats中获取常用英雄
           if (positionStats && typeof positionStats === 'object') {
-            Object.entries(positionStats).forEach(([_, stats]) => {
+            Object.values(positionStats).forEach((stats) => {
               if (stats && typeof stats === 'object') {
                 const statsObj = stats as Record<string, unknown>;
                 if (statsObj.heroes && Array.isArray(statsObj.heroes) && statsObj.heroes.length > 0) {
@@ -687,7 +687,8 @@ ${王者荣耀知识库.胜率提升}
           }
           if (positionStats && typeof positionStats === 'object') {
             try {
-              const positionsWithData = Object.entries(positionStats).filter(([_, stats]) => {
+              const positionsWithData = Object.entries(positionStats).filter((entry) => {
+                const stats = entry[1];
                 if (stats && typeof stats === 'object') {
                   const statsObj = stats as Record<string, string>;
                   const winRate = statsObj.winRate || statsObj.win_rate || '未设置';

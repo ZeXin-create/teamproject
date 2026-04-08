@@ -1,18 +1,23 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, Suspense } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Navbar from '../../components/Navbar'
 import Image from 'next/image'
 
+// 包装 useSearchParams 的组件
+function SearchParamsWrapper({ children }: { children: (searchParams: ReturnType<typeof useSearchParams>) => React.ReactNode }) {
+  const searchParams = useSearchParams()
+  return children(searchParams)
+}
+
 export default function RecruitPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const editId = searchParams.get('edit')
-
+  
+  // 状态定义
   const [title, setTitle] = useState('')
   const [position, setPosition] = useState('')
   const [rank, setRank] = useState('')
@@ -26,6 +31,7 @@ export default function RecruitPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [editId, setEditId] = useState<string | null>(null)
 
   const positions = ['上单', '打野', '中单', '射手', '辅助', '任意位置']
   const ranks = ['青铜', '白银', '黄金', '铂金', '钻石', '星耀', '王者']
@@ -84,20 +90,6 @@ export default function RecruitPage() {
       setError('获取招募信息失败')
     }
   }, [editId, teamId])
-
-  useEffect(() => {
-    if (user) {
-      fetchUserTeam()
-    } else {
-      router.push('/auth/login')
-    }
-  }, [user, fetchUserTeam, router])
-
-  useEffect(() => {
-    if (teamId && editId) {
-      fetchRecruitInfo()
-    }
-  }, [teamId, editId, fetchRecruitInfo])
 
   // 表单验证
   const validateForm = () => {
@@ -260,6 +252,20 @@ export default function RecruitPage() {
     }
   }
 
+  useEffect(() => {
+    if (user) {
+      fetchUserTeam()
+    } else {
+      router.push('/auth/login')
+    }
+  }, [user, fetchUserTeam, router])
+
+  useEffect(() => {
+    if (teamId && editId) {
+      fetchRecruitInfo()
+    }
+  }, [teamId, editId, fetchRecruitInfo])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -269,243 +275,256 @@ export default function RecruitPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <Navbar />
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center mb-6">
-          <button
-            onClick={() => router.back()}
-            className="btn-secondary px-4 py-2 mr-4"
-          >
-            ← 返回
-          </button>
-          <h1 className="text-2xl font-bold gradient-text">
-            {editId ? '编辑招募信息' : '发布招募信息'}
-          </h1>
-        </div>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="glass-card p-12 text-center"><div className="animate-pulse text-pink-500 text-lg">✨ 加载中...</div></div></div>}>
+      <SearchParamsWrapper>
+        {(searchParams) => {
+          // 设置 editId
+          if (searchParams.get('edit') !== editId) {
+            setEditId(searchParams.get('edit'))
+          }
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 text-red-600 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-6 p-4 bg-green-100 text-green-600 rounded-lg">
-            {success}
-          </div>
-        )}
-
-        <div className="card p-6">
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* 基本信息 */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-gray-700 mb-2">
-                    招募标题 *
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    onBlur={() => {
-                      if (!title.trim()) {
-                        setErrors(prev => ({ ...prev, title: '请输入招募标题' }))
-                      } else {
-                        setErrors(prev => {
-                          const newErrors = { ...prev }
-                          delete newErrors.title
-                          return newErrors
-                        })
-                      }
-                    }}
-                    className="input w-full"
-                    placeholder="例如：招收钻石以上打野"
-                  />
-                  {errors.title && (
-                    <p className="text-red-500 text-sm mt-1">{errors.title}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 mb-2">
-                    招募位置 *
-                  </label>
-                  <select
-                    value={position}
-                    onChange={(e) => setPosition(e.target.value)}
-                    onBlur={() => {
-                      if (!position) {
-                        setErrors(prev => ({ ...prev, position: '请选择招募位置' }))
-                      } else {
-                        setErrors(prev => {
-                          const newErrors = { ...prev }
-                          delete newErrors.position
-                          return newErrors
-                        })
-                      }
-                    }}
-                    className="input w-full"
+          return (
+            <div className="min-h-screen">
+              <Navbar />
+              <div className="container mx-auto px-4 py-8">
+                <div className="flex items-center mb-6">
+                  <button
+                    onClick={() => router.back()}
+                    className="btn-secondary px-4 py-2 mr-4"
                   >
-                    <option value="">请选择位置</option>
-                    {positions.map((pos) => (
-                      <option key={pos} value={pos}>{pos}</option>
-                    ))}
-                  </select>
-                  {errors.position && (
-                    <p className="text-red-500 text-sm mt-1">{errors.position}</p>
-                  )}
+                    ← 返回
+                  </button>
+                  <h1 className="text-2xl font-bold gradient-text">
+                    {editId ? '编辑招募信息' : '发布招募信息'}
+                  </h1>
                 </div>
 
-                <div>
-                  <label className="block text-gray-700 mb-2">
-                    段位要求 *
-                  </label>
-                  <select
-                    value={rank}
-                    onChange={(e) => setRank(e.target.value)}
-                    onBlur={() => {
-                      if (!rank) {
-                        setErrors(prev => ({ ...prev, rank: '请选择段位要求' }))
-                      } else {
-                        setErrors(prev => {
-                          const newErrors = { ...prev }
-                          delete newErrors.rank
-                          return newErrors
-                        })
-                      }
-                    }}
-                    className="input w-full"
-                  >
-                    <option value="">请选择段位</option>
-                    {ranks.map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                  {errors.rank && (
-                    <p className="text-red-500 text-sm mt-1">{errors.rank}</p>
-                  )}
-                </div>
+                {error && (
+                  <div className="mb-6 p-4 bg-red-100 text-red-600 rounded-lg">
+                    {error}
+                  </div>
+                )}
 
-                <div>
-                  <label className="block text-gray-700 mb-2">
-                    需求人数 *
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={membersNeeded}
-                    onChange={(e) => setMembersNeeded(Number(e.target.value))}
-                    onBlur={() => {
-                      if (membersNeeded < 1 || membersNeeded > 10) {
-                        setErrors(prev => ({ ...prev, membersNeeded: '需求人数应在1-10之间' }))
-                      } else {
-                        setErrors(prev => {
-                          const newErrors = { ...prev }
-                          delete newErrors.membersNeeded
-                          return newErrors
-                        })
-                      }
-                    }}
-                    className="input w-full"
-                  />
-                  {errors.membersNeeded && (
-                    <p className="text-red-500 text-sm mt-1">{errors.membersNeeded}</p>
-                  )}
-                </div>
-              </div>
+                {success && (
+                  <div className="mb-6 p-4 bg-green-100 text-green-600 rounded-lg">
+                    {success}
+                  </div>
+                )}
 
-              {/* 其他信息 */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-gray-700 mb-2">
-                    联系方式 *
-                  </label>
-                  <input
-                    type="text"
-                    value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                    onBlur={() => {
-                      if (!contact.trim()) {
-                        setErrors(prev => ({ ...prev, contact: '请输入联系方式' }))
-                      } else {
-                        setErrors(prev => {
-                          const newErrors = { ...prev }
-                          delete newErrors.contact
-                          return newErrors
-                        })
-                      }
-                    }}
-                    className="input w-full"
-                    placeholder="例如：QQ 123456789"
-                  />
-                  {errors.contact && (
-                    <p className="text-red-500 text-sm mt-1">{errors.contact}</p>
-                  )}
-                </div>
+                <div className="card p-6">
+                  <form onSubmit={handleSubmit}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* 基本信息 */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-gray-700 mb-2">
+                            招募标题 *
+                          </label>
+                          <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            onBlur={() => {
+                              if (!title.trim()) {
+                                setErrors(prev => ({ ...prev, title: '请输入招募标题' }))
+                              } else {
+                                setErrors(prev => {
+                                  const newErrors = { ...prev }
+                                  delete newErrors.title
+                                  return newErrors
+                                })
+                              }
+                            }}
+                            className="input w-full"
+                            placeholder="例如：招收钻石以上打野"
+                          />
+                          {errors.title && (
+                            <p className="text-red-500 text-sm mt-1">{errors.title}</p>
+                          )}
+                        </div>
 
-                <div>
-                  <label className="block text-gray-700 mb-2">
-                    招募要求
-                  </label>
-                  <textarea
-                    value={requirements}
-                    onChange={(e) => setRequirements(e.target.value)}
-                    className="input w-full h-24"
-                    placeholder="例如：要有团队意识，能经常在线..."
-                  />
-                </div>
+                        <div>
+                          <label className="block text-gray-700 mb-2">
+                            招募位置 *
+                          </label>
+                          <select
+                            value={position}
+                            onChange={(e) => setPosition(e.target.value)}
+                            onBlur={() => {
+                              if (!position) {
+                                setErrors(prev => ({ ...prev, position: '请选择招募位置' }))
+                              } else {
+                                setErrors(prev => {
+                                  const newErrors = { ...prev }
+                                  delete newErrors.position
+                                  return newErrors
+                                })
+                              }
+                            }}
+                            className="input w-full"
+                          >
+                            <option value="">请选择位置</option>
+                            {positions.map((pos) => (
+                              <option key={pos} value={pos}>{pos}</option>
+                            ))}
+                          </select>
+                          {errors.position && (
+                            <p className="text-red-500 text-sm mt-1">{errors.position}</p>
+                          )}
+                        </div>
 
-                <div>
-                  <label className="block text-gray-700 mb-2">
-                    招募图片
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setImage(e.target.files[0])
-                      }
-                    }}
-                    className="input w-full"
-                  />
-                  {imageUrl && (
-                    <div className="mt-2 relative w-32 h-32">
-                      <Image
-                        src={imageUrl}
-                        alt="招募图片"
-                        width={128}
-                        height={128}
-                        className="object-cover rounded-lg"
-                      />
+                        <div>
+                          <label className="block text-gray-700 mb-2">
+                            段位要求 *
+                          </label>
+                          <select
+                            value={rank}
+                            onChange={(e) => setRank(e.target.value)}
+                            onBlur={() => {
+                              if (!rank) {
+                                setErrors(prev => ({ ...prev, rank: '请选择段位要求' }))
+                              } else {
+                                setErrors(prev => {
+                                  const newErrors = { ...prev }
+                                  delete newErrors.rank
+                                  return newErrors
+                                })
+                              }
+                            }}
+                            className="input w-full"
+                          >
+                            <option value="">请选择段位</option>
+                            {ranks.map((r) => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                          </select>
+                          {errors.rank && (
+                            <p className="text-red-500 text-sm mt-1">{errors.rank}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-700 mb-2">
+                            需求人数 *
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={membersNeeded}
+                            onChange={(e) => setMembersNeeded(Number(e.target.value))}
+                            onBlur={() => {
+                              if (membersNeeded < 1 || membersNeeded > 10) {
+                                setErrors(prev => ({ ...prev, membersNeeded: '需求人数应在1-10之间' }))
+                              } else {
+                                setErrors(prev => {
+                                  const newErrors = { ...prev }
+                                  delete newErrors.membersNeeded
+                                  return newErrors
+                                })
+                              }
+                            }}
+                            className="input w-full"
+                          />
+                          {errors.membersNeeded && (
+                            <p className="text-red-500 text-sm mt-1">{errors.membersNeeded}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 其他信息 */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-gray-700 mb-2">
+                            联系方式 *
+                          </label>
+                          <input
+                            type="text"
+                            value={contact}
+                            onChange={(e) => setContact(e.target.value)}
+                            onBlur={() => {
+                              if (!contact.trim()) {
+                                setErrors(prev => ({ ...prev, contact: '请输入联系方式' }))
+                              } else {
+                                setErrors(prev => {
+                                  const newErrors = { ...prev }
+                                  delete newErrors.contact
+                                  return newErrors
+                                })
+                              }
+                            }}
+                            className="input w-full"
+                            placeholder="例如：QQ 123456789"
+                          />
+                          {errors.contact && (
+                            <p className="text-red-500 text-sm mt-1">{errors.contact}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-700 mb-2">
+                            招募要求
+                          </label>
+                          <textarea
+                            value={requirements}
+                            onChange={(e) => setRequirements(e.target.value)}
+                            className="input w-full h-24"
+                            placeholder="例如：要有团队意识，能经常在线..."
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-700 mb-2">
+                            招募图片
+                          </label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                setImage(e.target.files[0])
+                              }
+                            }}
+                            className="input w-full"
+                          />
+                          {imageUrl && (
+                            <div className="mt-2 relative w-32 h-32">
+                              <Image
+                                src={imageUrl}
+                                alt="招募图片"
+                                width={128}
+                                height={128}
+                                className="object-cover rounded-lg"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  )}
+
+                    <div className="mt-6 flex justify-end gap-4">
+                      <button
+                        type="button"
+                        onClick={() => router.back()}
+                        className="btn-secondary px-6 py-2"
+                      >
+                        取消
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn-primary px-6 py-2"
+                        disabled={loading}
+                      >
+                        {loading ? '提交中...' : (editId ? '更新' : '发布')}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
-
-            <div className="mt-6 flex justify-end gap-4">
-              <button
-                type="button"
-                onClick={() => router.back()}
-                className="btn-secondary px-6 py-2"
-              >
-                取消
-              </button>
-              <button
-                type="submit"
-                className="btn-primary px-6 py-2"
-                disabled={loading}
-              >
-                {loading ? '提交中...' : (editId ? '更新' : '发布')}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+          )
+        }}
+      </SearchParamsWrapper>
+    </Suspense>
   )
 }
