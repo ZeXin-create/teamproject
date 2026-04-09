@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useRouter, useParams } from 'next/navigation'
@@ -103,14 +105,14 @@ export default function TournamentDetailPage() {
       }
 
       if (data && data.length > 0) {
-        const teamIds = data.map(item => item.team_id)
+        const teamIds = (data as Array<{ team_id: string }>).map(item => item.team_id)
         const { data: teamsData } = await supabase
           .from('teams')
           .select('id, name, avatar_url, region')
           .in('id', teamIds)
 
         if (teamsData) {
-          setRegisteredTeams(teamsData)
+          setRegisteredTeams(teamsData as Team[])
         }
       }
     } catch (err: unknown) {
@@ -198,7 +200,7 @@ export default function TournamentDetailPage() {
 
       if (data && data.length > 0) {
         const resultsWithTeam = await Promise.all(
-          data.map(async (result) => {
+          (data as Array<{ id: string; team_id: string; rank: number; prize: string }>).map(async (result) => {
             const { data: teamData } = await supabase
               .from('teams')
               .select('id, name, avatar_url, region')
@@ -211,7 +213,7 @@ export default function TournamentDetailPage() {
             }
           })
         )
-        setResults(resultsWithTeam)
+        setResults(resultsWithTeam as Result[])
       }
     } catch (err: unknown) {
       console.error('获取结果失败:', err)

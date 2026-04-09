@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -56,13 +58,13 @@ const TeamSpacePage = React.memo(function TeamSpacePage() {
   const { data: teamMemberData, isLoading: teamMemberLoading } = useDataCache<Array<{ team_id: string; role: string }>>(
     `team_member_${user?.id}`,
     async () => {
-      if (!user) return null
+      if (!user) return []
       const { data } = await supabase
         .from('team_members')
         .select('team_id, role')
         .eq('user_id', user.id)
         .eq('status', 'active')
-      return data
+      return (data as Array<{ team_id: string; role: string }>) || []
     },
     { enabled: !!user, refreshInterval: 30000 } // 30秒刷新
   )
@@ -141,7 +143,7 @@ const TeamSpacePage = React.memo(function TeamSpacePage() {
   useEffect(() => {
     if (user) {
       // 设置实时订阅，监听战队成员状态变化
-      const subscription = supabase
+      const subscription = (supabase as any)
         .channel('public:team_members')
         .on('postgres_changes', {
           event: '*',

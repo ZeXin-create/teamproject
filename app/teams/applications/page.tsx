@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -128,7 +130,19 @@ export default function ApplicationsPage() {
       if (data && data.length > 0) {
         const processedApplications: Application[] = []
 
-        for (const item of data) {
+        for (const item of data as Array<{
+          id: string;
+          user_id: string;
+          team_id: string;
+          status: string;
+          created_at: string;
+          game_id?: string;
+          current_rank?: string;
+          main_positions?: string[];
+          position_stats?: Record<string, any>;
+          available_time?: any;
+          accept_position_adjustment?: boolean;
+        }>) {
           const app: Application = {
             id: item.id,
             user_id: item.user_id,
@@ -196,7 +210,7 @@ export default function ApplicationsPage() {
       getTeamApplications()
 
       // 添加实时订阅，监听申请状态变化
-      const subscription = supabase
+      const subscription = (supabase as any)
         .channel('public:team_applications')
         .on('postgres_changes', {
           event: '*',

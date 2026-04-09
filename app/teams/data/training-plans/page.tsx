@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { TeamDataService, TrainingPlan } from '../../../services/teamDataService'
@@ -79,7 +81,7 @@ export default function TrainingPlansPage() {
 
       if (data) {
         const members = await Promise.all(
-          data.map(async (member) => {
+          (data as Array<{ user_id: string }>).map(async (member) => {
             const { data: userData } = await supabase
               .from('profiles')
               .select('id, username')

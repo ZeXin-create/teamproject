@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -54,8 +56,9 @@ export default function RecruitmentManagementPage() {
       if (error) {
         console.error('获取用户战队信息失败:', error)
       } else if (data && data.length > 0) {
-        setTeamId(data[0].team_id)
-        setUserRole(data[0].role || '')
+        const typedData = data as Array<{ team_id: string; role?: string }>
+        setTeamId(typedData[0].team_id)
+        setUserRole(typedData[0].role || '')
       }
     } catch (error) {
       console.error('获取用户战队信息失败:', error)
@@ -89,7 +92,7 @@ export default function RecruitmentManagementPage() {
         console.error('获取招募帖子失败:', error)
       } else {
         // 为每个招募帖子获取战队信息
-        const formattedRecruits = await Promise.all((data || []).map(async (recruit: Omit<TeamRecruit, 'team'>) => {
+        const formattedRecruits = await Promise.all(((data || []) as Array<Omit<TeamRecruit, 'team'>>).map(async (recruit) => {
           const { data: teamData } = await supabase
             .from('teams')
             .select('id, name, avatar_url')

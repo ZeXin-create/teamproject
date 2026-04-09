@@ -1,10 +1,19 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useAIChatData } from './hooks/useAIChatData'
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => any
+    webkitSpeechRecognition?: new () => any
+  }
+}
 
 // 类型定义
 interface Message {
@@ -354,19 +363,19 @@ export default function AIChatPage() {
       return
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = (window.SpeechRecognition || window.webkitSpeechRecognition)!
     const recognition = new SpeechRecognition()
     recognition.lang = 'zh-CN'
     recognition.interimResults = false
 
     setIsListening(true)
 
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript
       setInput(prevInput => prevInput + transcript)
     }
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: any) => {
       console.error('语音识别错误:', event.error)
       setIsListening(false)
     }

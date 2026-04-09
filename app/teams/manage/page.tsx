@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -159,7 +161,7 @@ const getPowerScoreProgressColor = (score: number) => {
   return 'bg-gray-300'
 }
 
-const getRankInfo = (rank: string) => {
+const getRankInfo = (rank: string | undefined) => {
   if (!rank || rank === '未设置') return { icon: '🏆', color: 'text-gray-400', bg: 'bg-gray-50', progress: 0 }
   if (rank.includes('王者')) return { icon: '👑', color: 'text-yellow-500', bg: 'bg-yellow-50', progress: 100 }
   if (rank.includes('星耀')) return { icon: '💎', color: 'text-purple-500', bg: 'bg-purple-50', progress: 85 }
@@ -347,8 +349,8 @@ export default function TeamManagePage() {
         return
       }
 
-      const captainTeam = memberData.find(member => member.role === '队长')
-      const targetTeam = captainTeam || memberData[0]
+      const captainTeam = (memberData as Array<{ role: string; team_id: string }>).find(member => member.role === '队长')
+      const targetTeam = captainTeam || (memberData as Array<{ role: string; team_id: string }>)[0]
       setUserRole(targetTeam.role)
 
       const { data: teamData } = await supabase
@@ -393,7 +395,14 @@ export default function TeamManagePage() {
       if (data) {
         const processedMembers: Member[] = []
 
-        for (const item of data) {
+        for (const item of data as Array<{
+          id: string;
+          user_id: string;
+          team_id: string;
+          role: string;
+          status: string;
+          joined_at: string;
+        }>) {
           const member: Member = {
             id: item.id,
             user_id: item.user_id,

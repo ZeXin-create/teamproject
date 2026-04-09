@@ -1,5 +1,7 @@
 'use client'
 
+ /* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { useRouter, useParams } from 'next/navigation'
@@ -70,7 +72,7 @@ export default function RegisterTournamentPage() {
 
       if (teamMembers && teamMembers.length > 0) {
         const teams = await Promise.all(
-          teamMembers.map(async (member) => {
+          (teamMembers as Array<{ team_id: string }>).map(async (member) => {
             // 获取战队信息
             const { data: teamData } = await supabase
               .from('teams')

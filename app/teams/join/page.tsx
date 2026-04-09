@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -143,7 +145,7 @@ export default function JoinTeamPage() {
         throw error
       }
 
-      setTeams(data)
+      setTeams((data as Team[]) || [])
     } catch (err: unknown) {
       console.error('搜索战队失败:', err)
       setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '搜索战队失败，请稍后重试')
@@ -452,7 +454,7 @@ export default function JoinTeamPage() {
 
       if (existingMember && existingMember.length > 0) {
         // 检查是否是队长
-        const isCaptain = existingMember.some(member => member.role === '队长')
+        const isCaptain = (existingMember as Array<{ role: string }>).some(member => member.role === '队长')
         if (isCaptain) {
           setError('您是一个战队的队长，不能加入其他战队')
         } else {
@@ -501,7 +503,7 @@ export default function JoinTeamPage() {
 
       if (insertError) {
         console.error('Error submitting application:', insertError);
-        throw new Error(`提交申请失败: ${insertError.message}`);
+        throw new Error(`提交申请失败: ${typeof insertError === 'object' && insertError !== null && 'message' in insertError ? insertError.message : String(insertError)}`);
       }
 
       console.log('Application submitted successfully');

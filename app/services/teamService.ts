@@ -13,7 +13,7 @@ export const teamService = {
     if (error) throw error
     if (!data || data.length === 0) throw new Error('用户未加入战队')
     // 处理多个战队的情况，取第一个战队
-    return { team_id: data[0].team_id }
+    return { team_id: (data as Array<{ team_id: string }>)[0].team_id }
   },
 
   // 获取战队详情

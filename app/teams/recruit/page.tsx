@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback, Suspense } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -51,7 +53,7 @@ export default function RecruitPage() {
         console.error('获取用户战队信息失败:', error)
         setError('获取战队信息失败')
       } else if (data && data.length > 0) {
-        setTeamId(data[0].team_id)
+        setTeamId((data as Array<{ team_id: string }>)[0].team_id)
       } else {
         setError('您还没有加入战队')
       }

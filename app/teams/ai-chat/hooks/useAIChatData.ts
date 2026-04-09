@@ -36,8 +36,8 @@ interface TeamMember {
     id: string
     nickname: string
     avatar: string
-    username: string
-  }
+    username?: string
+  } | null
   application?: {
     game_id: string
     current_rank: string
@@ -53,7 +53,7 @@ interface TeamMember {
     }>
     available_time: string[]
     accept_position_adjustment: boolean
-  }
+  } | null
 }
 
 export const useAIChatData = (userId: string | undefined) => {
@@ -92,7 +92,7 @@ export const useAIChatData = (userId: string | undefined) => {
       if (sessionsData) {
         // 为每个会话获取最后一条消息
         const sessionsWithLastMessage = await Promise.all(
-          sessionsData.map(async (session) => {
+          (sessionsData as Array<ChatSession>).map(async (session) => {
             const { data: lastMessage } = await supabase
               .from('chat_messages')
               .select('content')
@@ -142,25 +142,26 @@ export const useAIChatData = (userId: string | undefined) => {
       }
 
       if (userTeamData) {
+        const typedUserTeamData = userTeamData as { team_id: string }
         // 获取战队信息
         const { data: teamData, error: teamInfoError } = await supabase
           .from('teams')
           .select('*')
-          .eq('id', userTeamData.team_id)
+          .eq('id', typedUserTeamData.team_id)
           .single()
 
         if (teamInfoError) {
           console.error('获取战队信息失败:', teamInfoError)
           // 即使获取战队信息失败，也继续执行，不影响成员数据获取
         } else if (teamData) {
-          setUserTeam(teamData)
+          setUserTeam(teamData as Team)
         }
 
         // 获取战队成员
         const { data: membersData, error: membersError } = await supabase
           .from('team_members')
           .select('*')
-          .eq('team_id', userTeamData.team_id)
+          .eq('team_id', typedUserTeamData.team_id)
 
         if (membersError) {
           console.error('获取战队成员失败:', membersError)
@@ -168,7 +169,7 @@ export const useAIChatData = (userId: string | undefined) => {
         } else if (membersData) {
           // 为每个成员获取用户信息
           const membersWithUserInfo = await Promise.all(
-            membersData.map(async (member) => {
+            (membersData as Array<{ user_id: string }>).map(async (member) => {
               try {
                 // 获取用户基本信息
                 const { data: userDataArray, error: userDataError } = await supabase
@@ -176,7 +177,9 @@ export const useAIChatData = (userId: string | undefined) => {
                   .select('id, nickname, avatar')
                   .eq('id', member.user_id)
                 
-                const userData = userDataArray && userDataArray.length > 0 ? userDataArray[0] : null
+                const userData = (userDataArray as Array<{ id: string; nickname: string; avatar: string; username?: string }>) && (userDataArray as Array<{ id: string; nickname: string; avatar: string; username?: string }>).length > 0 
+                  ? (userDataArray as Array<{ id: string; nickname: string; avatar: string; username?: string }>)[0] 
+                  : null
                 
                 // 获取用户战队申请资料
                 const { data: applicationDataArray } = await supabase
@@ -187,13 +190,60 @@ export const useAIChatData = (userId: string | undefined) => {
                   .order('created_at', { ascending: false })
                   .limit(1)
                 
-                const applicationData = applicationDataArray && applicationDataArray.length > 0 ? applicationDataArray[0] : null
+                const applicationData = (applicationDataArray as Array<{ 
+                  game_id: string; 
+                  current_rank: string; 
+                  main_positions: string[]; 
+                  position_stats: Record<string, {
+                    win_rate?: number;
+                    winRate?: number;
+                    kda?: number;
+                    KDA?: number;
+                    rating?: number;
+                    power?: number;
+                    heroes?: (number | string)[];
+                  }>; 
+                  available_time: string[]; 
+                  accept_position_adjustment: boolean 
+                }>) && (applicationDataArray as Array<{ 
+                  game_id: string; 
+                  current_rank: string; 
+                  main_positions: string[]; 
+                  position_stats: Record<string, {
+                    win_rate?: number;
+                    winRate?: number;
+                    kda?: number;
+                    KDA?: number;
+                    rating?: number;
+                    power?: number;
+                    heroes?: (number | string)[];
+                  }>; 
+                  available_time: string[]; 
+                  accept_position_adjustment: boolean 
+                }>).length > 0 
+                  ? (applicationDataArray as Array<{ 
+                      game_id: string; 
+                      current_rank: string; 
+                      main_positions: string[]; 
+                      position_stats: Record<string, {
+                        win_rate?: number;
+                        winRate?: number;
+                        kda?: number;
+                        KDA?: number;
+                        rating?: number;
+                        power?: number;
+                        heroes?: (number | string)[];
+                      }>; 
+                      available_time: string[]; 
+                      accept_position_adjustment: boolean 
+                    }>)[0] 
+                  : null
                 
                 if (userDataError) {
                   console.error(`获取用户信息失败 (ID: ${member.user_id}):`, userDataError)
                   // 即使获取用户信息失败，也返回成员数据
                   return {
-                    ...member,
+                    ...(member as TeamMember),
                     user: null,
                     application: applicationData
                   }
@@ -204,7 +254,7 @@ export const useAIChatData = (userId: string | undefined) => {
                   userData.username = userData.nickname
                 }
                 return {
-                  ...member,
+                  ...(member as TeamMember),
                   user: userData,
                   application: applicationData || null
                 }
@@ -212,7 +262,7 @@ export const useAIChatData = (userId: string | undefined) => {
                 console.error(`获取用户信息失败 (ID: ${member.user_id}):`, error)
                 // 即使获取用户信息失败，也返回成员数据
                 return {
-                  ...member,
+                  ...(member as TeamMember),
                   user: null,
                   application: null
                 }
@@ -251,7 +301,7 @@ export const useAIChatData = (userId: string | undefined) => {
       }
 
       if (chatMessages) {
-        setMessages(chatMessages.map(msg => ({
+        setMessages((chatMessages as Array<{ id: string; role: string; content: string; created_at: string }>).map(msg => ({
           id: msg.id,
           role: msg.role as 'user' | 'ai',
           content: msg.content,
@@ -295,11 +345,12 @@ export const useAIChatData = (userId: string | undefined) => {
       }
 
       if (data) {
+        const typedData = data as { id: string; role: string; content: string; created_at: string }
         return {
-          id: data.id,
-          role: data.role as 'user' | 'ai',
-          content: data.content,
-          created_at: data.created_at
+          id: typedData.id,
+          role: typedData.role as 'user' | 'ai',
+          content: typedData.content,
+          created_at: typedData.created_at
         }
       }
     } catch (error) {
@@ -328,10 +379,11 @@ export const useAIChatData = (userId: string | undefined) => {
         .single()
 
       if (newSession) {
-        setSessionId(newSession.id)
+        const typedNewSession = newSession as { id: string }
+        setSessionId(typedNewSession.id)
         setMessages([])
         await loadSessions()
-        return newSession.id
+        return typedNewSession.id
       }
     } catch (error) {
       console.error('创建会话失败:', error)
@@ -356,7 +408,8 @@ export const useAIChatData = (userId: string | undefined) => {
         .single()
 
       if (existingSession) {
-        return existingSession.id
+        const typedExistingSession = existingSession as { id: string }
+        return typedExistingSession.id
       }
 
       const { data: newSession } = await supabase
@@ -369,7 +422,8 @@ export const useAIChatData = (userId: string | undefined) => {
         .single()
 
       if (newSession) {
-        return newSession.id
+        const typedNewSession = newSession as { id: string }
+        return typedNewSession.id
       }
     } catch (error) {
       console.error('获取会话失败:', error)
@@ -456,8 +510,9 @@ export const useAIChatData = (userId: string | undefined) => {
           .single()
 
         if (updatedSessions.data) {
-          setSessionId(updatedSessions.data.id)
-          await loadChatHistory(updatedSessions.data.id)
+          const typedData = updatedSessions.data as { id: string }
+          setSessionId(typedData.id)
+          await loadChatHistory(typedData.id)
         } else {
           const newSessionId = await createNewSession()
           if (newSessionId) {
