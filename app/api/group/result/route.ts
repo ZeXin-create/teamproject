@@ -11,13 +11,16 @@ export async function GET(req: Request) {
     }
     
     // 获取该批次的所有成员
-    const { data: members, error } = await supabase
+    const membersResponse = await supabase
       .from('group_members')
       .select('user_id, group_name, position, score')
       .eq('batch_id', batchId);
     
+    const members = 'data' in membersResponse ? membersResponse.data : null;
+    const error = 'error' in membersResponse ? membersResponse.error : null;
+    
     if (error) {
-      throw new Error('获取分组成员失败: ' + error.message);
+      throw new Error('获取分组成员失败: ' + (typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)));
     }
     
     // 按组名分组
@@ -31,7 +34,7 @@ export async function GET(req: Request) {
     }
     const groupsMap: Record<string, GroupData> = {};
     
-    for (const member of members || []) {
+    for (const member of (members || []) as Array<{ group_name: string; user_id: string; role: string; score: number; main_position: string; second_position: string | null; accept_position_adjustment: boolean; available_time: Array<{ day: string; start_time: string; end_time: string }>; heroes: string[]; recommended_heroes?: string[]; hero_reasons?: Record<string, string> }>) {
       if (!groupsMap[member.group_name]) {
         groupsMap[member.group_name] = {
           name: member.group_name,
@@ -41,7 +44,7 @@ export async function GET(req: Request) {
       
       groupsMap[member.group_name].members.push({
         user_id: member.user_id,
-        position: member.position,
+        position: member.main_position,
         score: member.score
       });
     }

@@ -18,17 +18,20 @@ export async function POST(req: Request) {
     console.log('开始解锁队员，team_id:', team_id, 'user_id:', user_id);
     
     // 1. 获取当前活跃的分组批次
-    const { data: activeBatch, error: batchError } = await supabase
+    const activeBatchResponse = await supabase
       .from('group_batches')
       .select('id')
       .eq('team_id', team_id)
       .eq('status', 'active')
       .single();
     
+    const activeBatch = 'data' in activeBatchResponse ? activeBatchResponse.data : null;
+    const batchError = 'error' in activeBatchResponse ? activeBatchResponse.error : null;
+    
     // 检查是否有错误
     if (batchError) {
       // 如果是 PGRST116 错误（没有找到记录），直接返回成功
-      if (batchError.code === 'PGRST116') {
+      if ('code' in batchError && batchError.code === 'PGRST116') {
         console.log('没有活跃的分组批次，直接返回成功');
         return NextResponse.json(
           { success: true, message: '队员已成功解锁' },
@@ -53,11 +56,13 @@ export async function POST(req: Request) {
     }
     
     // 2. 从 group_members 中删除该队员的记录
-    const { error: deleteError } = await supabase
+    const deleteResponse = await supabase
       .from('group_members')
       .delete()
       .eq('batch_id', activeBatch.id)
       .eq('user_id', user_id);
+    
+    const deleteError = 'error' in deleteResponse ? deleteResponse.error : null;
     
     if (deleteError) {
       console.error('删除分组成员失败:', deleteError);
@@ -68,10 +73,13 @@ export async function POST(req: Request) {
     }
     
     // 3. 检查是否还有其他队员在该批次中
-    const { data: remainingMembers, error: checkError } = await supabase
+    const remainingMembersResponse = await supabase
       .from('group_members')
       .select('id')
       .eq('batch_id', activeBatch.id);
+    
+    const remainingMembers = 'data' in remainingMembersResponse ? remainingMembersResponse.data : null;
+    const checkError = 'error' in remainingMembersResponse ? remainingMembersResponse.error : null;
     
     if (checkError) {
       console.error('检查剩余队员失败:', checkError);

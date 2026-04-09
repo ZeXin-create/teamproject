@@ -169,7 +169,10 @@ export async function createOrUpdatePlayerProfile(profileData: Partial<PlayerPro
         .single();
 
       if (insertError) {
-        throw new Error('创建资料失败: ' + (insertError.message || insertError.code || '未知错误'));
+        const errorMessage = typeof insertError === 'object' && insertError !== null 
+          ? (insertError.message || (('code' in insertError) ? insertError.code : '未知错误'))
+          : String(insertError);
+        throw new Error('创建资料失败: ' + errorMessage);
       }
 
       profileId = newProfile.id;
@@ -190,7 +193,10 @@ export async function createOrUpdatePlayerProfile(profileData: Partial<PlayerPro
         .single();
 
       if (updateError) {
-        throw new Error('更新资料失败: ' + (updateError.message || updateError.code || '未知错误'));
+        const errorMessage = typeof updateError === 'object' && updateError !== null 
+          ? (updateError.message || (('code' in updateError) ? updateError.code : '未知错误'))
+          : String(updateError);
+        throw new Error('更新资料失败: ' + errorMessage);
       }
     }
 
@@ -207,7 +213,10 @@ export async function createOrUpdatePlayerProfile(profileData: Partial<PlayerPro
       .single();
 
     if (finalError) {
-      throw new Error('获取资料失败: ' + (finalError.message || finalError.code || '未知错误'));
+      const errorMessage = typeof finalError === 'object' && finalError !== null 
+        ? (finalError.message || (('code' in finalError) ? finalError.code : '未知错误'))
+        : String(finalError);
+      throw new Error('获取资料失败: ' + errorMessage);
     }
 
     // 确保 position_stats 结构完整
@@ -284,7 +293,10 @@ export async function saveMatch(matchData: Partial<Match>): Promise<Match> {
     .single();
 
   if (error) {
-    throw new Error('保存比赛记录失败: ' + (error.message || error.code || '未知错误'));
+    const errorMessage = typeof error === 'object' && error !== null 
+      ? (error.message || (('code' in error) ? error.code : '未知错误'))
+      : String(error);
+    throw new Error('保存比赛记录失败: ' + errorMessage);
   }
 
   return data;
@@ -339,7 +351,7 @@ export async function analyzeTeamData(teamId: string): Promise<{
     const totalWins = matches.filter(match => match.result === 'win').length;
     const winRate = totalMatches > 0 ? (totalWins / totalMatches * 100).toFixed(1) : '0.0';
 
-    const memberStats = members.map(member => {
+    const memberStats = ((members || []) as Array<{ user_id: string; role: string }>).map(member => {
       const memberMatches = matches.filter(match =>
         match.participants?.includes(member.user_id)
       );
@@ -595,7 +607,11 @@ export async function createGroups(teamId: string, groupCount: number, userId: s
     }
 
     // 2. 过滤出有完整资料的成员
-    const validMembers = members.filter((m) =>
+    const validMembers = (members as Array<{
+      player_profiles: Array<{
+        main_positions?: string[];
+      }>;
+    }>).filter((m) =>
       m.player_profiles &&
       m.player_profiles.length > 0 &&
       m.player_profiles[0].main_positions &&
@@ -662,7 +678,14 @@ export async function createGroups(teamId: string, groupCount: number, userId: s
       rating?: string;
     }
 
-    const membersWithScore: MemberWithScore[] = validMembers.map((member) => {
+    const membersWithScore: MemberWithScore[] = (validMembers as Array<{
+      user_id: string;
+      player_profiles: Array<{
+        position_stats?: Record<string, { rating?: string }>;
+        current_rank?: string;
+        main_positions?: string[];
+      }>;
+    }>).map((member) => {
       const profile = member.player_profiles[0];
       let totalScore = 0;
       let positionCount = 0;

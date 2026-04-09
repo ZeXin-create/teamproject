@@ -64,7 +64,7 @@ export class TeamDataService {
         .single();
       
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'PGRST116') {
           return null;
         }
         throw error;
@@ -162,7 +162,7 @@ export class TeamDataService {
         .eq('team_id', teamId);
       
       // 统计状态分布
-      const statusDistribution = playerStats?.reduce((acc: Record<string, number>, player: { current_status?: string }) => {
+      const statusDistribution = (playerStats as Array<{ current_status?: string }>)?.reduce((acc: Record<string, number>, player) => {
         if (player.current_status) {
           acc[player.current_status] = (acc[player.current_status] || 0) + 1;
         }
@@ -170,7 +170,7 @@ export class TeamDataService {
       }, {}) || {};
       
       // 统计段位分布
-      const rankDistribution = playerStats?.reduce((acc: Record<string, number>, player: { current_rank?: string }) => {
+      const rankDistribution = (playerStats as Array<{ current_rank?: string }>)?.reduce((acc: Record<string, number>, player) => {
         if (player.current_rank) {
           acc[player.current_rank] = (acc[player.current_rank] || 0) + 1;
         }
@@ -178,7 +178,7 @@ export class TeamDataService {
       }, {}) || {};
       
       // 统计位置分布
-      const positionDistribution = playerStats?.reduce((acc: Record<string, number>, player: { main_positions?: string[] }) => {
+      const positionDistribution = (playerStats as Array<{ main_positions?: string[] }>)?.reduce((acc: Record<string, number>, player) => {
         if (player.main_positions && Array.isArray(player.main_positions)) {
           player.main_positions.forEach(position => {
             acc[position] = (acc[position] || 0) + 1;
@@ -211,7 +211,7 @@ export class TeamDataService {
         .order('match_date', { ascending: false });
       
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'PGRST116') {
           return [];
         }
         throw error;
@@ -289,7 +289,7 @@ export class TeamDataService {
         .order('training_date', { ascending: false });
       
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'PGRST116') {
           return [];
         }
         throw error;

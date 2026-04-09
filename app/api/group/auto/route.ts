@@ -71,13 +71,24 @@ const HERO_FUNCTIONS: Record<string, HeroFunction> = {
   '庄周': { tank: 2, control: 3, output: 1, push: 2 }
 };
 
+// 定义位置统计数据类型
+interface PositionStats {
+  win_rate?: number;
+  winRate?: number;
+  kda?: number;
+  KDA?: number;
+  rating?: number;
+  power?: number;
+  heroes?: (number | string)[];
+}
+
 // 从 position_stats 获取指定位置的数据
-function getPositionStats(positionStats: Record<string, any>, position: string): Record<string, number> {
+function getPositionStats(positionStats: Record<string, PositionStats | number>, position: string): Record<string, number> {
   if (!positionStats) return {};
   
   // 如果 positionStats 直接包含 win_rate 等字段，说明已经是位置数据
-  if (positionStats.win_rate !== undefined || positionStats.kda !== undefined) {
-    return positionStats;
+  if (typeof positionStats === 'object' && (positionStats.win_rate !== undefined || positionStats.kda !== undefined)) {
+    return positionStats as Record<string, number>;
   }
   
   // 否则，尝试从 positionStats 中获取指定位置的数据
@@ -93,14 +104,14 @@ function getPositionStats(positionStats: Record<string, any>, position: string):
   
   // 首先尝试直接使用 position 查找
   if (positionStats[position]) {
-    return positionStats[position];
+    return positionStats[position] as Record<string, number>;
   }
   
   // 然后尝试使用反向映射查找原始位置名称
   const originalPositions = reversePositionMap[position] || [position];
   for (const origPos of originalPositions) {
     if (positionStats[origPos]) {
-      return positionStats[origPos];
+      return positionStats[origPos] as Record<string, number>;
     }
   }
   
@@ -108,7 +119,7 @@ function getPositionStats(positionStats: Record<string, any>, position: string):
 }
 
 // 从 position_stats 提取常用英雄
-function extractHeroesFromStats(positionStats: Record<string, any>, position: string): string[] {
+function extractHeroesFromStats(positionStats: Record<string, PositionStats>, position: string): string[] {
   if (!positionStats) return [];
 
   const heroes: string[] = [];
@@ -163,20 +174,20 @@ function extractHeroesFromStats(positionStats: Record<string, any>, position: st
 }
 
 // 计算实力分
-function calculateStrength(positionStats: Record<string, any>, currentRank: string, position?: string) {
+function calculateStrength(positionStats: Record<string, PositionStats>, currentRank: string, position?: string) {
   if (!positionStats) {
     // 回退到段位映射
     return getRankScore(currentRank);
   }
   
   // 获取指定位置的数据
-  const stats = position ? getPositionStats(positionStats, position) : positionStats;
+  const stats = position ? getPositionStats(positionStats, position) : positionStats as Record<string, number>;
   
   // 支持两种字段命名：下划线命名（win_rate）和驼峰命名（winRate）
-  const winRate = parseFloat(stats.win_rate || stats.winRate || 0);
-  const kda = parseFloat(stats.kda || stats.KDA || stats.kda || 0);
-  const rating = parseFloat(stats.rating || stats.rating || 0);
-  const power = parseFloat(stats.power || stats.power || 0);
+  const winRate = parseFloat(String(stats.win_rate || stats.winRate || 0));
+  const kda = parseFloat(String(stats.kda || stats.KDA || stats.kda || 0));
+  const rating = parseFloat(String(stats.rating || stats.rating || 0));
+  const power = parseFloat(String(stats.power || stats.power || 0));
   
   console.log('  计算实力分数据:', { winRate, kda, rating, power, source: stats });
   
@@ -197,7 +208,7 @@ function calculateStrength(positionStats: Record<string, any>, currentRank: stri
 }
 
 // 安全地解析 main_positions 字段（支持 TEXT[] 和 JSONB）
-function parseMainPositions(positions: any): string[] {
+function parseMainPositions(positions: unknown): string[] {
   if (!positions) return [];
   
   // 如果已经是数组，直接返回
@@ -588,29 +599,35 @@ export async function POST(req: Request) {
     if (!useMockData) {
       try {
         // 获取已锁定的队员（在 active 批次中的队员）
-        const { data: activeBatches, error: batchError } = await supabase
+        const activeBatchesResponse = await supabase
           .from('group_batches')
           .select('id')
           .eq('team_id', team_id)
           .eq('status', 'active');
         
+        const activeBatches = 'data' in activeBatchesResponse ? activeBatchesResponse.data : null;
+        const batchError = 'error' in activeBatchesResponse ? activeBatchesResponse.error : null;
+        
         if (batchError) {
           console.error('获取活跃批次失败:', batchError);
           // 如果表不存在，继续处理
-          if (batchError.code === '42P01') {
+          if (typeof batchError === 'object' && batchError !== null && 'code' in batchError && batchError.code === '42P01') {
             console.log('group_batches 表不存在，跳过锁定队员检查');
           }
         } else if (activeBatches && activeBatches.length > 0) {
-          const batchIds = activeBatches.map(batch => batch.id);
-          const { data: lockedMembers, error: membersError } = await supabase
+          const batchIds = (activeBatches as Array<{ id: string }>).map(batch => batch.id);
+          const lockedMembersResponse = await supabase
             .from('group_members')
             .select('user_id')
             .in('batch_id', batchIds);
           
+          const lockedMembers = 'data' in lockedMembersResponse ? lockedMembersResponse.data : null;
+          const membersError = 'error' in lockedMembersResponse ? lockedMembersResponse.error : null;
+          
           if (membersError) {
             console.error('获取锁定队员失败:', membersError);
           } else if (lockedMembers) {
-            lockedMembers.forEach(member => lockedUserIds.add(member.user_id));
+            (lockedMembers as Array<{ user_id: string }>).forEach(member => lockedUserIds.add(member.user_id));
             console.log('已锁定的队员:', Array.from(lockedUserIds));
           }
         }
@@ -632,46 +649,66 @@ export async function POST(req: Request) {
       console.log('查询条件 - team_id:', team_id);
       
       // 首先尝试查询所有记录（不限制 status）
-      const { data: allApplications, error: allAppError } = await supabase
+      const allApplicationsResponse = await supabase
         .from('team_applications')
         .select('user_id, game_id, current_rank, main_positions, position_stats, available_time, accept_position_adjustment, status')
         .eq('team_id', team_id)
         .order('created_at', { ascending: false });
       
+      const allApplications = 'data' in allApplicationsResponse ? allApplicationsResponse.data : null;
+      const allAppError = 'error' in allApplicationsResponse ? allApplicationsResponse.error : null;
+      
       console.log('team_applications 所有记录:', { count: allApplications?.length || 0, error: allAppError });
       if (allApplications && allApplications.length > 0) {
         console.log('第一条记录:', JSON.stringify(allApplications[0], null, 2));
-        console.log('所有记录的 status:', allApplications.map(a => a.status));
+        console.log('所有记录的 status:', (allApplications as Array<{ status: string }>).map(a => a.status));
       }
       
       // 然后查询 approved 状态的记录
-      const { data: applications, error: appError } = await supabase
+      const applicationsResponse = await supabase
         .from('team_applications')
         .select('user_id, game_id, current_rank, main_positions, position_stats, available_time, accept_position_adjustment')
         .eq('team_id', team_id)
         .eq('status', 'approved')
         .order('created_at', { ascending: false });
       
+      const applications = 'data' in applicationsResponse ? applicationsResponse.data : null;
+      const appError = 'error' in applicationsResponse ? applicationsResponse.error : null;
+      
       console.log('team_applications approved 记录:', { count: applications?.length || 0, error: appError });
       
       // 同时查询 player_profiles 表作为后备
-      const { data: profiles, error } = await supabase.from('player_profiles').select('*').eq('team_id', team_id);
+      const profilesResponse = await supabase.from('player_profiles').select('*').eq('team_id', team_id);
+      
+      const profiles = 'data' in profilesResponse ? profilesResponse.data : null;
+      const error = 'error' in profilesResponse ? profilesResponse.error : null;
       
       console.log('player_profiles 查询结果:', { count: profiles?.length || 0, error });
       
+// 定义队员资料类型
+interface PlayerProfile {
+  user_id: string;
+  game_id?: string | null;
+  current_rank?: string | null;
+  main_positions?: unknown;
+  position_stats?: Record<string, PositionStats> | null;
+  available_time?: unknown;
+  accept_position_adjustment?: boolean;
+}
+
       // 合并两个数据源的数据
-      const mergedData: Record<string, any> = {};
+      const mergedData: Record<string, PlayerProfile> = {};
       
       // 先添加 player_profiles 的数据
       if (profiles && profiles.length > 0) {
         for (const profile of profiles) {
-          mergedData[profile.user_id] = profile;
+          mergedData[profile.user_id] = profile as PlayerProfile;
         }
       }
       
       // 用 team_applications 的数据覆盖或补充（因为 applications 数据更完整）
       if (applications && applications.length > 0) {
-        for (const app of applications) {
+        for (const app of applications as Array<{ user_id: string; team_id: string; game_id: string | null; current_rank: string | null; main_positions: string[]; position_stats: Record<string, PositionStats>; available_time: string[]; accept_position_adjustment: boolean }>) {
           if (app.user_id) {
             const existing = mergedData[app.user_id] || {};
             
@@ -699,7 +736,7 @@ export async function POST(req: Request) {
         if (typeof mainPositions === 'string') {
           try {
             mainPositions = JSON.parse(mainPositions);
-          } catch (e) {
+          } catch {
             mainPositions = [];
           }
         }
@@ -763,7 +800,7 @@ export async function POST(req: Request) {
               main_position: pos,
               second_position: mainPositions[1] ? (POSITION_MAP[mainPositions[1]] || mainPositions[1]) : null,
               accept_position_adjustment: p.accept_position_adjustment || false,
-              available_time: p.available_time || [],
+              available_time: Array.isArray(p.available_time) ? p.available_time : [],
               heroes: [],
               score: 50,
               unassigned_reason: '位置无效'
@@ -772,7 +809,7 @@ export async function POST(req: Request) {
           }
           
           // 从 position_stats 计算实力分（基于主位置）
-          let score = calculateStrength(p.position_stats, p.current_rank, pos);
+          let score = calculateStrength(p.position_stats || {}, p.current_rank || '', pos);
           console.log('  计算的实力分:', score);
           
           // 如果实力分为50（默认值），尝试从段位获取更合理的分数
@@ -786,7 +823,7 @@ export async function POST(req: Request) {
           
           // 合并英雄数据来源：player_heroes 表 + position_stats
           const heroesFromTable = heroesMap[p.user_id] || [];
-          const heroesFromStats = extractHeroesFromStats(p.position_stats, pos);
+          const heroesFromStats = extractHeroesFromStats(p.position_stats || {}, pos);
           // 合并并去重
           const heroSet = new Set<string>();
           for (const hero of heroesFromTable) heroSet.add(hero);
@@ -802,13 +839,13 @@ export async function POST(req: Request) {
             main_position: pos,
             second_position: mainPositions[1] ? (POSITION_MAP[mainPositions[1]] || mainPositions[1]) : null,
             accept_position_adjustment: p.accept_position_adjustment ?? true,
-            available_time: p.available_time || [],
+            available_time: Array.isArray(p.available_time) ? p.available_time : [],
             heroes: allHeroes.slice(0, 5),
             score 
           };
           
           // 为没有可用时间的队员生成分散的默认可用时间
-          if (!player.available_time || player.available_time.length === 0) {
+          if (!player.available_time || !Array.isArray(player.available_time) || player.available_time.length === 0) {
             const userIdHash = p.user_id.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
             const timeSlots = [
               { day: '周五', start_time: '20:00', end_time: '22:00' },
@@ -877,8 +914,7 @@ export async function POST(req: Request) {
       // 对于每个队员的每个时间段，找出哪些比赛时间段是兼容的
       const playerCompatibleSlots: Map<string, Set<string>> = new Map(); // player_id -> Set of slot keys
       
-      // 获取所有时间槽的key
-      const allSlotKeys = Object.keys(timeSlots);
+
       
       for (const player of players) {
         if (!player.available_time || !Array.isArray(player.available_time)) continue;

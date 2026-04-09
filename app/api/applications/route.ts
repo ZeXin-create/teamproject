@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
       if (fetchError) {
         console.error('获取申请详情失败:', fetchError)
-        throw new Error(`获取申请详情失败: ${fetchError.message}`)
+        throw new Error(`获取申请详情失败: ${typeof fetchError === 'object' && fetchError !== null && 'message' in fetchError ? fetchError.message : String(fetchError)}`)
       }
 
       if (!applicationData) {
@@ -54,20 +54,22 @@ export async function POST(req: Request) {
       })
 
       // 2. 更新申请状态
-      const { error: updateError } = await supabase
+      const updateResponse = await supabase
         .from('team_applications')
         .update({ status: 'approved' })
         .eq('id', applicationId)
 
+      const updateError = 'error' in updateResponse ? updateResponse.error : null
+
       if (updateError) {
         console.error('更新申请状态失败:', updateError)
-        throw new Error(`更新申请状态失败: ${updateError.message}`)
+        throw new Error(`更新申请状态失败: ${typeof updateError === 'object' && updateError !== null && 'message' in updateError ? updateError.message : String(updateError)}`)
       }
 
       console.log('申请状态已更新为 approved')
 
       // 3. 将队员添加到战队
-      const { error: insertError } = await supabase
+      const insertResponse = await supabase
         .from('team_members')
         .insert({
           user_id: applicantUserId,
@@ -79,9 +81,11 @@ export async function POST(req: Request) {
           updated_at: new Date().toISOString()
         })
 
+      const insertError = 'error' in insertResponse ? insertResponse.error : null
+
       if (insertError) {
         console.error('添加队员到战队失败:', insertError)
-        throw new Error(`添加队员到战队失败: ${insertError.message}`)
+        throw new Error(`添加队员到战队失败: ${typeof insertError === 'object' && insertError !== null && 'message' in insertError ? insertError.message : String(insertError)}`)
       }
 
       console.log('team_members 插入成功')
@@ -103,32 +107,38 @@ export async function POST(req: Request) {
 
       console.log('准备插入 player_profiles:', JSON.stringify(profileData, null, 2))
 
-      const { data: insertedProfile, error: profileError } = await supabaseAdmin
+      const profileResponse = await supabaseAdmin
         .from('player_profiles')
         .upsert(profileData, { onConflict: 'user_id, team_id' })
         .select()
+
+      const insertedProfile = 'data' in profileResponse ? profileResponse.data : null;
+      const profileError = 'error' in profileResponse ? profileResponse.error : null;
 
       console.log('player_profiles 插入结果:', { insertedProfile, profileError })
 
       if (profileError) {
         console.error('保存游戏资料失败:', profileError)
         console.error('错误详情:', {
-          code: profileError.code,
-          message: profileError.message,
-          details: profileError.details,
-          hint: profileError.hint
+          code: typeof profileError === 'object' && profileError !== null && 'code' in profileError ? profileError.code : undefined,
+          message: typeof profileError === 'object' && profileError !== null && 'message' in profileError ? profileError.message : undefined,
+          details: typeof profileError === 'object' && profileError !== null && 'details' in profileError ? profileError.details : undefined,
+          hint: typeof profileError === 'object' && profileError !== null && 'hint' in profileError ? profileError.hint : undefined
         })
-        throw new Error(`保存游戏资料失败: ${profileError.message}`)
+        throw new Error(`保存游戏资料失败: ${typeof profileError === 'object' && profileError !== null && 'message' in profileError ? profileError.message : String(profileError)}`)
       }
 
       console.log('player_profiles 插入成功:', insertedProfile)
 
       // 获取战队名称
-      const { data: team, error: teamError } = await supabase
+      const teamResponse = await supabase
         .from('teams')
         .select('name')
         .eq('id', applicantTeamId)
         .single();
+
+      const team = 'data' in teamResponse ? teamResponse.data : null;
+      const teamError = 'error' in teamResponse ? teamResponse.error : null;
 
       if (!teamError && team) {
         // 通知申请人申请已批准
@@ -147,30 +157,38 @@ export async function POST(req: Request) {
       })
     } else if (action === 'reject') {
       // 拒绝申请
-      const { error: updateError } = await supabase
+      const updateResponse = await supabase
         .from('team_applications')
         .update({ status: 'rejected' })
         .eq('id', applicationId)
 
+      const updateError = 'error' in updateResponse ? updateResponse.error : null
+
       if (updateError) {
         console.error('拒绝申请失败:', updateError)
-        throw new Error(`拒绝申请失败: ${updateError.message}`)
+        throw new Error(`拒绝申请失败: ${typeof updateError === 'object' && updateError !== null && 'message' in updateError ? updateError.message : String(updateError)}`)
       }
 
       // 获取申请详情，包括用户ID和战队ID
-      const { data: applicationData, error: fetchError } = await supabase
+      const applicationResponse = await supabase
         .from('team_applications')
         .select('user_id, team_id')
         .eq('id', applicationId)
         .single();
 
+      const applicationData = 'data' in applicationResponse ? applicationResponse.data : null;
+      const fetchError = 'error' in applicationResponse ? applicationResponse.error : null;
+
       if (!fetchError && applicationData) {
         // 获取战队名称
-        const { data: team, error: teamError } = await supabase
+        const teamResponse = await supabase
           .from('teams')
           .select('name')
           .eq('id', applicationData.team_id)
           .single();
+
+        const team = 'data' in teamResponse ? teamResponse.data : null;
+        const teamError = 'error' in teamResponse ? teamResponse.error : null;
 
         if (!teamError && team) {
           // 通知申请人申请已拒绝

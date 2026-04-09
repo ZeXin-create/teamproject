@@ -506,7 +506,7 @@ export default function Home() {
               .eq('team_id', teamId)
 
             if (matchRecords && matchRecords.length > 0) {
-              const wins = matchRecords.filter(record => record.result === 'win').length
+              const wins = (matchRecords as Array<{ result: string }>).filter(record => record.result === 'win').length
               const rate = Math.round((wins / matchRecords.length) * 100)
               setWinRate(`${rate}%`)
             }
@@ -641,10 +641,17 @@ export default function Home() {
 
             if (salesError) throw salesError
 
-            if (salesData && salesData.length > 0) {
+            if (salesData && Array.isArray(salesData)) {
               console.log(`获取到 ${salesData.length} 条出售信息`)
               // 获取所有卖家ID
-              const sellerIds = [...new Set(salesData.map(sale => sale.seller_id).filter(Boolean))]
+              const sellerIdMap: Record<string, boolean> = {}
+              for (let i = 0; i < salesData.length; i++) {
+                const sale = salesData[i]
+                if (sale && typeof sale === 'object' && 'seller_id' in sale && sale.seller_id) {
+                  sellerIdMap[sale.seller_id] = true
+                }
+              }
+              const sellerIds = Object.keys(sellerIdMap)
               console.log('卖家IDs:', sellerIds)
               
               // 如果有卖家，获取卖家信息
@@ -658,8 +665,8 @@ export default function Home() {
                 console.log('卖家信息:', profilesData)
                 console.log('卖家信息错误:', profilesError)
                 
-                if (profilesData) {
-                  sellersMap = profilesData.reduce((acc, profile) => {
+                if (profilesData && Array.isArray(profilesData)) {
+                  sellersMap = (profilesData as Array<{ id: string; nickname: string }>).reduce((acc, profile) => {
                     acc[profile.id] = profile.nickname || '未知用户'
                     return acc
                   }, {} as Record<string, string>)
@@ -667,7 +674,7 @@ export default function Home() {
               }
 
               // 合并数据
-              const salesWithSellers = salesData.map(sale => ({
+              const salesWithSellers = (salesData as Array<{ id: string; description: string; price: number; goods_type: 'TEAM' | 'ID' | 'TEAM_AND_ID'; status: 'ON_SALE' | 'SOLD' | 'OFF_SHELF'; created_at: string; seller_id: string }>).map(sale => ({
                 ...sale,
                 seller: {
                   nickname: sellersMap[sale.seller_id || ''] || '未知用户'

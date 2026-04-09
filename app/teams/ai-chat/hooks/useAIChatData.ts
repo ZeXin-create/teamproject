@@ -42,7 +42,15 @@ interface TeamMember {
     game_id: string
     current_rank: string
     main_positions: string[]
-    position_stats: Record<string, any>
+    position_stats: Record<string, {
+      win_rate?: number
+      winRate?: number
+      kda?: number
+      KDA?: number
+      rating?: number
+      power?: number
+      heroes?: (number | string)[]
+    }>
     available_time: string[]
     accept_position_adjustment: boolean
   }

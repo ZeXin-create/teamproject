@@ -14,21 +14,23 @@ export async function POST(req: Request) {
     }
 
     // 1. 将当前战队所有 status='active' 的批次改为 archived
-    const { error: archiveError } = await supabase
+    const archiveResponse = await supabase
       .from('group_batches')
       .update({ status: 'archived' })
       .eq('team_id', team_id)
       .eq('status', 'active');
     
+    const archiveError = 'error' in archiveResponse ? archiveResponse.error : null;
+    
     if (archiveError) {
-      throw new Error('归档旧批次失败: ' + archiveError.message);
+      throw new Error('归档旧批次失败: ' + (typeof archiveError === 'object' && archiveError !== null && 'message' in archiveError ? archiveError.message : String(archiveError)));
     }
 
     // 2. 创建新批次，status='active'
     // 使用 user_id 作为 created_by，如果没有则设为 null
     const batchCreatedBy = user_id || created_by || null;
     
-    const { data: newBatch, error: batchError } = await supabase
+    const batchResponse = await supabase
       .from('group_batches')
       .insert({
         team_id,
@@ -38,8 +40,15 @@ export async function POST(req: Request) {
       .select()
       .single();
     
+    const newBatch = 'data' in batchResponse ? batchResponse.data : null;
+    const batchError = 'error' in batchResponse ? batchResponse.error : null;
+    
     if (batchError) {
       throw new Error('创建新批次失败: ' + batchError.message);
+    }
+    
+    if (!newBatch) {
+      throw new Error('创建新批次失败: 未返回批次数据');
     }
 
     // 3. 插入分组结果到 group_members 表
@@ -64,12 +73,14 @@ export async function POST(req: Request) {
       }
     }
 
-    const { error: membersError } = await supabase
+    const membersResponse = await supabase
       .from('group_members')
       .insert(groupMembers);
     
+    const membersError = 'error' in membersResponse ? membersResponse.error : null;
+    
     if (membersError) {
-      throw new Error('插入分组成员失败: ' + membersError.message);
+      throw new Error('插入分组成员失败: ' + (typeof membersError === 'object' && membersError !== null && 'message' in membersError ? membersError.message : String(membersError)));
     }
 
     return NextResponse.json({

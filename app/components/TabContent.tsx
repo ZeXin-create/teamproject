@@ -55,29 +55,19 @@ export default function TabContent({ activeTab }: TabContentProps) {
   const fetchTeams = useCallback(async () => {
     setLoading(true)
     try {
-      let query = supabase
+      // 直接获取所有战队数据，不使用链式调用
+      const { data } = await supabase
         .from('teams')
         .select('id, name, avatar_url, region, declaration, city, province, district')
-
-      // 根据搜索条件筛选
-      if (searchQuery) {
-        query = query.ilike('name', `%${searchQuery}%`)
-      }
-      if (searchRegion) {
-        query = query.eq('region', searchRegion)
-      }
-
-      const { data } = await query
 
       if (data) {
         // 获取每个战队的成员数量
         const teamsWithMembers = await Promise.all(
-          data.map(async (team) => {
+          (data as Array<{ id: string; name: string; avatar_url: string; region: string; declaration: string; city: string; province: string; district: string }>).map(async (team) => {
+            // 直接获取成员数据，不使用链式调用
             const { data: members } = await supabase
               .from('team_members')
               .select('id')
-              .eq('team_id', team.id)
-              .eq('status', 'active')
 
             return {
               ...team,
@@ -87,7 +77,23 @@ export default function TabContent({ activeTab }: TabContentProps) {
             }
           })
         )
-        setTeams(teamsWithMembers)
+
+        // 在客户端进行搜索和区域过滤
+        let filteredTeams = teamsWithMembers
+        
+        // 区域筛选
+        if (searchRegion) {
+          filteredTeams = filteredTeams.filter(team => team.region === searchRegion)
+        }
+        
+        // 搜索筛选
+        if (searchQuery) {
+          filteredTeams = filteredTeams.filter(team => 
+            team.name.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        }
+
+        setTeams(filteredTeams)
       }
     } catch (error) {
       console.error('获取战队列表失败:', error)
@@ -100,25 +106,24 @@ export default function TabContent({ activeTab }: TabContentProps) {
   const fetchRankedTeams = useCallback(async () => {
     setLoading(true)
     try {
-      let query = supabase
+      // 直接获取所有战队数据，不使用链式调用
+      const { data } = await supabase
         .from('teams')
         .select('id, name, region, avatar_url')
-        .order('created_at', { ascending: false })
-
-      // 根据选择的大区筛选
-      if (selectedRegion) {
-        query = query.eq('region', selectedRegion)
-      }
-
-      const { data } = await query
 
       if (data) {
         // 为每个战队添加排名
-        const rankedTeams = data.map((team, index) => ({
+        const rankedTeams = (data as Array<{ id: string; name: string; avatar_url: string; region: string; declaration: string; city: string; province: string; district: string }>).map((team, index) => ({
           ...team,
           rank: index + 1
         }))
-        setRankedTeams(rankedTeams)
+        
+        // 在客户端进行区域筛选
+        const filteredTeams = selectedRegion 
+          ? rankedTeams.filter(team => team.region === selectedRegion)
+          : rankedTeams
+          
+        setRankedTeams(filteredTeams)
       }
     } catch (error) {
       console.error('获取战队排行失败:', error)
@@ -130,6 +135,7 @@ export default function TabContent({ activeTab }: TabContentProps) {
   const fetchRecruits = useCallback(async () => {
     setLoading(true)
     try {
+      // 直接获取所有招募信息，不使用链式调用
       const { data, error } = await supabase
         .from('team_recruits')
         .select(`
@@ -150,18 +156,31 @@ export default function TabContent({ activeTab }: TabContentProps) {
             avatar_url
           )
         `)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
 
       if (error) {
         throw error
       }
 
-      // 处理 team 字段的类型问题
-      const processedData: Recruit[] = (data || []).map(item => ({
-        ...item,
-        team: Array.isArray(item.team) ? item.team[0] : item.team
-      }))
+      // 处理 team 字段的类型问题，并筛选出 active 状态的招募
+      const processedData: Recruit[] = ((data || []) as Array<{ id: string; team_id: string; requirements: string; contact: string; created_at: string; rank_requirement?: string; positions?: string[]; online_time?: string; recruit_count?: number; deadline?: string; status?: string; team: { id: string; name: string; avatar_url: string; region: string } | Array<{ id: string; name: string; avatar_url: string; region: string }> }>)
+        .filter(item => item.status === 'active')
+        .map(item => ({
+          id: item.id,
+          team_id: item.team_id,
+          requirements: item.requirements,
+          contact: item.contact,
+          created_at: item.created_at,
+          rank_requirement: item.rank_requirement,
+          positions: item.positions,
+          online_time: item.online_time,
+          recruit_count: item.recruit_count,
+          deadline: item.deadline,
+          status: item.status,
+          team: Array.isArray(item.team) ? item.team[0] : item.team
+        }))
+
+      // 按创建时间排序（最新的在前）
+      processedData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
       setRecruits(processedData)
     } catch (err: unknown) {

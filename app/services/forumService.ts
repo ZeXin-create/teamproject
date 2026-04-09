@@ -92,7 +92,7 @@ export const getPosts = async (params: PostQueryParams = {}): Promise<ForumPost[
   const { data, error } = await query;
 
   if (error) {
-    throw new Error(`获取帖子列表失败: ${error.message}`);
+    throw new Error(`获取帖子列表失败: ${typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)}`);
   }
 
   // 获取作者信息
@@ -202,7 +202,7 @@ export const togglePostLike = async (postId: string, userId: string): Promise<bo
       .eq('id', existingLike.id);
 
     if (error) {
-      throw new Error(`取消点赞失败: ${error.message}`);
+      throw new Error(`取消点赞失败: ${typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)}`);
     }
     return false;
   } else {
@@ -215,7 +215,7 @@ export const togglePostLike = async (postId: string, userId: string): Promise<bo
       });
 
     if (error) {
-      throw new Error(`点赞失败: ${error.message}`);
+      throw new Error(`点赞失败: ${typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)}`);
     }
     return true;
   }
@@ -279,7 +279,7 @@ export const getPostComments = async (postId: string, userId?: string): Promise<
     .order('created_at', { ascending: true });
 
   if (error) {
-    throw new Error(`获取评论失败: ${error.message}`);
+    throw new Error(`获取评论失败: ${typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)}`);
   }
 
   const comments = data as ForumComment[];
@@ -366,7 +366,7 @@ export const toggleCommentLike = async (commentId: string, userId: string): Prom
       .eq('id', existingLike.id);
 
     if (error) {
-      throw new Error(`取消点赞失败: ${error.message}`);
+      throw new Error(`取消点赞失败: ${typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)}`);
     }
     return false;
   } else {
@@ -379,7 +379,7 @@ export const toggleCommentLike = async (commentId: string, userId: string): Prom
       });
 
     if (error) {
-      throw new Error(`点赞失败: ${error.message}`);
+      throw new Error(`点赞失败: ${typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)}`);
     }
     return true;
   }

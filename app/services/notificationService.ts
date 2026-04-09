@@ -95,7 +95,7 @@ export async function sendNotificationToTeam(
     }
 
     // 过滤掉排除的用户
-    const userIds = members
+    const userIds = (members as Array<{ user_id: string }>)
       .map(m => m.user_id)
       .filter(id => id !== excludeUserId);
 
@@ -130,7 +130,7 @@ export async function notifyTeamApplication(teamId: string, applicantName: strin
     const captain = captains[0];
 
     return await sendNotification({
-      user_id: captain.user_id,
+      user_id: (captain as { user_id: string }).user_id,
       title: '新的入队申请',
       message: `${applicantName} 申请加入您的战队，请尽快处理。`,
       type: 'info',

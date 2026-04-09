@@ -63,7 +63,7 @@ export default function FriendsPage() {
 
       if (friendData) {
         const processedFriends: Friend[] = await Promise.all(
-          friendData.map(async (item) => {
+          (friendData as Array<{ id: string; sender_id: string; receiver_id: string; status: string }>).map(async (item) => {
             const isSender = item.sender_id === user?.id
             const friendId = isSender ? item.receiver_id : item.sender_id
 
@@ -79,9 +79,9 @@ export default function FriendsPage() {
               friend_id: friendId,
               user: {
                 id: friendId,
-                email: profileData?.email || '',
-                nickname: profileData?.nickname || profileData?.email?.split('@')[0] || '未知用户',
-                avatar: profileData?.avatar || '',
+                email: (profileData as { email: string } | null)?.email || '',
+                nickname: (profileData as { nickname: string; email: string } | null)?.nickname || (profileData as { email: string } | null)?.email?.split('@')[0] || '未知用户',
+                avatar: (profileData as { avatar: string } | null)?.avatar || '',
                 status: 'offline',
                 last_seen: new Date().toISOString()
               },
@@ -134,7 +134,7 @@ export default function FriendsPage() {
 
       if (requestData) {
         const processedRequests: FriendRequest[] = await Promise.all(
-          requestData.map(async (item) => {
+          (requestData as Array<{ id: string; sender_id: string; receiver_id: string; status: string; created_at: string }>).map(async (item) => {
             // 获取发送者的个人资料
             const { data: profileData } = await supabase
               .from('profiles')
@@ -150,9 +150,9 @@ export default function FriendsPage() {
               created_at: item.created_at,
               sender: {
                 id: item.sender_id,
-                email: profileData?.email || '',
-                nickname: profileData?.nickname || profileData?.email?.split('@')[0] || '未知用户',
-                avatar: profileData?.avatar || '',
+                email: (profileData as { email: string } | null)?.email || '',
+                nickname: (profileData as { nickname: string; email: string } | null)?.nickname || (profileData as { email: string } | null)?.email?.split('@')[0] || '未知用户',
+                avatar: (profileData as { avatar: string } | null)?.avatar || '',
                 status: 'offline',
                 last_seen: new Date().toISOString()
               }
@@ -243,7 +243,7 @@ export default function FriendsPage() {
         .or(`and(sender_id.eq.${user?.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${user?.id})`)
         .single()
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError && typeof checkError === 'object' && checkError !== null && 'code' in checkError && checkError.code !== 'PGRST116') {
         throw checkError
       }
 

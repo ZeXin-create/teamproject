@@ -14,12 +14,15 @@ export async function POST(request: NextRequest) {
     // 开始事务
 
     // 检查用户是否是战队队长
-    const { data: teamMember, error: memberError } = await supabase
+    const teamMemberResponse = await supabase
       .from('team_members')
       .select('role')
       .eq('team_id', teamId)
       .eq('user_id', userId)
       .single();
+
+    const teamMember = 'data' in teamMemberResponse ? teamMemberResponse.data : null;
+    const memberError = 'error' in teamMemberResponse ? teamMemberResponse.error : null;
 
     if (memberError || !teamMember || teamMember.role !== '队长') {
       return NextResponse.json({ error: '只有队长可以解散战队' }, { status: 403 });
@@ -45,13 +48,15 @@ export async function POST(request: NextRequest) {
       .eq('team_id', teamId);
 
     // 4. 删除战队分组批次
-    const { data: batches } = await supabase
+    const batchesResponse = await supabase
       .from('group_batches')
       .select('id')
       .eq('team_id', teamId);
 
+    const batches = 'data' in batchesResponse ? batchesResponse.data : null;
+
     if (batches && batches.length > 0) {
-      const batchIds = batches.map(batch => batch.id);
+      const batchIds = (batches as Array<{ id: string }>).map(batch => batch.id);
       
       // 删除分组成员
       await supabase
@@ -79,10 +84,12 @@ export async function POST(request: NextRequest) {
       .eq('team_id', teamId);
 
     // 7. 删除战队本身
-    const { error: deleteError } = await supabase
+    const deleteResponse = await supabase
       .from('teams')
       .delete()
       .eq('id', teamId);
+
+    const deleteError = 'error' in deleteResponse ? deleteResponse.error : null;
 
     if (deleteError) {
       throw deleteError;

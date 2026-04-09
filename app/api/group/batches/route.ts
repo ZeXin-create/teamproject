@@ -10,14 +10,17 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: '缺少 team_id' }, { status: 400 });
     }
     
-    const { data: batches, error } = await supabase
+    const batchesResponse = await supabase
       .from('group_batches')
       .select('id, created_at, status')
       .eq('team_id', teamId)
       .order('created_at', { ascending: false });
     
+    const batches = 'data' in batchesResponse ? batchesResponse.data : null;
+    const error = 'error' in batchesResponse ? batchesResponse.error : null;
+    
     if (error) {
-      throw new Error('获取分组批次失败: ' + error.message);
+      throw new Error('获取分组批次失败: ' + (typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)));
     }
     
     return NextResponse.json({

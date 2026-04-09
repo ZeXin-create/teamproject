@@ -60,7 +60,7 @@ export const createTeamSale = async (data: CreateTeamSaleRequest): Promise<TeamS
     .single();
 
   if (error) {
-    throw new Error(`创建商品失败: ${error.message}`);
+    throw new Error(`创建商品失败: ${typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)}`);
   }
 
   return newSale as TeamSale;
@@ -110,7 +110,7 @@ export const getTeamSales = async (params: TeamSaleQueryParams = {}): Promise<Te
   const { data, error } = await query;
 
   if (error) {
-    throw new Error(`获取商品列表失败: ${error.message}`);
+    throw new Error(`获取商品列表失败: ${typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)}`);
   }
 
   return data as TeamSale[];
@@ -125,7 +125,7 @@ export const getTeamSaleById = async (id: string): Promise<TeamSale> => {
     .single();
 
   if (error) {
-    throw new Error(`获取商品详情失败: ${error.message}`);
+    throw new Error(`获取商品详情失败: ${typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)}`);
   }
 
   return data as TeamSale;
@@ -141,7 +141,7 @@ export const updateTeamSaleStatus = async (id: string, status: SaleStatus): Prom
     .single();
 
   if (error) {
-    throw new Error(`更新商品状态失败: ${error.message}`);
+    throw new Error(`更新商品状态失败: ${typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error)}`);
   }
 
   return data as TeamSale;

@@ -34,7 +34,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   // 监听路由变化，显示进度条
   useEffect(() => {
     NProgress.start();
-    return () => NProgress.done();
+    return () => {
+      NProgress.done();
+    };
   }, [pathname]);
 
   // 防止 hydration 不匹配，首次渲染返回空

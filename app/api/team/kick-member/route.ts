@@ -12,13 +12,16 @@ export async function POST(req: Request) {
     }
 
     // 1. 检查操作者权限（队长或副队长）
-    const { data: operator, error: operatorError } = await supabase
+    const operatorResponse = await supabase
       .from('team_members')
       .select('role')
       .eq('user_id', kickedBy)
       .eq('team_id', teamId)
       .eq('status', 'active')
       .single()
+
+    const operator = 'data' in operatorResponse ? operatorResponse.data : null
+    const operatorError = 'error' in operatorResponse ? operatorResponse.error : null
 
     console.log('操作者权限检查:', { operator, operatorError })
 
@@ -32,13 +35,16 @@ export async function POST(req: Request) {
     }
 
     // 2. 检查被踢者身份
-    const { data: target, error: targetError } = await supabase
+    const targetResponse = await supabase
       .from('team_members')
       .select('role')
       .eq('user_id', userId)
       .eq('team_id', teamId)
       .eq('status', 'active')
       .single()
+
+    const target = 'data' in targetResponse ? targetResponse.data : null
+    const targetError = 'error' in targetResponse ? targetResponse.error : null
 
     console.log('被踢者身份检查:', { target, targetError })
 
@@ -53,12 +59,15 @@ export async function POST(req: Request) {
 
     // 3. 删除 player_profiles 记录
     console.log('开始删除 player_profiles:', { userId, teamId })
-    const { error: deleteProfileError, data: deleteProfileData } = await supabase
+    const deleteProfileResponse = await supabase
       .from('player_profiles')
       .delete()
       .eq('user_id', userId)
       .eq('team_id', teamId)
       .select()
+
+    const deleteProfileData = 'data' in deleteProfileResponse ? deleteProfileResponse.data : null
+    const deleteProfileError = 'error' in deleteProfileResponse ? deleteProfileResponse.error : null
 
     console.log('player_profiles 删除结果:', { deleteProfileError, deleteProfileData })
 
@@ -68,11 +77,13 @@ export async function POST(req: Request) {
 
     // 4. 删除 team_members 记录
     console.log('开始删除 team_members:', { userId, teamId })
-    const { error: deleteMemberError } = await supabase
+    const deleteMemberResponse = await supabase
       .from('team_members')
       .delete()
       .eq('user_id', userId)
       .eq('team_id', teamId)
+
+    const deleteMemberError = 'error' in deleteMemberResponse ? deleteMemberResponse.error : null
 
     console.log('team_members 删除结果:', { deleteMemberError })
 
@@ -80,11 +91,13 @@ export async function POST(req: Request) {
 
     // 5. 更新申请状态为 rejected
     console.log('更新申请状态为 rejected:', { userId, teamId })
-    const { error: updateAppError } = await supabase
+    const updateAppResponse = await supabase
       .from('team_applications')
       .update({ status: 'rejected' })
       .eq('user_id', userId)
       .eq('team_id', teamId)
+
+    const updateAppError = 'error' in updateAppResponse ? updateAppResponse.error : null
 
     console.log('申请状态更新结果:', { updateAppError })
 

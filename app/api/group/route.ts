@@ -21,7 +21,11 @@ export async function POST(req: Request) {
   try {
     const { team_id } = await req.json();
     if (!team_id) return NextResponse.json({ error: '缺少 team_id' }, { status: 400 });
-    const { data: profiles, error } = await supabase.from('player_profiles').select('*').eq('team_id', team_id);
+    const profilesResponse = await supabase.from('player_profiles').select('*').eq('team_id', team_id);
+    
+    const profiles = 'data' in profilesResponse ? profilesResponse.data : null;
+    const error = 'error' in profilesResponse ? profilesResponse.error : null;
+    
     if (error) throw error;
     if (!profiles?.length) return NextResponse.json({ groups: [], unassigned: [], total_players: 0 });
 

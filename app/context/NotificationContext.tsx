@@ -45,7 +45,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if (error) {
         console.error('获取通知失败:', error);
         // 当表不存在时，设置为空数组
-        if (error.code === 'PGRST205') {
+        if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'PGRST205') {
           setNotifications([]);
         }
         return;
@@ -133,7 +133,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!user) return;
 
     try {
-      const subscription = supabase
+      // 为 Supabase 客户端创建临时类型定义
+      interface SupabaseChannel {
+        on(eventType: string, filter: Record<string, string>, callback: (payload: { new: Notification }) => void): SupabaseChannel;
+        subscribe(): { unsubscribe: () => void };
+      }
+      
+      interface SupabaseWithChannel {
+        channel(name: string): SupabaseChannel;
+      }
+      
+      const subscription = (supabase as unknown as SupabaseWithChannel)
         .channel('notifications')
         .on(
           'postgres_changes',
@@ -143,8 +153,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             table: 'notifications',
             filter: `user_id=eq.${user.id}`
           },
-          (payload) => {
-            const newNotification = payload.new as Notification;
+          (payload: { new: Notification }) => {
+            const newNotification = payload.new;
             setNotifications(prev => [newNotification, ...prev]);
             
             // 显示浏览器通知

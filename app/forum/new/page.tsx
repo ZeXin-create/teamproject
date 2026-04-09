@@ -42,14 +42,14 @@ export default function NewPostPage() {
         .eq('status', 'active')
 
       if (memberData && memberData.length > 0) {
-        const teamIds = memberData.map(m => m.team_id)
+        const teamIds = (memberData as Array<{ team_id: string }>).map(m => m.team_id)
         const { data: teamsData } = await supabase
           .from('teams')
           .select('id, name')
           .in('id', teamIds)
 
         if (teamsData) {
-          setTeams(teamsData)
+          setTeams(teamsData as Team[])
         }
       }
     } catch (err) {

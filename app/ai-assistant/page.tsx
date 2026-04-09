@@ -17,6 +17,21 @@ interface Message {
   isStreaming?: boolean
 }
 
+interface ChatSession {
+  id: string
+  user_id: string
+  title?: string
+  created_at?: string
+}
+
+interface ChatMessage {
+  id: string
+  session_id: string
+  role: 'user' | 'ai'
+  content: string
+  created_at: string
+}
+
 export default function AIChatPage() {
   const { user } = useAuth()
   const router = useRouter()
@@ -35,20 +50,25 @@ export default function AIChatPage() {
     if (!user) return
 
     try {
+      // 直接获取所有会话数据
       const { data: sessions } = await supabase
         .from('chat_sessions')
-        .select('id')
-        .eq('user_id', user.id)
-        .single()
+        .select('id, user_id')
 
-      if (sessions) {
-        setSessionId(sessions.id)
+      // 在客户端进行筛选
+      const userSession = (sessions as ChatSession[])?.find(session => session.user_id === user.id)
 
-        const { data: chatMessages } = await supabase
+      if (userSession) {
+        setSessionId(userSession.id)
+
+        // 直接获取所有消息数据
+        const chatMessagesResponse = await supabase
           .from('chat_messages')
           .select('*')
-          .eq('session_id', sessions.id)
-          .order('created_at', { ascending: true })
+
+        // 在客户端进行筛选和排序
+        const chatMessages = (chatMessagesResponse.data as ChatMessage[])?.filter(msg => msg.session_id === userSession.id)
+          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
         if (chatMessages && chatMessages.length > 0) {
           setMessages(chatMessages.map(msg => ({
@@ -80,6 +100,7 @@ export default function AIChatPage() {
     if (!sessionId) return
 
     try {
+      // 插入消息
       const { data } = await supabase
         .from('chat_messages')
         .insert({
@@ -88,14 +109,13 @@ export default function AIChatPage() {
           content
         })
         .select()
-        .single()
 
-      if (data) {
+      if (data && data.length > 0) {
         return {
-          id: data.id,
-          role: data.role as 'user' | 'ai',
-          content: data.content,
-          created_at: data.created_at
+          id: data[0].id,
+          role: data[0].role as 'user' | 'ai',
+          content: data[0].content,
+          created_at: data[0].created_at
         }
       }
     } catch (error) {
@@ -108,16 +128,19 @@ export default function AIChatPage() {
     if (!user) return null
 
     try {
-      const { data: existingSession } = await supabase
+      // 直接获取所有会话数据
+      const { data: existingSessions } = await supabase
         .from('chat_sessions')
-        .select('id')
-        .eq('user_id', user.id)
-        .single()
+        .select('id, user_id')
+
+      // 在客户端进行筛选
+      const existingSession = (existingSessions as ChatSession[])?.find(session => session.user_id === user.id)
 
       if (existingSession) {
         return existingSession.id
       }
 
+      // 创建新会话
       const { data: newSession } = await supabase
         .from('chat_sessions')
         .insert({
@@ -125,10 +148,9 @@ export default function AIChatPage() {
           title: '智能战队助手'
         })
         .select()
-        .single()
 
       if (newSession) {
-        return newSession.id
+        return newSession[0]?.id
       }
     } catch (error) {
       console.error('获取会话失败:', error)

@@ -25,18 +25,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 先检查是否已存在资料
-    const { data: existingProfile } = await supabase
+    const existingProfileResponse = await supabase
       .from('player_profiles')
       .select('id')
       .eq('user_id', user_id)
       .eq('team_id', team_id)
       .single()
 
+    const existingProfile = 'data' in existingProfileResponse ? existingProfileResponse.data : null
+
     let profileId: string
 
     if (existingProfile) {
       // 更新现有资料
-      const { data: updatedProfile, error: updateError } = await supabase
+      const updatedProfileResponse = await supabase
         .from('player_profiles')
         .update({
           game_id,
@@ -51,14 +53,21 @@ export async function POST(request: NextRequest) {
         .select()
         .single()
 
+      const updatedProfile = 'data' in updatedProfileResponse ? updatedProfileResponse.data : null
+      const updateError = 'error' in updatedProfileResponse ? updatedProfileResponse.error : null
+
       if (updateError) {
         throw new Error('更新队员资料失败: ' + updateError.message)
+      }
+
+      if (!updatedProfile) {
+        throw new Error('更新队员资料失败: 未返回更新后的资料')
       }
 
       profileId = updatedProfile.id
     } else {
       // 创建新资料
-      const { data: newProfile, error: insertError } = await supabase
+      const newProfileResponse = await supabase
         .from('player_profiles')
         .insert({
           user_id,
@@ -73,8 +82,15 @@ export async function POST(request: NextRequest) {
         .select()
         .single()
 
+      const newProfile = 'data' in newProfileResponse ? newProfileResponse.data : null
+      const insertError = 'error' in newProfileResponse ? newProfileResponse.error : null
+
       if (insertError) {
         throw new Error('创建队员资料失败: ' + insertError.message)
+      }
+
+      if (!newProfile) {
+        throw new Error('创建队员资料失败: 未返回新创建的资料')
       }
 
       profileId = newProfile.id

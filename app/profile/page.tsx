@@ -95,7 +95,7 @@ export default function ProfilePage() {
         .eq('user_id', user.id)
         .single()
 
-      if (error && error.code === 'PGRST116') {
+      if (error && typeof error === 'object' && error !== null && 'code' in error && error.code === 'PGRST116') {
         // 用户等级记录不存在，创建默认记录
         await supabase
           .from('user_levels')
@@ -138,8 +138,18 @@ export default function ProfilePage() {
       fetchUserProfile()
       fetchUserLevel()
 
-      // 设置实时订阅，监听用户数据变化
-      const subscription = supabase
+      // 为 Supabase 客户端创建临时类型定义
+      interface SupabaseChannel {
+        on(eventType: string, filter: Record<string, string>, callback: () => void): SupabaseChannel;
+        subscribe(): { unsubscribe: () => void };
+      }
+      
+      interface SupabaseWithChannel {
+        channel(name: string): SupabaseChannel;
+        removeChannel(subscription: { unsubscribe: () => void }): void;
+      }
+      
+      const subscription = (supabase as unknown as SupabaseWithChannel)
         .channel('public:team_members')
         .on('postgres_changes', {
           event: '*',
@@ -153,7 +163,7 @@ export default function ProfilePage() {
         .subscribe()
 
       return () => {
-        supabase.removeChannel(subscription)
+        (supabase as unknown as SupabaseWithChannel).removeChannel(subscription)
       }
     }
   }, [user, router, fetchUserProfile, fetchUserLevel])
