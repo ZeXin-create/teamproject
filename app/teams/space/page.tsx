@@ -53,7 +53,7 @@ const TeamSpacePage = React.memo(function TeamSpacePage() {
   })
   
   // 使用 useDataCache 缓存战队数据
-  const { data: teamMemberData, isLoading: teamMemberLoading } = useDataCache(
+  const { data: teamMemberData, isLoading: teamMemberLoading } = useDataCache<Array<{ team_id: string; role: string }>>(
     `team_member_${user?.id}`,
     async () => {
       if (!user) return null
@@ -68,7 +68,7 @@ const TeamSpacePage = React.memo(function TeamSpacePage() {
   )
   
   // 缓存战队详情
-  const { data: teamData, isLoading: teamLoading } = useDataCache(
+  const { data: teamData, isLoading: teamLoading } = useDataCache<Team>(
     `team_${teamMemberData?.[0]?.team_id}`,
     async () => {
       if (!teamMemberData || !teamMemberData[0]?.team_id) return null

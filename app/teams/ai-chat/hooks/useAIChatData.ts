@@ -17,12 +17,43 @@ interface ChatSession {
   last_message?: string
 }
 
+interface Team {
+  id: string
+  name: string
+  logo: string
+  captain_id: string
+  created_at: string
+  updated_at: string
+}
+
+interface TeamMember {
+  id: string
+  team_id: string
+  user_id: string
+  role: string
+  joined_at: string
+  user?: {
+    id: string
+    nickname: string
+    avatar: string
+    username: string
+  }
+  application?: {
+    game_id: string
+    current_rank: string
+    main_positions: string[]
+    position_stats: Record<string, any>
+    available_time: string[]
+    accept_position_adjustment: boolean
+  }
+}
+
 export const useAIChatData = (userId: string | undefined) => {
   const [messages, setMessages] = useState<Message[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [sessions, setSessions] = useState<ChatSession[]>([])
-  const [userTeam, setUserTeam] = useState<any>(null)
-  const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const [userTeam, setUserTeam] = useState<Team | null>(null)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   

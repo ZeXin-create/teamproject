@@ -520,7 +520,7 @@ export default function Home() {
       } else {
         setLoading(false)
       }
-    }, [team, user])
+    }, [team])
 
     if (loading) {
       return (

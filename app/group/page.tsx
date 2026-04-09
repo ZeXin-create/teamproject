@@ -7,7 +7,7 @@ import { useCache } from '@/app/hooks/useCache';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DndContext, useSensor, useSensors, PointerSensor, TouchSensor, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove } from '@dnd-kit/sortable';
-import { Users, RefreshCw, CheckCircle, AlertCircle, UserPlus, Clock, History, ArrowLeft, Sparkles, Target, Shield, Swords } from 'lucide-react';
+import { RefreshCw, CheckCircle, AlertCircle, UserPlus, Clock, History, ArrowLeft, Sparkles, Target, Shield, Swords } from 'lucide-react';
 
 // 导入类型定义
 import { Group, TeamMember as TeamMemberType } from './types';
