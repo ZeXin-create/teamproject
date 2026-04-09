@@ -145,7 +145,9 @@ export default function Home() {
             setRecruits(data || [])
           } catch (err) {
             console.error('获取招募信息失败:', err)
-            setError(err instanceof Error ? err.message : '获取招募信息失败')
+            setError('网络连接失败，请检查网络设置或稍后重试')
+            // 设置空数组，避免重复请求
+            setRecruits([])
           } finally {
             setLoading(false)
           }
