@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -73,9 +73,19 @@ export default function OnboardingGuide() {
   const [currentStep, setCurrentStep] = useState(0)
   const [isCompleted, setIsCompleted] = useState(false)
   const [mounted, setMounted] = useState(false)
+  
+  // 存储定时器ID，用于清理
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     setMounted(true)
+    
+    // 清理函数
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -149,7 +159,10 @@ export default function OnboardingGuide() {
       localStorage.setItem(`onboarding_completed_${user.id}`, 'true')
       
       setIsCompleted(true)
-      setTimeout(() => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+      }
+      timerRef.current = setTimeout(() => {
         setShowGuide(false)
       }, 2000)
     } catch (error) {
@@ -157,7 +170,10 @@ export default function OnboardingGuide() {
       // 即使API失败，也存储到localStorage
       localStorage.setItem(`onboarding_completed_${user.id}`, 'true')
       setIsCompleted(true)
-      setTimeout(() => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+      }
+      timerRef.current = setTimeout(() => {
         setShowGuide(false)
       }, 2000)
     }

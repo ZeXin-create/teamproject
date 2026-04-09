@@ -115,18 +115,19 @@ export async function sendNotificationToTeam(
 export async function notifyTeamApplication(teamId: string, applicantName: string, _applicantId: string): Promise<boolean> {
   try {
     // 获取战队队长
-    const { data: captain, error: captainError } = await supabase
+    const { data: captains, error: captainError } = await supabase
       .from('team_members')
       .select('user_id')
       .eq('team_id', teamId)
-      .eq('role', 'captain')
-      .eq('status', 'active')
-      .single();
+      .eq('role', '队长')
+      .eq('status', 'active');
 
-    if (captainError || !captain) {
-      console.error('获取战队队长失败:', captainError);
+    if (captainError || !captains || captains.length === 0) {
+      console.error('获取战队队长失败:', captainError || '没有找到队长');
       return false;
     }
+
+    const captain = captains[0];
 
     return await sendNotification({
       user_id: captain.user_id,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '../../lib/supabase'
+import { supabase, supabaseAdmin } from '../../lib/supabase'
 import { notifyApplicationApproved, notifyApplicationRejected } from '../../services/notificationService'
 
 export async function POST(req: Request) {
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
 
       console.log('准备插入 player_profiles:', JSON.stringify(profileData, null, 2))
 
-      const { data: insertedProfile, error: profileError } = await supabase
+      const { data: insertedProfile, error: profileError } = await supabaseAdmin
         .from('player_profiles')
         .upsert(profileData, { onConflict: 'user_id, team_id' })
         .select()

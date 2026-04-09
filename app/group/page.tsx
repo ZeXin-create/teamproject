@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/app/lib/supabase';
 import { useCache } from '@/app/hooks/useCache';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { DndContext, useSensor, useSensors, PointerSensor, TouchSensor, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove } from '@dnd-kit/sortable';
-import { Users, RefreshCw, CheckCircle, AlertCircle, UserPlus, Clock, History } from 'lucide-react';
+import { Users, RefreshCw, CheckCircle, AlertCircle, UserPlus, Clock, History, ArrowLeft, Sparkles, Target, Shield, Swords } from 'lucide-react';
 
 // 导入类型定义
 import { Group, TeamMember as TeamMemberType } from './types';
@@ -16,6 +17,7 @@ import GroupCard from './components/GroupCard';
 import UnassignedMember from './components/UnassignedMember';
 
 export default function GroupPage() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [teamId, setTeamId] = useState('');
   const [groups, setGroups] = useState<Group[]>([]);
@@ -25,20 +27,19 @@ export default function GroupPage() {
   const [success, setSuccess] = useState('');
   const [locked, setLocked] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const [progress, setProgress] = useState<string>(''); // 分组进度提示
-  const [historyGroups, setHistoryGroups] = useState<Group[][]>([]); // 历史分组
-  const [showHistory, setShowHistory] = useState(false); // 是否显示历史分组
-  const [historyLoading, setHistoryLoading] = useState(false); // 历史分组加载状态
+  const [progress, setProgress] = useState<string>('');
+  const [historyGroups, setHistoryGroups] = useState<Group[][]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
-  // 使用 useCache 缓存战队信息
   const { data: userTeam } = useCache(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     const { data: member } = await supabase.from('team_members').select('team_id').eq('user_id', user.id).maybeSingle();
     return member?.team_id || null;
-  }, { key: 'user-team', ttl: 10 * 60 * 1000 }); // 10分钟缓存
+  }, { key: 'user-team', ttl: 10 * 60 * 1000 });
 
   useEffect(() => {
     if (userTeam) {
@@ -54,7 +55,6 @@ export default function GroupPage() {
     setProgress('');
     try {
       setProgress('正在获取队员数据...');
-      // 模拟进度更新
       const progressInterval = setInterval(() => {
         const progressSteps = [
           '正在分析队员数据...',
@@ -75,7 +75,6 @@ export default function GroupPage() {
       });
       clearInterval(progressInterval);
       
-      // 检查网络错误
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         let errorMessage = '分组失败';
@@ -102,12 +101,10 @@ export default function GroupPage() {
       
       const data = await res.json();
       
-      // 检查业务逻辑错误
       if (data.error) {
         throw new Error(data.error);
       }
       
-      // 检查数据完整性
       if (!data.groups && !data.unassigned) {
         throw new Error('分组结果为空，请检查队员数据');
       }
@@ -134,7 +131,6 @@ export default function GroupPage() {
         body: JSON.stringify({ team_id: teamId, groups }) 
       });
       
-      // 检查网络错误
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         let errorMessage = '确认分组失败';
@@ -161,7 +157,6 @@ export default function GroupPage() {
       
       const data = await res.json();
       
-      // 检查业务逻辑错误
       if (data.error) {
         throw new Error(data.error);
       }
@@ -175,7 +170,6 @@ export default function GroupPage() {
     }
   }
 
-  // 获取历史分组
   async function fetchHistoryGroups() {
     if (!teamId) return;
     setHistoryLoading(true);
@@ -191,7 +185,6 @@ export default function GroupPage() {
     }
   }
 
-  // 拖拽功能相关
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(TouchSensor)
@@ -209,124 +202,229 @@ export default function GroupPage() {
     }
   }, []);
 
+  const handleMemberMove = useCallback((member: TeamMemberType, fromGroup: string) => {
+    setGroups((prevGroups) => {
+      return prevGroups.map((group) => {
+        if (group.name === fromGroup) {
+          return {
+            ...group,
+            members: group.members.filter((m) => m.user_id !== member.user_id)
+          };
+        }
+        return group;
+      });
+    });
+    setUnassigned((prevUnassigned) => [...prevUnassigned, member]);
+  }, []);
+
+  const handleAddMember = useCallback((member: TeamMemberType, toGroup: string) => {
+    setGroups((prevGroups) => {
+      return prevGroups.map((group) => {
+        if (group.name === toGroup) {
+          return {
+            ...group,
+            members: [...group.members, member]
+          };
+        }
+        return group;
+      });
+    });
+    setUnassigned((prevUnassigned) => {
+      return prevUnassigned.filter((m) => m.user_id !== member.user_id);
+    });
+  }, []);
+
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-800 dark:text-gray-100">
-      <div className="p-4 sm:p-5 md:p-6 max-w-7xl mx-auto">
-        {/* 页面头部 */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <Users className="w-6 sm:w-7 md:w-8 text-blue-600 dark:text-blue-400" />
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">智能分组系统</h1>
-          </div>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            系统会根据队员的位置、段位和擅长英雄进行智能分组，确保每组的平衡性和战斗力
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
+      {/* 背景装饰 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-pink-200/30 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 right-1/4 w-80 h-80 bg-blue-200/20 rounded-full blur-3xl" />
+      </div>
 
-        {/* 操作按钮 */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <button 
+      <div className="relative z-10 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+        {/* 页面头部 - 玻璃拟态卡片 */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="bg-white/70 backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-[0_8px_32px_rgba(236,72,153,0.1)] border border-white/50">
+            <div className="flex items-center gap-3 mb-4">
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.back()}
+                className="p-2.5 rounded-2xl bg-gradient-to-br from-pink-100 to-pink-50 text-pink-600 hover:shadow-lg transition-all duration-300"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </motion.button>
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-pink-500 to-purple-500 shadow-lg shadow-pink-500/25">
+                <Sparkles className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                  智能分组系统
+                </h1>
+                <p className="text-sm text-gray-500 mt-1">AI驱动的战队分组方案</p>
+              </div>
+            </div>
+            <p className="text-gray-600 leading-relaxed pl-16">
+              系统会根据队员的位置、段位和擅长英雄进行智能分组，确保每组的平衡性和战斗力
+            </p>
+          </div>
+        </motion.div>
+
+        {/* 操作按钮 - 呼吸感设计 */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex flex-wrap gap-4 mb-8"
+        >
+          <motion.button 
             onClick={handleGroup} 
-            disabled={loading || locked} 
-            aria-label={loading ? "分组中..." : locked ? "已锁定" : "开始分组"}
-            aria-busy={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
+            disabled={loading || locked}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className={`
+              relative overflow-hidden px-8 py-4 rounded-2xl font-semibold text-white
+              transition-all duration-500 shadow-lg
+              ${loading || locked 
+                ? 'bg-gray-300 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 hover:shadow-pink-500/30 animate-gradient'
+              }
+            `}
+            style={{
+              backgroundSize: '200% 200%',
+            }}
           >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
-                <span>分组中...</span>
-              </div>
-            ) : locked ? '已锁定' : (
-              <div className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4" aria-hidden="true" />
-                <span>开始分组</span>
-              </div>
-            )}
-          </button>
-          {!locked && groups.length > 0 && (
-            <button 
-              onClick={handleConfirmGroup} 
-              disabled={confirmLoading} 
-              aria-label={confirmLoading ? "确认中..." : "确认分组"}
-              aria-busy={confirmLoading}
-              className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
-            >
-              {confirmLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
-                  <span>确认中...</span>
-                </div>
+            <span className="relative z-10 flex items-center gap-2">
+              {loading ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span>分组中...</span>
+                </>
+              ) : locked ? (
+                <>
+                  <Shield className="w-5 h-5" />
+                  <span>已锁定</span>
+                </>
               ) : (
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4" aria-hidden="true" />
-                  <span>确认分组</span>
-                </div>
+                <>
+                  <Swords className="w-5 h-5" />
+                  <span>开始分组</span>
+                </>
               )}
-            </button>
+            </span>
+          </motion.button>
+
+          {!locked && groups.length > 0 && (
+            <motion.button 
+              onClick={handleConfirmGroup} 
+              disabled={confirmLoading}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-8 py-4 rounded-2xl font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-500 hover:shadow-lg hover:shadow-green-500/30 transition-all duration-300 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              <span className="flex items-center gap-2">
+                {confirmLoading ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>确认中...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    <span>确认分组</span>
+                  </>
+                )}
+              </span>
+            </motion.button>
           )}
-          <button 
+
+          <motion.button 
             onClick={() => {
               setShowHistory(!showHistory);
               if (!showHistory && teamId) {
                 fetchHistoryGroups();
               }
-            }} 
+            }}
             disabled={!teamId}
-            aria-label={showHistory ? "隐藏历史分组" : "显示历史分组"}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2.5 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="px-8 py-4 rounded-2xl font-semibold text-gray-700 bg-white/80 backdrop-blur-sm border border-gray-200 hover:bg-white hover:shadow-lg transition-all duration-300 disabled:opacity-50"
           >
-            <div className="flex items-center gap-2">
-              <History className="w-4 h-4" aria-hidden="true" />
-              <span>{showHistory ? '隐藏历史分组' : '历史分组'}</span>
-            </div>
-          </button>
-        </div>
+            <span className="flex items-center gap-2">
+              <History className="w-5 h-5" />
+              <span>{showHistory ? '隐藏历史' : '历史分组'}</span>
+            </span>
+          </motion.button>
+        </motion.div>
 
-        {/* 提示信息 */}
-        {error && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-4 rounded-lg mb-6 border border-red-200 dark:border-red-800 flex items-start gap-3"
-          >
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <p>{error}</p>
-          </motion.div>
-        )}
-        {success && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 p-4 rounded-lg mb-6 border border-green-200 dark:border-green-800 flex items-start gap-3"
-          >
-            <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <p>{success}</p>
-          </motion.div>
-        )}
-        {progress && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 p-4 rounded-lg mb-6 border border-blue-200 dark:border-blue-800 flex items-start gap-3"
-          >
-            <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <p>{progress}</p>
-          </motion.div>
-        )}
+        {/* 提示信息 - 玻璃拟态 */}
+        <AnimatePresence mode="wait">
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="mb-6 bg-red-50/80 backdrop-blur-sm border border-red-200 rounded-2xl p-4 flex items-center gap-3 shadow-lg shadow-red-500/10"
+            >
+              <div className="p-2 bg-red-100 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <p className="text-red-700 font-medium">{error}</p>
+            </motion.div>
+          )}
+          
+          {success && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="mb-6 bg-green-50/80 backdrop-blur-sm border border-green-200 rounded-2xl p-4 flex items-center gap-3 shadow-lg shadow-green-500/10"
+            >
+              <div className="p-2 bg-green-100 rounded-xl">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <p className="text-green-700 font-medium">{success}</p>
+            </motion.div>
+          )}
+          
+          {progress && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="mb-6 bg-blue-50/80 backdrop-blur-sm border border-blue-200 rounded-2xl p-4 flex items-center gap-3 shadow-lg shadow-blue-500/10"
+            >
+              <div className="p-2 bg-blue-100 rounded-xl">
+                <Clock className="w-5 h-5 text-blue-600 animate-pulse" />
+              </div>
+              <p className="text-blue-700 font-medium">{progress}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* 分组结果 */}
         {groups.length > 0 && (
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <SortableContext items={groups.map(group => group.name)}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
                 {groups.map((group, idx) => (
-                  <GroupCard key={idx} group={group} locked={locked} index={idx} />
+                  <GroupCard 
+                    key={idx} 
+                    group={group} 
+                    locked={locked} 
+                    index={idx}
+                    onMemberMove={handleMemberMove}
+                    onAddMember={handleAddMember}
+                    unassignedMembers={unassigned}
+                  />
                 ))}
               </div>
             </SortableContext>
@@ -334,100 +432,181 @@ export default function GroupPage() {
         )}
 
         {/* 历史分组 */}
-        {showHistory && (
-          <div className="mt-8">
-            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-              <History className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              历史分组
-            </h2>
-            {historyLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-              </div>
-            ) : historyGroups.length > 0 ? (
-              <div className="space-y-6">
-                {historyGroups.map((historyGroup, idx) => (
-                  <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5 border border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">分组记录 #{historyGroups.length - idx}</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {historyGroup.map((group, groupIdx) => (
-                        <div key={groupIdx} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-                          <h4 className="font-medium mb-2 text-blue-600 dark:text-blue-400">{group.name}</h4>
-                          <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                            平均分: {group.average_score} | 英雄重叠度: {group.hero_overlap_rate}%
-                          </div>
-                          <div className="space-y-2">
-                            {group.members.map((member: {
-                              game_id: string;
-                              main_position: string;
-                            }, memberIdx) => (
-                              <div key={memberIdx} className="flex items-center gap-2 text-sm">
-                                <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-400 to-green-500 flex items-center justify-center">
-                                  <span className="text-white text-xs font-medium">{member.game_id.charAt(0).toUpperCase()}</span>
-                                </div>
-                                <span>{member.game_id} ({member.main_position})</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+        <AnimatePresence>
+          {showHistory && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-8 overflow-hidden"
+            >
+              <div className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.05)] border border-white/50">
+                <h2 className="text-xl font-bold mb-6 text-gray-800 flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-xl">
+                    <History className="w-5 h-5 text-purple-600" />
                   </div>
-                ))}
+                  历史分组
+                </h2>
+                
+                {historyLoading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="w-10 h-10 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
+                  </div>
+                ) : historyGroups.length > 0 ? (
+                  <div className="space-y-6">
+                    {historyGroups.map((historyGroup, idx) => (
+                      <motion.div 
+                        key={idx}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 border border-gray-100 shadow-sm"
+                      >
+                        <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
+                          <Target className="w-4 h-4 text-pink-500" />
+                          分组记录 #{historyGroups.length - idx}
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {historyGroup.map((group, groupIdx) => (
+                            <div key={groupIdx} className="bg-gradient-to-br from-gray-50 to-white p-4 rounded-xl border border-gray-100">
+                              <h4 className="font-semibold mb-2 text-pink-600">{group.name}</h4>
+                              <div className="text-sm text-gray-500 mb-3">
+                                平均分: <span className="font-medium text-gray-700">{group.average_score}</span> | 英雄重叠: <span className="font-medium text-gray-700">{group.hero_overlap_rate}%</span>
+                              </div>
+                              <div className="space-y-2">
+                                {group.members.map((member: { game_id: string; main_position: string; }, memberIdx: number) => (
+                                  <div key={memberIdx} className="flex items-center gap-2 text-sm">
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-400 to-purple-400 flex items-center justify-center text-white text-xs font-bold">
+                                      {member.game_id.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="text-gray-700">{member.game_id}</span>
+                                    <span className="text-xs px-2 py-0.5 bg-pink-100 text-pink-600 rounded-full">{member.main_position}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-5xl mb-4">📋</div>
+                    <p className="text-gray-500">暂无历史分组记录</p>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 text-center">
-                <p className="text-gray-600 dark:text-gray-400">暂无历史分组记录</p>
-              </div>
-            )}
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* 未分配队员 */}
-        {unassigned.length > 0 && (
-          <div className="mt-6 sm:mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-5 border border-gray-200 dark:border-gray-700">
-            <h3 className="font-bold mb-3 sm:mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              未分配队员 ({unassigned.length})
-            </h3>
-            <div style={{ maxHeight: '400px', overflow: 'auto' }}>
-              <div className="space-y-3">
-                {unassigned.map((p) => (
-                  <UnassignedMember key={p.user_id} member={p} />
+        <AnimatePresence>
+          {unassigned.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.05)] border border-white/50"
+            >
+              <h3 className="font-bold mb-6 text-gray-800 flex items-center gap-3">
+                <div className="p-2 bg-amber-100 rounded-xl">
+                  <UserPlus className="w-5 h-5 text-amber-600" />
+                </div>
+                未分配队员 <span className="text-amber-600 bg-amber-100 px-3 py-1 rounded-full text-sm">{unassigned.length}</span>
+              </h3>
+              <div className="max-h-[400px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                {unassigned.map((p, idx) => (
+                  <motion.div
+                    key={p.user_id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <UnassignedMember member={p} />
+                  </motion.div>
                 ))}
               </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* 空状态 */}
         {!locked && groups.length === 0 && (
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 sm:p-8 text-center transition-all duration-300 hover:shadow-md">
-            <div className="text-5xl sm:text-6xl mb-4 sm:mb-6">🎮</div>
-            <h3 className="text-lg sm:text-xl font-semibold mb-3 text-gray-900 dark:text-white">还没有分组</h3>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-6 sm:mb-8 max-w-md mx-auto">
-              点击「开始分组」按钮，系统会根据队员的位置、段位和擅长英雄进行智能分组，确保每组的平衡性和战斗力
-            </p>
-            <button 
-              onClick={handleGroup} 
-              disabled={loading} 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 sm:p-12 text-center shadow-[0_8px_32px_rgba(0,0,0,0.05)] border border-white/50"
+          >
+            <motion.div 
+              animate={{ 
+                scale: [1, 1.1, 1],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{ 
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="text-7xl mb-6"
             >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>分组中...</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4" />
-                  <span>开始分组</span>
-                </div>
-              )}
-            </button>
-          </div>
+              🎮
+            </motion.div>
+            <h3 className="text-2xl font-bold mb-3 text-gray-800">还没有分组</h3>
+            <p className="text-gray-500 mb-8 max-w-md mx-auto leading-relaxed">
+              点击「开始分组」按钮，系统会根据队员的位置、段位和擅长英雄进行智能分组
+            </p>
+            <motion.button 
+              onClick={handleGroup} 
+              disabled={loading}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-8 py-4 rounded-2xl font-semibold text-white bg-gradient-to-r from-pink-500 to-purple-500 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 disabled:opacity-50"
+            >
+              <span className="flex items-center gap-2">
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>分组中...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    <span>开始分组</span>
+                  </>
+                )}
+              </span>
+            </motion.button>
+          </motion.div>
         )}
       </div>
+
+      {/* 自定义滚动条样式 */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(236, 72, 153, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #ec4899, #a855f7);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #db2777, #9333ea);
+        }
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient {
+          animation: gradient 3s ease infinite;
+        }
+      `}</style>
     </div>
   );
 }

@@ -34,8 +34,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   // 监听路由变化，显示进度条
   useEffect(() => {
     NProgress.start();
-    const timer = setTimeout(() => NProgress.done(), 500);
-    return () => clearTimeout(timer);
+    return () => NProgress.done();
   }, [pathname]);
 
   // 防止 hydration 不匹配，首次渲染返回空

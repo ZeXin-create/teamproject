@@ -37,6 +37,8 @@ export default function RecruitmentManagementPage() {
   const [teamId, setTeamId] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [recruitToDelete, setRecruitToDelete] = useState<string | null>(null)
 
   // 获取用户战队信息和角色
   const fetchUserTeam = useCallback(async () => {
@@ -132,13 +134,17 @@ export default function RecruitmentManagementPage() {
 
   // 复制联系方式
   const copyContact = (contact: string) => {
-    navigator.clipboard.writeText(contact)
-      .then(() => {
-        alert('联系方式已复制到剪贴板')
-      })
-      .catch(err => {
-        console.error('复制失败:', err)
-      })
+    if (typeof window !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(contact)
+        .then(() => {
+          if (typeof window !== 'undefined') {
+            alert('联系方式已复制到剪贴板')
+          }
+        })
+        .catch(err => {
+          console.error('复制失败:', err)
+        })
+    }
   }
 
   // 骨架屏组件
@@ -150,8 +156,13 @@ export default function RecruitmentManagementPage() {
     </div>
   )
 
+  useEffect(() => {
+    if (!user) {
+      router.push('/auth/login')
+    }
+  }, [user, router])
+
   if (!user) {
-    router.push('/auth/login')
     return null
   }
 
@@ -159,7 +170,7 @@ export default function RecruitmentManagementPage() {
     return (
       <div className="min-h-screen">
         <Navbar />
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 pt-32 pb-8">
           <div className="flex flex-col lg:flex-row gap-6">
             {/* 侧边栏 */}
             <div className="hidden lg:block">
@@ -238,7 +249,7 @@ export default function RecruitmentManagementPage() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-32 pb-8">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* 侧边栏 */}
           <div className="hidden lg:block">
@@ -252,9 +263,17 @@ export default function RecruitmentManagementPage() {
             {/* 页面标题和搜索栏 */}
             <div className="card p-6 mb-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-bold gradient-text">招募管理</h1>
-                  <p className="mt-2 text-gray-600">管理战队招募帖子</p>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => router.back()}
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <span>←</span> 返回
+                  </button>
+                  <div>
+                    <h1 className="text-2xl font-bold gradient-text">招募管理</h1>
+                    <p className="mt-2 text-gray-600">管理战队招募帖子</p>
+                  </div>
                 </div>
                 <div className="flex gap-4">
                   <div className="relative">
@@ -291,7 +310,10 @@ export default function RecruitmentManagementPage() {
                           className={`card p-4 cursor-pointer transition-all duration-300 ${selectedRecruit?.id === recruit.id ? 'ring-2 ring-primary-500' : 'hover:shadow-md'}`}
                           onClick={() => {
                             setSelectedRecruit(recruit)
-                            setMobileDetailOpen(true)
+                            // 只在小屏幕上打开模态框
+                            if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                              setMobileDetailOpen(true)
+                            }
                           }}
                         >
                           <div className="flex items-start justify-between">
@@ -432,6 +454,15 @@ export default function RecruitmentManagementPage() {
                         >
                           {selectedRecruit.status === 'active' ? '结束招募' : '重新招募'}
                         </button>
+                        <button
+                          onClick={() => {
+                            setRecruitToDelete(selectedRecruit.id)
+                            setShowDeleteConfirm(true)
+                          }}
+                          className="px-4 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition-colors"
+                        >
+                          删除
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -529,7 +560,7 @@ export default function RecruitmentManagementPage() {
                   <p className="font-medium">{new Date(selectedRecruit.created_at).toLocaleString()}</p>
                 </div>
                 
-                <div className="flex gap-4 pt-4 border-t border-gray-200">
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
                   <button
                     onClick={() => router.push(`/teams/recruit?edit=${selectedRecruit.id}`)}
                     className="btn-primary px-4 py-2 text-white font-medium flex-1"
@@ -550,9 +581,76 @@ export default function RecruitmentManagementPage() {
                     }}
                     className="btn-secondary px-4 py-2 text-gray-700 font-medium flex-1"
                   >
-                    {selectedRecruit.status === 'active' ? '结束招募' : '重新招募'}
+                    {selectedRecruit.status === 'active' ? '结束' : '重新'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRecruitToDelete(selectedRecruit.id)
+                      setShowDeleteConfirm(true)
+                    }}
+                    className="px-4 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition-colors flex-1"
+                  >
+                    删除
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 自定义删除确认弹窗 */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl shadow-pink-200/30 animate-in fade-in zoom-in-95 duration-300">
+            {/* 粉色光晕背景 */}
+            <div className="absolute -top-20 -right-20 w-40 h-40 bg-pink-300/40 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-300/40 rounded-full blur-3xl" />
+            
+            <div className="relative">
+              {/* 头部 */}
+              <div className="text-center mb-6">
+                <div className="text-5xl mb-4">🗑️</div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">确认删除</h3>
+                <p className="text-gray-600 mb-4">
+                  确定要删除这个招募帖子吗？
+                </p>
+                <p className="text-gray-500 text-sm mb-6">
+                  此操作不可恢复，删除后招募信息将永久丢失
+                </p>
+              </div>
+              
+              {/* 按钮 */}
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false)
+                    setRecruitToDelete(null)
+                  }}
+                  className="flex-1 px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    if (recruitToDelete) {
+                      supabase
+                        .from('team_recruits')
+                        .delete()
+                        .eq('id', recruitToDelete)
+                        .then(() => {
+                          fetchRecruits()
+                          setSelectedRecruit(null)
+                          setMobileDetailOpen(false)
+                          setShowDeleteConfirm(false)
+                          setRecruitToDelete(null)
+                        })
+                    }
+                  }}
+                  className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 transition-all duration-300 font-medium shadow-lg shadow-pink-200/50 hover:shadow-xl hover:shadow-pink-300/30"
+                >
+                  确认删除
+                </button>
               </div>
             </div>
           </div>

@@ -197,7 +197,7 @@ export default function EditTeamPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 pt-24 pb-8">
         <div className="flex items-center mb-6">
           <button 
             className="mr-4 text-pink-500 hover:text-pink-600 glass-button px-4 py-2 rounded-lg"

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import PWAPrompt from '../components/PWAPrompt'
 
@@ -104,7 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?type=signup`
+          emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback?type=signup`
         }
       })
       
@@ -145,8 +145,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
+  // 使用 useMemo 缓存 value，避免不必要的重渲染
+  const contextValue = useMemo(() => ({
+    user,
+    isLoading,
+    login,
+    register,
+    logout,
+    successMessage,
+    setSuccessMessage
+  }), [user, isLoading, successMessage])
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, successMessage, setSuccessMessage }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
       <PWAPrompt isLoggedIn={!!user} />
     </AuthContext.Provider>

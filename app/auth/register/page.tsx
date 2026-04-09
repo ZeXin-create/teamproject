@@ -113,7 +113,9 @@ export default function RegisterPage() {
         setError('该邮箱已注册，请直接登录')
         // 3秒后跳转到登录页
         setTimeout(() => {
-          window.location.href = '/auth/login'
+          if (typeof window !== 'undefined') {
+            window.location.href = '/auth/login'
+          }
         }, 3000)
         return
       }
@@ -133,7 +135,9 @@ export default function RegisterPage() {
         setError('该邮箱已注册，请直接登录')
         // 3秒后跳转到登录页
         setTimeout(() => {
-          window.location.href = '/auth/login'
+          if (typeof window !== 'undefined') {
+            window.location.href = '/auth/login'
+          }
         }, 3000)
         return
       }
@@ -142,7 +146,7 @@ export default function RegisterPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : '',
           shouldCreateUser: true,
           data: {
             password
@@ -275,7 +279,9 @@ export default function RegisterPage() {
         setError('该邮箱已注册，请直接登录')
         // 3秒后跳转到登录页
         setTimeout(() => {
-          window.location.href = '/auth/login'
+          if (typeof window !== 'undefined') {
+            window.location.href = '/auth/login'
+          }
         }, 3000)
         return
       }
@@ -289,7 +295,7 @@ export default function RegisterPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : '',
           shouldCreateUser: true
         }
       })

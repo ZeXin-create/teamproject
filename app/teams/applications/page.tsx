@@ -54,6 +54,7 @@ export default function ApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [teamId, setTeamId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [approving, setApproving] = useState<string | null>(null) // 跟踪正在审批的申请ID
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   
@@ -217,6 +218,7 @@ export default function ApplicationsPage() {
   }, [user, getTeamApplications, teamId])
 
   const handleApprove = async (applicationId: string, userId: string) => {
+    setApproving(applicationId)
     try {
       // 调用 API 处理审批
       const response = await fetch('/api/applications', {
@@ -241,10 +243,13 @@ export default function ApplicationsPage() {
     } catch (err: unknown) {
       console.error('批准申请失败:', err)
       setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '批准申请失败，请稍后重试')
+    } finally {
+      setApproving(null)
     }
   }
 
   const handleReject = async (applicationId: string) => {
+    setApproving(applicationId)
     try {
       // 调用 API 处理拒绝
       const response = await fetch('/api/applications', {
@@ -267,6 +272,8 @@ export default function ApplicationsPage() {
     } catch (err: unknown) {
       console.error('拒绝申请失败:', err)
       setError(typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : '拒绝申请失败，请稍后重试')
+    } finally {
+      setApproving(null)
     }
   }
 
@@ -300,7 +307,7 @@ export default function ApplicationsPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <Navbar />
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 pt-32 pb-8">
           <div className="flex items-center mb-6">
             <div className="mr-4 glass-button px-4 py-2 rounded-lg">
               <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
@@ -323,7 +330,7 @@ export default function ApplicationsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 pt-32 pb-8">
         <div className="flex items-center mb-6">
           <button
             className="mr-4 text-pink-500 hover:text-pink-600 glass-button px-4 py-2 rounded-lg"
@@ -432,16 +439,28 @@ export default function ApplicationsPage() {
 
                   <div className="flex justify-end gap-4">
                     <button
-                      className="px-4 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-lg hover:from-red-500 hover:to-red-600 transition-colors"
+                      className="px-4 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-lg hover:from-red-500 hover:to-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       onClick={() => handleReject(app.id)}
+                      disabled={approving === app.id}
                     >
-                      拒绝
+                      {approving === app.id && (
+                        <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      )}
+                      {approving === app.id ? '处理中...' : '拒绝'}
                     </button>
                     <button
-                      className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg hover:from-pink-600 hover:to-purple-600 transition-colors"
+                      className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg hover:from-pink-600 hover:to-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       onClick={() => handleApprove(app.id, app.user_id)}
+                      disabled={approving === app.id}
                     >
-                      批准
+                      {approving === app.id && (
+                        <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      )}
+                      {approving === app.id ? '处理中...' : '批准'}
                     </button>
                   </div>
                 </div>

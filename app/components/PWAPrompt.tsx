@@ -23,37 +23,39 @@ export const PWAPrompt: React.FC<PWAPromptProps> = ({ isLoggedIn }) => {
   useEffect(() => {
     if (!mounted) return
 
-    // 检查用户是否已经拒绝过提示
-    const hasRejectedPrompt = localStorage.getItem('pwaPromptRejected') === 'true'
-    if (hasRejectedPrompt) {
-      return
-    }
-
-    // 检查是否支持PWA
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches
-    if (isPWA) {
-      return
-    }
-
-    // 检查当前页面是否是登录页面
-    const isLoginPage = window.location.pathname === '/auth/login'
-    
-    // 监听beforeinstallprompt事件
-    const handleBeforeInstallPrompt = (e: Event) => {
-      // 阻止Chrome 67及更早版本自动显示安装提示
-      e.preventDefault()
-      // 保存事件以便稍后触发
-      setDeferredPrompt(e as BeforeInstallPromptEvent)
-      // 只有在用户登录后且当前是登录页面才显示提示
-      if (isLoggedIn && isLoginPage) {
-        setShowPrompt(true)
+    if (typeof window !== 'undefined') {
+      // 检查用户是否已经拒绝过提示
+      const hasRejectedPrompt = localStorage.getItem('pwaPromptRejected') === 'true'
+      if (hasRejectedPrompt) {
+        return
       }
-    }
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      // 检查是否支持PWA
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches
+      if (isPWA) {
+        return
+      }
 
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      // 检查当前页面是否是登录页面
+      const isLoginPage = typeof window !== 'undefined' && window.location.pathname === '/auth/login'
+      
+      // 监听beforeinstallprompt事件
+      const handleBeforeInstallPrompt = (e: Event) => {
+        // 阻止Chrome 67及更早版本自动显示安装提示
+        e.preventDefault()
+        // 保存事件以便稍后触发
+        setDeferredPrompt(e as BeforeInstallPromptEvent)
+        // 只有在用户登录后且当前是登录页面才显示提示
+        if (isLoggedIn && isLoginPage) {
+          setShowPrompt(true)
+        }
+      }
+
+      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      }
     }
   }, [isLoggedIn, mounted])
 
@@ -75,7 +77,9 @@ export const PWAPrompt: React.FC<PWAPromptProps> = ({ isLoggedIn }) => {
   const handleDismiss = () => {
     setShowPrompt(false)
     // 记录用户拒绝，不再显示提示
-    localStorage.setItem('pwaPromptRejected', 'true')
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('pwaPromptRejected', 'true')
+    }
   }
 
   if (!showPrompt) return null

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Zap, AlertCircle, GripVertical } from 'lucide-react';
-import { Group, GroupAnalysis } from '../types';
+import { Brain, Zap, AlertCircle, GripVertical, UserPlus, UserMinus, RefreshCw } from 'lucide-react';
+import { Group, GroupAnalysis, TeamMember as TeamMemberType } from '../types';
 import TeamMember from './TeamMember';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -10,9 +10,12 @@ interface GroupCardProps {
   group: Group;
   locked: boolean;
   index: number;
+  onMemberMove?: (member: TeamMemberType, fromGroup: string) => void;
+  unassignedMembers?: TeamMemberType[];
+  onAddMember?: (member: TeamMemberType, toGroup: string) => void;
 }
 
-const GroupCard: React.FC<GroupCardProps> = ({ group, locked, index }) => {
+const GroupCard: React.FC<GroupCardProps> = ({ group, locked, index, onMemberMove, unassignedMembers, onAddMember }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: group.name
   });
@@ -23,6 +26,8 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, locked, index }) => {
     zIndex: isDragging ? 1000 : 1
   };
   const [expanded, setExpanded] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [activeTab, setActiveTab] = useState<'analysis' | 'adjust'>( 'analysis' );
 
   // 计算分组的详细分析数据
   const analysis: GroupAnalysis = useMemo(() => {
@@ -64,6 +69,8 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, locked, index }) => {
       weaknesses
     };
   }, [group.members]);
+
+
 
   return (
     <motion.div 
@@ -158,68 +165,160 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, locked, index }) => {
             role="region"
             aria-labelledby={`group-title-${index}`}
           >
-            <div className="p-5 bg-gray-50 dark:bg-gray-700/30">
-              <h3 className="font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-                <Brain className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                分组分析
-              </h3>
-              
-              {/* 详细数据 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">总得分</p>
-                  <p className="font-medium text-lg text-gray-900 dark:text-white">{analysis.totalScore}</p>
-                </div>
-                <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">队员数量</p>
-                  <p className="font-medium text-lg text-gray-900 dark:text-white">{group.members.length}</p>
-                </div>
+            <div className="bg-gray-50 dark:bg-gray-700/30">
+              {/* 标签页导航 */}
+              <div className="flex border-b border-gray-200 dark:border-gray-600">
+                <button
+                  onClick={() => setActiveTab('analysis')}
+                  className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all duration-300 ${activeTab === 'analysis' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
+                >
+                  <Brain className="w-4 h-4" />
+                  分组分析
+                </button>
+                <button
+                  onClick={() => setActiveTab('adjust')}
+                  className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all duration-300 ${activeTab === 'adjust' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  手动调整
+                </button>
               </div>
 
-              {/* 位置分布 */}
-              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600 mb-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">位置分布</p>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(analysis.positionCount).map(([position, count]) => (
-                    <span key={position} className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-sm">
-                      {position}: {count}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              {/* 标签页内容 */}
+              <div className="p-5">
+                {/* 分析标签页 */}
+                {activeTab === 'analysis' && (
+                  <div>
+                    <h3 className="font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      分组分析
+                    </h3>
+                    
+                    {/* 详细数据 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">总得分</p>
+                        <p className="font-medium text-lg text-gray-900 dark:text-white">{analysis.totalScore}</p>
+                      </div>
+                      <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">队员数量</p>
+                        <p className="font-medium text-lg text-gray-900 dark:text-white">{group.members.length}</p>
+                      </div>
+                    </div>
 
-              {/* 优势和劣势 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-green-50 dark:bg-green-900/30 p-3 rounded-lg border border-green-200 dark:border-green-800">
-                  <p className="text-sm font-medium text-green-700 dark:text-green-300 mb-2 flex items-center gap-1">
-                    <Zap className="w-4 h-4" />
-                    优势
-                  </p>
-                  <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                    {analysis.strengths.length > 0 ? (
-                      analysis.strengths.map((strength, i) => (
-                        <li key={i}>{strength}</li>
-                      ))
-                    ) : (
-                      <li>暂无明显优势</li>
+                    {/* 位置分布 */}
+                    <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600 mb-4">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">位置分布</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(analysis.positionCount).map(([position, count]) => (
+                          <span key={position} className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-sm">
+                            {position}: {count}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 优势和劣势 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-green-50 dark:bg-green-900/30 p-3 rounded-lg border border-green-200 dark:border-green-800">
+                        <p className="text-sm font-medium text-green-700 dark:text-green-300 mb-2 flex items-center gap-1">
+                          <Zap className="w-4 h-4" />
+                          优势
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                          {analysis.strengths.length > 0 ? (
+                            analysis.strengths.map((strength, i) => (
+                              <li key={i}>{strength}</li>
+                            ))
+                          ) : (
+                            <li>暂无明显优势</li>
+                          )}
+                        </ul>
+                      </div>
+                      <div className="bg-yellow-50 dark:bg-yellow-900/30 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300 mb-2 flex items-center gap-1">
+                          <AlertCircle className="w-4 h-4" />
+                          劣势
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                          {analysis.weaknesses.length > 0 ? (
+                            analysis.weaknesses.map((weakness, i) => (
+                              <li key={i}>{weakness}</li>
+                            ))
+                          ) : (
+                            <li>暂无明显劣势</li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+
+
+                {/* 手动调整标签页 */}
+                {activeTab === 'adjust' && (
+                  <div>
+                    <h3 className="font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                      <RefreshCw className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      手动调整分组
+                    </h3>
+                    
+                    {/* 队员列表 */}
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium mb-3 text-gray-900 dark:text-white">当前队员</h4>
+                      <div className="space-y-3">
+                        {group.members.map((member, i) => (
+                          <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600">
+                            <TeamMember member={member} />
+                            {!locked && onMemberMove && (
+                              <button
+                                onClick={() => onMemberMove(member, group.name)}
+                                className="ml-auto bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 p-2 rounded-lg transition-all duration-300"
+                                aria-label="移除队员"
+                              >
+                                <UserMinus className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* 添加队员 */}
+                    {!locked && onAddMember && unassignedMembers && unassignedMembers.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-medium text-gray-900 dark:text-white">添加队员</h4>
+                          <button
+                            onClick={() => setShowAddMember(!showAddMember)}
+                            className="bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-lg text-sm transition-all duration-300 flex items-center gap-1"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                            {showAddMember ? '收起' : '展开'}
+                          </button>
+                        </div>
+                        
+                        {showAddMember && (
+                          <div className="space-y-3 max-h-60 overflow-y-auto">
+                            {unassignedMembers.map((member, i) => (
+                              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600">
+                                <TeamMember member={member} />
+                                <button
+                                  onClick={() => onAddMember(member, group.name)}
+                                  className="ml-auto bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-600 dark:text-green-400 p-2 rounded-lg transition-all duration-300"
+                                  aria-label="添加队员"
+                                >
+                                  <UserPlus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
-                  </ul>
-                </div>
-                <div className="bg-yellow-50 dark:bg-yellow-900/30 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                  <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300 mb-2 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    劣势
-                  </p>
-                  <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                    {analysis.weaknesses.length > 0 ? (
-                      analysis.weaknesses.map((weakness, i) => (
-                        <li key={i}>{weakness}</li>
-                      ))
-                    ) : (
-                      <li>暂无明显劣势</li>
-                    )}
-                  </ul>
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

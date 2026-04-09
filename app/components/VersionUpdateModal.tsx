@@ -21,9 +21,11 @@ export default function VersionUpdateModal({ version, updateContent }: VersionUp
 
     // 检查是否需要显示版本更新弹窗
     const checkVersionUpdate = () => {
-      const lastVersion = localStorage.getItem('lastVersion')
-      if (lastVersion !== version) {
-        setShowModal(true)
+      if (typeof window !== 'undefined') {
+        const lastVersion = localStorage.getItem('lastVersion')
+        if (lastVersion !== version) {
+          setShowModal(true)
+        }
       }
     }
 
@@ -32,7 +34,9 @@ export default function VersionUpdateModal({ version, updateContent }: VersionUp
 
   const handleClose = () => {
     // 存储当前版本号到 localStorage
-    localStorage.setItem('lastVersion', version)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lastVersion', version)
+    }
     setShowModal(false)
   }
 

@@ -148,7 +148,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             setNotifications(prev => [newNotification, ...prev]);
             
             // 显示浏览器通知
-            if (Notification.permission === 'granted') {
+            if (typeof window !== 'undefined' && Notification.permission === 'granted') {
               new Notification(newNotification.title, {
                 body: newNotification.message,
                 icon: '/favicon.ico'
@@ -159,7 +159,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .subscribe();
 
       // 请求浏览器通知权限
-      if (Notification.permission === 'default') {
+      if (typeof window !== 'undefined' && Notification.permission === 'default') {
         Notification.requestPermission();
       }
 

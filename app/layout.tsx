@@ -11,7 +11,7 @@ import { Inter } from 'next/font/google'
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
-  preload: true,
+  preload: false,
 })
 
 import OnboardingGuide from './components/OnboardingGuide'
@@ -25,19 +25,21 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   useEffect(() => {
-    const hasVisited = localStorage.getItem('hasVisited')
-    if (!hasVisited) {
-      localStorage.setItem('hasVisited', 'true')
-    }
+    if (typeof window !== 'undefined') {
+      const hasVisited = localStorage.getItem('hasVisited')
+      if (!hasVisited) {
+        localStorage.setItem('hasVisited', 'true')
+      }
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
-        .then((registration) => {
-          console.log('Service Worker 注册成功:', registration.scope)
-        })
-        .catch((error) => {
-          console.log('Service Worker 注册失败:', error)
-        })
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then((registration) => {
+            console.log('Service Worker 注册成功:', registration.scope)
+          })
+          .catch((error) => {
+            console.log('Service Worker 注册失败:', error)
+          })
+      }
     }
   }, [])
       
@@ -56,7 +58,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <NotificationProvider>
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
               <PageTransition>
                 {children}
               </PageTransition>
@@ -65,14 +67,15 @@ export default function RootLayout({
             <VersionUpdateModal 
               version={APP_VERSION} 
               updateContent={[
-                "优化了智能分组页面的性能，添加了数据缓存和虚拟列表",
-                "增强了智能分组页面的用户体验，添加了分组动画和进度提示",
-                "恢复了智能分组页面的拖拽功能和历史分组功能",
-                "优化了智能分组页面的可访问性，添加了键盘导航和ARIA属性",
-                "完善了智能分组页面的响应式设计，优化了移动端体验",
-                "增强了智能分组页面的错误处理，添加了详细的错误提示",
-                "优化了智能分组页面的代码结构，拆分了组件和添加了类型定义",
-                "修复了智能分组页面的JSX语法错误，确保页面正常运行"
+                "智能分组系统：修复数据合并逻辑，确保有效数据不被覆盖",
+                "智能分组系统：实现时间区间兼容性，时间多的队员兼容时间少的队员",
+                "智能分组系统：修复分组算法，确保每组最多5人，优先覆盖5个位置",
+                "智能分组系统：修复位置解析问题，正确读取'射手'映射为'发育路'的数据",
+                "智能分组系统：添加23条完整的模拟数据用于测试",
+                "智能分组系统：移除可视化分析功能，简化页面",
+                "页面样式：优化智能分组页面，添加玻璃拟态、呼吸感设计和现代UI元素",
+                "错误修复：修复队长踢出队员时的500错误，修复队长查找失败问题",
+                "用户体验：为分组操作添加加载动画和进度提示，改进错误处理"
               ]} 
             />
           </NotificationProvider>

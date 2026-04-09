@@ -131,7 +131,7 @@ export default function RecruitPage() {
       }
 
       // 生成纯 UUID 文件名（不带后缀）
-      const fileName = crypto.randomUUID()
+      const fileName = typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)
       const filePath = `${authUser.id}/${fileName}`
 
       const { error: uploadError } = await supabase.storage
@@ -286,7 +286,7 @@ export default function RecruitPage() {
           return (
             <div className="min-h-screen">
               <Navbar />
-              <div className="container mx-auto px-4 py-8">
+              <div className="container mx-auto px-4 pt-24 pb-8">
                 <div className="flex items-center mb-6">
                   <button
                     onClick={() => router.back()}

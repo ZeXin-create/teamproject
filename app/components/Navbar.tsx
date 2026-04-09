@@ -41,8 +41,6 @@ export default function Navbar() {
           avatar: ''
         })
       }
-
-
     } catch (error) {
       console.error('获取用户资料失败:', error)
       setUserProfile({
@@ -59,12 +57,14 @@ export default function Navbar() {
   }, [user, fetchUserProfile])
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
-    }
+    if (typeof window !== 'undefined') {
+      const handleScroll = () => {
+        setIsScrolled(window.scrollY > 50)
+      }
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+      window.addEventListener('scroll', handleScroll)
+      return () => window.removeEventListener('scroll', handleScroll)
+    }
   }, [])
 
   const handleLogout = async () => {
@@ -91,202 +91,50 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md shadow-sm py-3 transition-all duration-300">
-      <div className="container mx-auto px-4 flex justify-between items-center">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-accent-500 to-secondary-500 flex items-center justify-center text-white font-bold text-xl shadow-lg">
-            ✨
-          </div>
-          <span className="text-2xl font-bold gradient-text">
-            王者战队助手系统
-          </span>
-        </Link>
-
-        {/* 桌面菜单 */}
-        <div className="hidden md:flex items-center gap-6">
-          <Link
-            href="/"
-            className="px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
-          >
-            🏠 主页
+    <>
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md shadow-sm py-3 transition-all duration-300">
+        <div className="container mx-auto px-4 flex justify-between items-center">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-accent-500 to-secondary-500 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+              ✨
+            </div>
+            <span className="text-2xl font-bold gradient-text md:block hidden">
+              王者战队助手系统
+            </span>
+            <span className="text-xl font-bold gradient-text block md:hidden">
+              战队助手
+            </span>
           </Link>
-          {user ? (
-            <>
-              <Link
-                href="/teams/space"
-                className="px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
-              >
-                🎮 战队管理后台
-              </Link>
-              <Link
-                href="/profile"
-                className="px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
-              >
-                👤 个人中心
-              </Link>
-              <div className="flex items-center gap-3">
-                <NotificationBell />
-                <div className="relative">
-                  <button
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-3 card px-4 py-2 hover:scale-105 transition-transform"
-                  >
-                    {userProfile.avatar ? (
-                      <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white/50">
-                        <Image
-                          src={userProfile.avatar}
-                          alt="用户头像"
-                          width={40}
-                          height={40}
-                          className="object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      </div>
-                    ) : null}
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${userProfile.avatar ? 'hidden' : ''}`}
-                      style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
-                    >
-                      {userProfile.nickname.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-gray-800 font-medium">{userProfile.nickname}</span>
-                  </button>
-                  
-                  {/* 用户下拉菜单 */}
-                  <AnimatePresence>
-                    {showUserMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 10 }}
-                        className="absolute right-0 top-full mt-2 w-48 card p-2 z-50"
-                      >
-                        <Link
-                          href="/profile"
-                          className="block px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          个人中心
-                        </Link>
-                        <Link
-                          href="/teams/space"
-                          className="block px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          战队管理后台
-                        </Link>
-                        <div className="border-t border-gray-200 my-1"></div>
-                        <button
-                          onClick={() => {
-                            setShowUserMenu(false);
-                            setShowLogoutConfirm(true);
-                          }}
-                          className="w-full text-left px-4 py-2 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-500 transition-colors"
-                        >
-                          退出登录
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/forum"
-                className="px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
-              >
-                📝 社区
-              </Link>
-              <Link
-                href="/team-sales"
-                className="px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
-              >
-                💰 交易
-              </Link>
-              <Link
-                href="/auth/login"
-                className="px-6 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
-              >
-                登录
-              </Link>
-              <Link
-                href="/auth/register"
-                className="btn-primary"
-              >
-                注册
-              </Link>
-            </>
-          )}
-        </div>
 
-        {/* 移动端菜单按钮 */}
-        <button
-          className="md:hidden text-gray-700 focus:outline-none w-12 h-12 flex items-center justify-center"
-          onClick={() => setShowMobileMenu(true)}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
-          </svg>
-        </button>
-      </div>
-
-      {/* 移动端右侧滑出菜单 */}
-      <AnimatePresence>
-        {showMobileMenu && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 md:hidden"
-            onClick={() => setShowMobileMenu(false)}
-          >
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'tween' }}
-              className="absolute right-0 top-0 bottom-0 w-64 bg-white p-6"
-              onClick={(e) => e.stopPropagation()}
+          {/* 桌面菜单 */}
+          <div className="hidden md:flex items-center gap-6">
+            <Link
+              href="/"
+              className="px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold">菜单</h3>
-                <button 
-                  onClick={() => setShowMobileMenu(false)}
-                  className="text-gray-500 hover:text-gray-800 w-12 h-12 flex items-center justify-center text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="flex flex-col space-y-4">
+              🏠 主页
+            </Link>
+            {user ? (
+              <>
                 <Link
-                  href="/"
-                  className="px-4 py-4 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium min-h-[48px] flex items-center"
-                  onClick={() => setShowMobileMenu(false)}
+                  href="/teams/space"
+                  className="px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
                 >
-                  🏠 主页
+                  🎮 战队管理后台
                 </Link>
-                {user ? (
-                  <>
-                    <Link
-                      href="/teams/space"
-                      className="px-4 py-4 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium min-h-[48px] flex items-center"
-                      onClick={() => setShowMobileMenu(false)}
+                <Link
+                  href="/profile"
+                  className="px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                >
+                  👤 个人中心
+                </Link>
+                <div className="flex items-center gap-3">
+                  <NotificationBell />
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className="flex items-center gap-3 card px-4 py-2 hover:scale-105 transition-transform"
                     >
-                      🎮 战队管理后台
-                    </Link>
-                    <Link
-                      href="/profile"
-                      className="px-4 py-4 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium min-h-[48px] flex items-center"
-                      onClick={() => setShowMobileMenu(false)}
-                    >
-                      👤 个人中心
-                    </Link>
-                    <div className="flex items-center gap-3 card p-4">
                       {userProfile.avatar ? (
                         <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white/50">
                           <Image
@@ -295,63 +143,265 @@ export default function Navbar() {
                             width={40}
                             height={40}
                             className="object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${userProfile.avatar ? 'hidden' : ''}`}
+                        style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
+                      >
+                        {userProfile.nickname.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-gray-800 font-medium">{userProfile.nickname}</span>
+                    </button>
+                    
+                    {/* 用户下拉菜单 */}
+                    <AnimatePresence>
+                      {showUserMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          className="absolute right-0 top-full mt-2 w-48 card p-2 z-50"
+                        >
+                          <Link
+                            href="/profile"
+                            className="block px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            个人中心
+                          </Link>
+                          <Link
+                            href="/teams/space"
+                            className="block px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            战队管理后台
+                          </Link>
+                          <div className="border-t border-gray-200 my-1"></div>
+                          <button
+                            onClick={() => {
+                              setShowUserMenu(false);
+                              setShowLogoutConfirm(true);
+                            }}
+                            className="w-full text-left px-4 py-2 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          >
+                            退出登录
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/forum"
+                  className="px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                >
+                  📝 社区
+                </Link>
+                <Link
+                  href="/team-sales"
+                  className="px-4 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                >
+                  💰 交易
+                </Link>
+                <Link
+                  href="/auth/login"
+                  className="px-6 py-2 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium"
+                >
+                  登录
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="btn-primary"
+                >
+                  注册
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* 移动端菜单按钮 */}
+          <button
+            className="md:hidden text-gray-700 focus:outline-none w-12 h-12 flex items-center justify-center"
+            onClick={() => setShowMobileMenu(true)}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+            </svg>
+          </button>
+        </div>
+      </nav>
+
+      {/* 移动端玻璃罩菜单 */}
+      <AnimatePresence>
+        {showMobileMenu && (
+          <>
+            {/* 遮罩层 - 点击关闭 */}
+            <motion.div
+              initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+              animate={{ opacity: 0.6, backdropFilter: "blur(4px)" }}
+              exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className="fixed inset-0 bg-black z-[9999] md:hidden"
+              onClick={() => setShowMobileMenu(false)}
+            />
+            {/* 菜单内容 - 居中显示 */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="fixed inset-x-4 top-[45%] -translate-y-1/2 z-[10000] md:hidden"
+            >
+              <div className="mx-auto max-w-sm">
+              <div 
+                className="relative bg-white/85 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-pink-200/30 border border-white/60 overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* 粉色光晕背景 */}
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-100/50 via-white/70 to-purple-100/50 rounded-3xl" />
+                <div className="absolute -top-20 -right-20 w-40 h-40 bg-pink-300/40 rounded-full blur-3xl" />
+                <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-300/40 rounded-full blur-3xl" />
+                
+                {/* 内容区域 */}
+                <div className="relative p-6">
+                {/* 头部标题 */}
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">菜单</h3>
+                  <button 
+                    onClick={() => setShowMobileMenu(false)}
+                    className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center text-gray-500 hover:text-pink-500 hover:bg-pink-50 transition-all duration-300 shadow-sm border border-white/50"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* 用户信息（已登录） */}
+                {user && (
+                  <div className="mb-6 p-4 bg-gradient-to-r from-pink-100/80 to-purple-100/80 rounded-2xl border border-pink-200/50">
+                    <div className="flex items-center gap-3">
+                      {userProfile.avatar ? (
+                        <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-white shadow-md">
+                          <Image
+                            src={userProfile.avatar}
+                            alt="用户头像"
+                            width={56}
+                            height={56}
+                            className="object-cover"
                           />
                         </div>
                       ) : (
                         <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                          className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md"
                           style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
                         >
                           {userProfile.nickname.charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <span className="text-gray-800 font-medium">{userProfile.nickname}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-800 truncate">{userProfile.nickname}</p>
+                        <p className="text-sm text-pink-600">欢迎回来 ✨</p>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        setShowLogoutConfirm(true);
-                        setShowMobileMenu(false);
-                      }}
-                      className="px-4 py-4 rounded-xl text-gray-700 hover:text-red-500 hover:bg-white/50 transition-all duration-300 font-medium min-h-[48px] flex items-center"
-                    >
-                      🚪 退出登录
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href="/forum"
-                      className="px-4 py-4 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium min-h-[48px] flex items-center"
-                      onClick={() => setShowMobileMenu(false)}
-                    >
-                      📝 社区
-                    </Link>
-                    <Link
-                      href="/team-sales"
-                      className="px-4 py-4 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium min-h-[48px] flex items-center"
-                      onClick={() => setShowMobileMenu(false)}
-                    >
-                      💰 交易
-                    </Link>
+                  </div>
+                )}
+                
+                {/* 菜单网格 */}
+                <div className="grid grid-cols-4 gap-3 mb-6">
+                  <Link
+                    href="/"
+                    className="group flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/60 hover:bg-pink-50/80 transition-all duration-300 border border-transparent hover:border-pink-200/50"
+                    onClick={() => setShowMobileMenu(false)}
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-pink-100 to-pink-200 group-hover:from-pink-200 group-hover:to-pink-300 flex items-center justify-center text-2xl shadow-sm group-hover:shadow-md transition-all duration-300">🏠</div>
+                    <span className="text-xs text-gray-600 group-hover:text-pink-600 transition-colors">主页</span>
+                  </Link>
+                  
+                  {user ? (
+                    <>
+                      <Link
+                        href="/teams/space"
+                        className="group flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/60 hover:bg-purple-50/80 transition-all duration-300 border border-transparent hover:border-purple-200/50"
+                        onClick={() => setShowMobileMenu(false)}
+                      >
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-100 to-purple-200 group-hover:from-purple-200 group-hover:to-purple-300 flex items-center justify-center text-2xl shadow-sm group-hover:shadow-md transition-all duration-300">🎮</div>
+                        <span className="text-xs text-gray-600 group-hover:text-purple-600 transition-colors">战队</span>
+                      </Link>
+                      <Link
+                        href="/profile"
+                        className="group flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/60 hover:bg-blue-50/80 transition-all duration-300 border border-transparent hover:border-blue-200/50"
+                        onClick={() => setShowMobileMenu(false)}
+                      >
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 group-hover:from-blue-200 group-hover:to-blue-300 flex items-center justify-center text-2xl shadow-sm group-hover:shadow-md transition-all duration-300">👤</div>
+                        <span className="text-xs text-gray-600 group-hover:text-blue-600 transition-colors">我的</span>
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setShowLogoutConfirm(true);
+                          setShowMobileMenu(false);
+                        }}
+                        className="group flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/60 hover:bg-red-50/80 transition-all duration-300 border border-transparent hover:border-red-200/50"
+                      >
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-100 to-red-200 group-hover:from-red-200 group-hover:to-red-300 flex items-center justify-center text-2xl shadow-sm group-hover:shadow-md transition-all duration-300">🚪</div>
+                        <span className="text-xs text-gray-600 group-hover:text-red-600 transition-colors">退出</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href="/forum"
+                        className="group flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/60 hover:bg-green-50/80 transition-all duration-300 border border-transparent hover:border-green-200/50"
+                        onClick={() => setShowMobileMenu(false)}
+                      >
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-100 to-green-200 group-hover:from-green-200 group-hover:to-green-300 flex items-center justify-center text-2xl shadow-sm group-hover:shadow-md transition-all duration-300">📝</div>
+                        <span className="text-xs text-gray-600 group-hover:text-green-600 transition-colors">社区</span>
+                      </Link>
+                      <Link
+                        href="/team-sales"
+                        className="group flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/60 hover:bg-yellow-50/80 transition-all duration-300 border border-transparent hover:border-yellow-200/50"
+                        onClick={() => setShowMobileMenu(false)}
+                      >
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-100 to-yellow-200 group-hover:from-yellow-200 group-hover:to-yellow-300 flex items-center justify-center text-2xl shadow-sm group-hover:shadow-md transition-all duration-300">💰</div>
+                        <span className="text-xs text-gray-600 group-hover:text-yellow-600 transition-colors">交易</span>
+                      </Link>
+                    </>
+                  )}
+                </div>
+                
+                {/* 未登录时的登录注册按钮 */}
+                {!user && (
+                  <div className="space-y-3">
                     <Link
                       href="/auth/login"
-                      className="px-6 py-4 rounded-xl text-gray-700 hover:text-primary-500 hover:bg-white/50 transition-all duration-300 font-medium min-h-[48px] flex items-center justify-center"
+                      className="block w-full py-3.5 text-center text-gray-700 font-medium bg-white/80 backdrop-blur-md rounded-2xl hover:bg-pink-50/80 hover:text-pink-600 transition-all duration-300 border border-gray-200 hover:border-pink-200"
                       onClick={() => setShowMobileMenu(false)}
                     >
                       登录
                     </Link>
                     <Link
                       href="/auth/register"
-                      className="btn-primary py-4 min-h-[48px] flex items-center justify-center"
+                      className="block w-full py-3.5 text-center text-white font-medium bg-gradient-to-r from-pink-400 to-purple-400 rounded-2xl hover:from-pink-500 hover:to-purple-500 transition-all duration-300 shadow-lg shadow-pink-200/50"
                       onClick={() => setShowMobileMenu(false)}
                     >
-                      注册
+                      注册账号
                     </Link>
-                  </>
+                  </div>
                 )}
               </div>
-            </motion.div>
+            </div>
+          </div>
           </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -363,7 +413,7 @@ export default function Navbar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -423,6 +473,6 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-    </nav>
+    </>
   )
 }

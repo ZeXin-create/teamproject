@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Image from 'next/image'
+import { motion } from 'framer-motion'
 import { getHeroes } from '../../services/teamGroupingService'
 import { notifyTeamApplication } from '../../services/notificationService'
 import { Position, Hero, AvailableTime } from '../../types/teamGrouping'
@@ -474,7 +475,18 @@ export default function JoinTeamPage() {
       }
 
       // 提交申请，包含游戏资料（队长同意后才会保存到player_profiles）
-      await supabase
+      console.log('Submitting application with data:', {
+        user_id: user.id,
+        team_id: selectedTeamId,
+        game_id: formData.gameId,
+        current_rank: formData.currentRank,
+        main_positions: formData.mainPositions,
+        position_stats: formData.positionStats,
+        available_time: formData.availableTime,
+        accept_position_adjustment: formData.acceptPositionAdjustment
+      });
+
+      const { error: insertError } = await supabase
         .from('team_applications')
         .insert({
           user_id: user.id,
@@ -485,7 +497,14 @@ export default function JoinTeamPage() {
           position_stats: formData.positionStats,
           available_time: formData.availableTime,
           accept_position_adjustment: formData.acceptPositionAdjustment
-        })
+        });
+
+      if (insertError) {
+        console.error('Error submitting application:', insertError);
+        throw new Error(`提交申请失败: ${insertError.message}`);
+      }
+
+      console.log('Application submitted successfully');
 
       // 通知战队队长
       await notifyTeamApplication(selectedTeamId, formData.gameId, user.id)
@@ -518,35 +537,90 @@ export default function JoinTeamPage() {
 
   return (
     <ErrorBoundary>
-    <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold mb-6">加入战队</h1>
+    <div className="min-h-screen bg-gradient-to-br from-white to-pink-50">
+      <div className="container mx-auto px-4 py-8">
+        {/* 顶部导航 */}
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+          {/* 左侧返回按钮 */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.history.back()
+                }
+              }}
+              className="flex items-center justify-center w-12 h-12 rounded-xl text-gray-700 hover:text-pink-500 hover:bg-white/80 transition-all duration-300 font-medium shadow-sm border border-white/50"
+              title="返回上一页"
+            >
+              <span className="text-lg">←</span>
+            </button>
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.location.href = '/'
+                }
+              }}
+              className="flex items-center justify-center w-12 h-12 rounded-xl text-gray-700 hover:text-pink-500 hover:bg-white/80 transition-all duration-300 font-medium shadow-sm border border-white/50"
+              title="返回主页面"
+            >
+              <span className="text-xl">🏠</span>
+            </button>
+          </div>
+          
+          {/* 中间标题 */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-3xl font-bold gradient-text text-center">加入战队</h1>
+          </div>
+          
+          {/* 右侧占位 */}
+          <div className="w-24"></div>
+        </div>
 
         {error && (
-          <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
-            {error}
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">❌</span>
+              <span>{error}</span>
+            </div>
+          </motion.div>
         )}
 
         {success && (
-          <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">
-            {success}
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-green-50 text-green-700 rounded-2xl border border-green-100 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">✅</span>
+              <span>{success}</span>
+            </div>
+          </motion.div>
         )}
 
         {!showApplicationForm ? (
           <>
-            <form onSubmit={handleSearch} className="mb-6">
-              <div className="flex gap-2">
+            <motion.form 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              onSubmit={handleSearch} 
+              className="mb-8"
+            >
+              <div className="flex flex-col md:flex-row gap-3">
                 <input
                   type="text"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded"
+                  className="flex-1 px-5 py-3 border border-gray-200 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300"
                   placeholder="搜索战队名称"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 <select
-                  className="px-4 py-2 border border-gray-300 rounded"
+                  className="px-5 py-3 border border-gray-200 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300"
                   value={selectedRegion}
                   onChange={(e) => setSelectedRegion(e.target.value)}
                 >
@@ -558,393 +632,469 @@ export default function JoinTeamPage() {
                 </select>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-8 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-2xl hover:from-pink-600 hover:to-purple-600 transition-all duration-300 font-medium shadow-sm hover:shadow-md flex items-center justify-center gap-2"
                   disabled={isSearching}
                 >
+                  {isSearching && (
+                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  )}
                   {isSearching ? '搜索中...' : '搜索'}
                 </button>
               </div>
-            </form>
+            </motion.form>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {teams.map((team) => (
-                <div key={team.id} className="bg-white p-4 rounded-lg shadow-md">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="relative w-16 h-16 rounded-full overflow-hidden">
-                      <Image
-                        src={team.avatar_url || 'https://via.placeholder.com/100'}
-                        alt={team.name}
-                        width={64}
-                        height={64}
-                        className="object-cover"
-                      />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">{team.name}</h3>
-                      <p className="text-gray-600">{team.region}</p>
-                      <p className="text-gray-600">{team.province} {team.city} {team.district || ''}</p>
-                    </div>
-                  </div>
-                  <p className="text-gray-600 mb-4">{team.declaration || '暂无宣言'}</p>
-                  <button
-                    className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-                    onClick={() => handleJoin(team.id)}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              {teams.length > 0 ? (
+                teams.map((team, index) => (
+                  <motion.div 
+                    key={team.id} 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ y: -8, boxShadow: '0 15px 30px -10px rgba(236, 72, 153, 0.2)' }}
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-pink-100/50 shadow-sm hover:shadow-md transition-all duration-300"
                   >
-                    申请加入
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="relative">
+                        {team.avatar_url ? (
+                          <div className="w-20 h-20 rounded-2xl overflow-hidden border-3 border-white shadow-lg">
+                            <Image
+                              src={team.avatar_url}
+                              alt={team.name}
+                              width={80}
+                              height={80}
+                              className="object-cover w-full h-full transition-transform duration-500 hover:scale-110"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-3xl font-bold border-3 border-white shadow-lg">
+                            {team.name?.charAt(0).toUpperCase() || '战'}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">{team.name}</h3>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          <span className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm font-medium shadow-sm">
+                            {team.region}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 font-medium">{team.province} {team.city} {team.district || ''}</p>
+                      </div>
+                    </div>
+                    <p className="text-gray-600 mb-6 line-clamp-2">{team.declaration || '暂无宣言'}</p>
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-xl hover:from-pink-600 hover:to-purple-600 transition-all duration-300 font-medium shadow-sm hover:shadow-md"
+                      onClick={() => handleJoin(team.id)}
+                    >
+                      申请加入
+                    </motion.button>
+                  </motion.div>
+                ))
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="col-span-full text-center py-16 bg-white/50 rounded-2xl border border-pink-100/50"
+                >
+                  <div className="text-7xl mb-6">🔍</div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">未找到战队</h3>
+                  <p className="text-gray-600 mb-6">请尝试使用其他关键词搜索</p>
+                </motion.div>
+              )}
+            </motion.div>
           </>
         ) : (
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-xl font-bold mb-4">填写游戏资料</h2>
-            <form onSubmit={handleSubmitApplication} className="space-y-6">
-              {/* 游戏ID */}
-              <div>
-                <label htmlFor="gameId" className="block text-gray-700 font-medium mb-2">
-                  游戏ID *
-                </label>
-                <input
-                  type="text"
-                  id="gameId"
-                  value={formData.gameId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, gameId: e.target.value }))}
-                  onBlur={(e) => setErrors(prev => ({ ...prev, gameId: validateField('gameId', e.target.value) }))}
-                  className={`w-full px-4 py-2 border rounded ${errors.gameId ? 'border-red-500' : 'border-gray-300'}`}
-                  required
-                  placeholder="请输入王者荣耀游戏ID"
-                />
-                {errors.gameId && <p className="mt-1 text-sm text-red-600">{errors.gameId}</p>}
-              </div>
-
-              {/* 当前段位 */}
-              <div>
-                <label htmlFor="currentRank" className="block text-gray-700 font-medium mb-2">
-                  当前段位 *
-                </label>
-                <select
-                  id="currentRank"
-                  value={formData.currentRank}
-                  onChange={(e) => setFormData(prev => ({ ...prev, currentRank: e.target.value }))}
-                  onBlur={(e) => setErrors(prev => ({ ...prev, currentRank: validateField('currentRank', e.target.value) }))}
-                  className={`w-full px-4 py-2 border rounded ${errors.currentRank ? 'border-red-500' : 'border-gray-300'}`}
-                  required
-                >
-                  <option value="">选择当前段位</option>
-                  {ranks.map((rank) => (
-                    <option key={rank} value={rank}>
-                      {rank}
-                    </option>
-                  ))}
-                </select>
-                {errors.currentRank && <p className="mt-1 text-sm text-red-600">{errors.currentRank}</p>}
-              </div>
-
-              {/* 常用位置 */}
-              <div>
-                <label className="block text-gray-700 font-medium mb-3">
-                  擅长位置 * (最多选择2个)
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {positions.map(position => (
-                    <button
-                      key={position}
-                      type="button"
-                      onClick={() => handlePositionChange(position)}
-                      className={`px-4 py-2 rounded-full border-2 ${formData.mainPositions.includes(position) ? 'border-blue-500 bg-blue-100 text-blue-600' : 'border-gray-300 text-gray-600 hover:border-blue-300'}`}
-                    >
-                      {position}
-                    </button>
-                  ))}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="max-w-4xl mx-auto"
+          >
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-pink-100/50 shadow-sm">
+              <h2 className="text-2xl font-bold mb-6 gradient-text text-center">填写游戏资料</h2>
+              <form onSubmit={handleSubmitApplication} className="space-y-6">
+                {/* 游戏ID */}
+                <div>
+                  <label htmlFor="gameId" className="block text-gray-700 font-medium mb-3">
+                    游戏ID *
+                  </label>
+                  <input
+                    type="text"
+                    id="gameId"
+                    value={formData.gameId}
+                    onChange={(e) => setFormData(prev => ({ ...prev, gameId: e.target.value }))}
+                    onBlur={(e) => setErrors(prev => ({ ...prev, gameId: validateField('gameId', e.target.value) }))}
+                    className={`w-full px-5 py-3 border rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300 ${errors.gameId ? 'border-red-500' : 'border-gray-200'}`}
+                    required
+                    placeholder="请输入王者荣耀游戏ID"
+                  />
+                  {errors.gameId && <p className="mt-2 text-sm text-red-600">{errors.gameId}</p>}
                 </div>
-                {errors.mainPositions && <p className="mt-1 text-sm text-red-600">{errors.mainPositions}</p>}
-              </div>
 
-              {/* 位置数据 */}
-              {formData.mainPositions.map(position => (
-                <div key={position} className="border border-gray-200 rounded-2xl p-4">
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">{position}数据</h3>
-
-                  {/* 胜率、KDA、评分、战力 */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">
-                        胜率 *
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={formData.positionStats[position].winRate}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || (Number(value) >= 0 && Number(value) <= 100)) {
-                            setFormData(prev => ({
-                              ...prev,
-                              positionStats: {
-                                ...prev.positionStats,
-                                [position]: {
-                                  ...prev.positionStats[position],
-                                  winRate: value
-                                }
-                              }
-                            }));
-                          }
-                        }}
-                        onBlur={(e) => setErrors(prev => ({
-                          ...prev,
-                          positionStats: {
-                            ...prev.positionStats!,
-                            [position]: {
-                              ...prev.positionStats![position],
-                              winRate: validateField('positionStats', e.target.value, position, 'winRate')
-                            }
-                          }
-                        }))}
-                        className={`w-full px-4 py-2 border rounded ${errors.positionStats?.[position]?.winRate ? 'border-red-500' : 'border-gray-300'}`}
-                        placeholder="0-100"
-                      />
-                      {errors.positionStats?.[position]?.winRate && <p className="mt-1 text-sm text-red-600">{errors.positionStats[position].winRate}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">
-                        KDA *
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        step="0.1"
-                        value={formData.positionStats[position].kda}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || (Number(value) >= 0 && Number(value) <= 20)) {
-                            setFormData(prev => ({
-                              ...prev,
-                              positionStats: {
-                                ...prev.positionStats,
-                                [position]: {
-                                  ...prev.positionStats[position],
-                                  kda: value
-                                }
-                              }
-                            }));
-                          }
-                        }}
-                        onBlur={(e) => setErrors(prev => ({
-                          ...prev,
-                          positionStats: {
-                            ...prev.positionStats!,
-                            [position]: {
-                              ...prev.positionStats![position],
-                              kda: validateField('positionStats', e.target.value, position, 'kda')
-                            }
-                          }
-                        }))}
-                        className={`w-full px-4 py-2 border rounded ${errors.positionStats?.[position]?.kda ? 'border-red-500' : 'border-gray-300'}`}
-                        placeholder="0-20"
-                      />
-                      {errors.positionStats?.[position]?.kda && <p className="mt-1 text-sm text-red-600">{errors.positionStats[position].kda}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">
-                        评分 *
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={formData.positionStats[position].rating}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || (Number(value) >= 0 && Number(value) <= 100)) {
-                            setFormData(prev => ({
-                              ...prev,
-                              positionStats: {
-                                ...prev.positionStats,
-                                [position]: {
-                                  ...prev.positionStats[position],
-                                  rating: value
-                                }
-                              }
-                            }));
-                          }
-                        }}
-                        onBlur={(e) => setErrors(prev => ({
-                          ...prev,
-                          positionStats: {
-                            ...prev.positionStats!,
-                            [position]: {
-                              ...prev.positionStats![position],
-                              rating: validateField('positionStats', e.target.value, position, 'rating')
-                            }
-                          }
-                        }))}
-                        className={`w-full px-4 py-2 border rounded ${errors.positionStats?.[position]?.rating ? 'border-red-500' : 'border-gray-300'}`}
-                        placeholder="0-100"
-                      />
-                      {errors.positionStats?.[position]?.rating && <p className="mt-1 text-sm text-red-600">{errors.positionStats[position].rating}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">
-                        战力 *
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="99999"
-                        step="1"
-                        value={formData.positionStats[position].power}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || (Number(value) >= 0 && Number(value) <= 99999)) {
-                            setFormData(prev => ({
-                              ...prev,
-                              positionStats: {
-                                ...prev.positionStats,
-                                [position]: {
-                                  ...prev.positionStats[position],
-                                  power: value
-                                }
-                              }
-                            }));
-                          }
-                        }}
-                        onBlur={(e) => setErrors(prev => ({
-                          ...prev,
-                          positionStats: {
-                            ...prev.positionStats!,
-                            [position]: {
-                              ...prev.positionStats![position],
-                              power: validateField('positionStats', e.target.value, position, 'power')
-                            }
-                          }
-                        }))}
-                        className={`w-full px-4 py-2 border rounded ${errors.positionStats?.[position]?.power ? 'border-red-500' : 'border-gray-300'}`}
-                        placeholder="0-99999"
-                      />
-                      {errors.positionStats?.[position]?.power && <p className="mt-1 text-sm text-red-600">{errors.positionStats[position].power}</p>}
-                    </div>
-                  </div>
-
-                  {/* 常用英雄 */}
-                  <div>
-                    <label className="block text-gray-700 font-medium mb-2">
-                      常用英雄 * (最多选择3个)
-                    </label>
-                    <div className={`flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 border rounded ${errors.positionStats?.[position]?.heroes ? 'border-red-500' : 'border-gray-300'}`}>
-                      {heroes
-                        .filter(hero => hero.position === position)
-                        .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-                        .map(hero => (
-                          <button
-                            key={hero.id}
-                            type="button"
-                            onClick={() => handleHeroChange(hero.id, position)}
-                            className={`px-3 py-1 rounded-full text-sm border-2 transition-all ${formData.positionStats[position].heroes.includes(hero.id) ? 'border-purple-500 bg-purple-100 text-purple-600' : 'border-gray-300 text-gray-600 hover:border-purple-300'}`}
-                          >
-                            {hero.name}
-                          </button>
-                        ))}
-                    </div>
-                    {errors.positionStats?.[position]?.heroes && <p className="mt-1 text-sm text-red-600">{errors.positionStats[position].heroes}</p>}
-                  </div>
+                {/* 当前段位 */}
+                <div>
+                  <label htmlFor="currentRank" className="block text-gray-700 font-medium mb-3">
+                    当前段位 *
+                  </label>
+                  <select
+                    id="currentRank"
+                    value={formData.currentRank}
+                    onChange={(e) => setFormData(prev => ({ ...prev, currentRank: e.target.value }))}
+                    onBlur={(e) => setErrors(prev => ({ ...prev, currentRank: validateField('currentRank', e.target.value) }))}
+                    className={`w-full px-5 py-3 border rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300 ${errors.currentRank ? 'border-red-500' : 'border-gray-200'}`}
+                    required
+                  >
+                    <option value="">选择当前段位</option>
+                    {ranks.map((rank) => (
+                      <option key={rank} value={rank}>
+                        {rank}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.currentRank && <p className="mt-2 text-sm text-red-600">{errors.currentRank}</p>}
                 </div>
-              ))}
 
-              {/* 可比赛时间段 */}
-              <div>
-                <label className="block text-gray-700 font-medium mb-3">
-                  可比赛时间段 *
-                </label>
-                <div className="space-y-4">
-                  {formData.availableTime.map((time, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <span className="w-20 text-gray-600">{time.day}</span>
-                      <span className="w-24 text-gray-600">{time.start_time}</span>
-                      <span className="w-8 text-gray-400">至</span>
-                      <span className="w-24 text-gray-600">{time.end_time}</span>
-                      <button
+                {/* 常用位置 */}
+                <div>
+                  <label className="block text-gray-700 font-medium mb-4">
+                    擅长位置 * (最多选择2个)
+                  </label>
+                  <div className="flex flex-wrap gap-4">
+                    {positions.map(position => (
+                      <motion.button
+                        key={position}
                         type="button"
-                        onClick={() => handleRemoveTimeSlot(index)}
-                        className="px-2 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200"
+                        onClick={() => handlePositionChange(position)}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`px-5 py-3 rounded-2xl border-2 transition-all duration-300 ${formData.mainPositions.includes(position) ? 'border-blue-500 bg-blue-100 text-blue-600 shadow-sm' : 'border-gray-200 text-gray-600 hover:border-blue-300'}`}
                       >
-                        删除
-                      </button>
-                    </div>
-                  ))}
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={newTimeSlot.day}
-                      onChange={(e) => handleTimeSlotChange(e, 'day')}
-                      className="w-20 px-2 py-2 border border-gray-300 rounded"
-                    >
-                      {days.map(day => (
-                        <option key={day} value={day}>{day}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="time"
-                      value={newTimeSlot.startTime}
-                      onChange={(e) => handleTimeSlotChange(e, 'startTime')}
-                      className="w-24 px-2 py-2 border border-gray-300 rounded"
-                    />
-                    <span className="w-8 text-gray-400">至</span>
-                    <input
-                      type="time"
-                      value={newTimeSlot.endTime}
-                      onChange={(e) => handleTimeSlotChange(e, 'endTime')}
-                      className="w-24 px-2 py-2 border border-gray-300 rounded"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddTimeSlot}
-                      className="px-3 py-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
-                    >
-                      添加
-                    </button>
+                        {position}
+                      </motion.button>
+                    ))}
                   </div>
+                  {errors.mainPositions && <p className="mt-2 text-sm text-red-600">{errors.mainPositions}</p>}
                 </div>
-                {errors.availableTime && <p className="mt-1 text-sm text-red-600">{errors.availableTime}</p>}
-              </div>
 
-              {/* 是否接受位置微调 */}
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
+                {/* 位置数据 */}
+                {formData.mainPositions.map(position => (
+                  <motion.div 
+                    key={position} 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="border border-gray-200 rounded-2xl p-6 bg-white/50 shadow-sm"
+                  >
+                    <h3 className="text-xl font-medium text-gray-800 mb-6">{position}数据</h3>
+
+                    {/* 胜率、KDA、评分、战力 */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                      <div>
+                        <label className="block text-gray-700 font-medium mb-3">
+                          胜率 *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={formData.positionStats[position].winRate}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || (Number(value) >= 0 && Number(value) <= 100)) {
+                              setFormData(prev => ({
+                                ...prev,
+                                positionStats: {
+                                  ...prev.positionStats,
+                                  [position]: {
+                                    ...prev.positionStats[position],
+                                    winRate: value
+                                  }
+                                }
+                              }));
+                            }
+                          }}
+                          onBlur={(e) => setErrors(prev => ({
+                            ...prev,
+                            positionStats: {
+                              ...prev.positionStats!,
+                              [position]: {
+                                ...prev.positionStats![position],
+                                winRate: validateField('positionStats', e.target.value, position, 'winRate')
+                              }
+                            }
+                          }))}
+                          className={`w-full px-4 py-2 border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300 ${errors.positionStats?.[position]?.winRate ? 'border-red-500' : 'border-gray-200'}`}
+                          placeholder="0-100"
+                        />
+                        {errors.positionStats?.[position]?.winRate && <p className="mt-1 text-sm text-red-600">{errors.positionStats[position].winRate}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 font-medium mb-3">
+                          KDA *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="20"
+                          step="0.1"
+                          value={formData.positionStats[position].kda}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || (Number(value) >= 0 && Number(value) <= 20)) {
+                              setFormData(prev => ({
+                                ...prev,
+                                positionStats: {
+                                  ...prev.positionStats,
+                                  [position]: {
+                                    ...prev.positionStats[position],
+                                    kda: value
+                                  }
+                                }
+                              }));
+                            }
+                          }}
+                          onBlur={(e) => setErrors(prev => ({
+                            ...prev,
+                            positionStats: {
+                              ...prev.positionStats!,
+                              [position]: {
+                                ...prev.positionStats![position],
+                                kda: validateField('positionStats', e.target.value, position, 'kda')
+                              }
+                            }
+                          }))}
+                          className={`w-full px-4 py-2 border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300 ${errors.positionStats?.[position]?.kda ? 'border-red-500' : 'border-gray-200'}`}
+                          placeholder="0-20"
+                        />
+                        {errors.positionStats?.[position]?.kda && <p className="mt-1 text-sm text-red-600">{errors.positionStats[position].kda}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 font-medium mb-3">
+                          评分 *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={formData.positionStats[position].rating}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || (Number(value) >= 0 && Number(value) <= 100)) {
+                              setFormData(prev => ({
+                                ...prev,
+                                positionStats: {
+                                  ...prev.positionStats,
+                                  [position]: {
+                                    ...prev.positionStats[position],
+                                    rating: value
+                                  }
+                                }
+                              }));
+                            }
+                          }}
+                          onBlur={(e) => setErrors(prev => ({
+                            ...prev,
+                            positionStats: {
+                              ...prev.positionStats!,
+                              [position]: {
+                                ...prev.positionStats![position],
+                                rating: validateField('positionStats', e.target.value, position, 'rating')
+                              }
+                            }
+                          }))}
+                          className={`w-full px-4 py-2 border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300 ${errors.positionStats?.[position]?.rating ? 'border-red-500' : 'border-gray-200'}`}
+                          placeholder="0-100"
+                        />
+                        {errors.positionStats?.[position]?.rating && <p className="mt-1 text-sm text-red-600">{errors.positionStats[position].rating}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 font-medium mb-3">
+                          战力 *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99999"
+                          step="1"
+                          value={formData.positionStats[position].power}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || (Number(value) >= 0 && Number(value) <= 99999)) {
+                              setFormData(prev => ({
+                                ...prev,
+                                positionStats: {
+                                  ...prev.positionStats,
+                                  [position]: {
+                                    ...prev.positionStats[position],
+                                    power: value
+                                  }
+                                }
+                              }));
+                            }
+                          }}
+                          onBlur={(e) => setErrors(prev => ({
+                            ...prev,
+                            positionStats: {
+                              ...prev.positionStats!,
+                              [position]: {
+                                ...prev.positionStats![position],
+                                power: validateField('positionStats', e.target.value, position, 'power')
+                              }
+                            }
+                          }))}
+                          className={`w-full px-4 py-2 border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300 ${errors.positionStats?.[position]?.power ? 'border-red-500' : 'border-gray-200'}`}
+                          placeholder="0-99999"
+                        />
+                        {errors.positionStats?.[position]?.power && <p className="mt-1 text-sm text-red-600">{errors.positionStats[position].power}</p>}
+                      </div>
+                    </div>
+
+                    {/* 常用英雄 */}
+                    <div>
+                      <label className="block text-gray-700 font-medium mb-3">
+                        常用英雄 * (最多选择3个)
+                      </label>
+                      <div className={`flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 border rounded-xl shadow-sm ${errors.positionStats?.[position]?.heroes ? 'border-red-500' : 'border-gray-200'}`}>
+                        {heroes
+                          .filter(hero => hero.position === position)
+                          .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+                          .map(hero => (
+                            <motion.button
+                              key={hero.id}
+                              type="button"
+                              onClick={() => handleHeroChange(hero.id, position)}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className={`px-3 py-2 rounded-full text-sm border-2 transition-all duration-300 ${formData.positionStats[position].heroes.includes(hero.id) ? 'border-purple-500 bg-purple-100 text-purple-600 shadow-sm' : 'border-gray-200 text-gray-600 hover:border-purple-300'}`}
+                            >
+                              {hero.name}
+                            </motion.button>
+                          ))}
+                      </div>
+                      {errors.positionStats?.[position]?.heroes && <p className="mt-2 text-sm text-red-600">{errors.positionStats[position].heroes}</p>}
+                    </div>
+                  </motion.div>
+                ))}
+
+                {/* 可比赛时间段 */}
+                <div>
+                  <label className="block text-gray-700 font-medium mb-4">
+                    可比赛时间段 *
+                  </label>
+                  <div className="space-y-4">
+                    {formData.availableTime.map((time, index) => (
+                      <motion.div 
+                        key={index} 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex items-center gap-3 p-3 bg-white/50 rounded-xl border border-gray-100 shadow-sm"
+                      >
+                        <span className="w-20 text-gray-700 font-medium">{time.day}</span>
+                        <span className="w-24 text-gray-700">{time.start_time}</span>
+                        <span className="w-8 text-gray-400">至</span>
+                        <span className="w-24 text-gray-700">{time.end_time}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTimeSlot(index)}
+                          className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                        >
+                          删除
+                        </button>
+                      </motion.div>
+                    ))}
+                    <div className="flex flex-col sm:flex-row items-center gap-3 p-4 bg-white/50 rounded-xl border border-dashed border-gray-200">
+                      <select
+                        value={newTimeSlot.day}
+                        onChange={(e) => handleTimeSlotChange(e, 'day')}
+                        className="w-full sm:w-24 px-4 py-2 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300"
+                      >
+                        {days.map(day => (
+                          <option key={day} value={day}>{day}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="time"
+                        value={newTimeSlot.startTime}
+                        onChange={(e) => handleTimeSlotChange(e, 'startTime')}
+                        className="w-full sm:w-28 px-4 py-2 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300"
+                      />
+                      <span className="w-8 text-gray-400 text-center">至</span>
+                      <input
+                        type="time"
+                        value={newTimeSlot.endTime}
+                        onChange={(e) => handleTimeSlotChange(e, 'endTime')}
+                        className="w-full sm:w-28 px-4 py-2 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all duration-300"
+                      />
+                      <motion.button
+                        type="button"
+                        onClick={handleAddTimeSlot}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-4 py-2 bg-blue-100 text-blue-600 rounded-xl hover:bg-blue-200 transition-colors shadow-sm"
+                      >
+                        添加
+                      </motion.button>
+                    </div>
+                  </div>
+                  {errors.availableTime && <p className="mt-2 text-sm text-red-600">{errors.availableTime}</p>}
+                </div>
+
+                {/* 是否接受位置微调 */}
+                <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     checked={formData.acceptPositionAdjustment}
                     onChange={(e) => setFormData(prev => ({ ...prev, acceptPositionAdjustment: e.target.checked }))}
-                    className="w-4 h-4"
+                    className="w-5 h-5 accent-pink-500"
                   />
-                  <span className="text-gray-700">接受位置微调</span>
-                </label>
-              </div>
+                  <span className="text-gray-700 font-medium">接受位置微调</span>
+                </div>
 
-              <div className="flex justify-end gap-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowApplicationForm(false)
-                    setSelectedTeamId(null)
-                  }}
-                  className="px-6 py-3 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  disabled={loading}
-                >
-                  {loading ? '提交中...' : '提交申请'}
-                </button>
-              </div>
-            </form>
-          </div>
+                <div className="flex justify-end gap-4 pt-4">
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      setShowApplicationForm(false)
+                      setSelectedTeamId(null)
+                    }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-8 py-3 rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all duration-300 font-medium shadow-sm"
+                  >
+                    取消
+                  </motion.button>
+                  <motion.button
+                    type="submit"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-8 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-xl hover:from-pink-600 hover:to-purple-600 transition-all duration-300 font-medium shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+                    disabled={loading}
+                  >
+                    {loading && (
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    )}
+                    {loading ? '提交中...' : '提交申请'}
+                  </motion.button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
         )}
       </div>
     </div>
