@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Link from 'next/link'
+import Image from 'next/image'
 import Navbar from '../../components/Navbar'
 import Sidebar from '../../components/Sidebar'
 import ErrorBoundary from '../../components/ErrorBoundary'
@@ -38,7 +39,7 @@ interface TeamStats {
   recentActivities: Activity[]
 }
 
-const TeamSpacePage = React.memo(() => {
+const TeamSpacePage = React.memo(function TeamSpacePage() {
   const { user } = useAuth()
   const [hasTeam, setHasTeam] = useState(false)
   const [team, setTeam] = useState<Team | null>(null)
@@ -116,48 +117,7 @@ const TeamSpacePage = React.memo(() => {
     }
   }, [])
 
-  const checkUserTeam = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('team_members')
-        .select('team_id, role')
-        .eq('user_id', user?.id)
-        .eq('status', 'active')
 
-      if (error) {
-        console.error('查询战队失败:', error)
-        setHasTeam(false)
-      } else if (data && data.length > 0) {
-        // 处理多个战队的情况，取第一个战队
-        const teamId = data[0].team_id
-        const role = data[0].role || ''
-        const { data: teamData, error: teamError } = await supabase
-          .from('teams')
-          .select('*')
-          .eq('id', teamId)
-          .single()
-
-        if (teamError) {
-          console.error('查询战队详情失败:', teamError)
-          setHasTeam(false)
-        } else {
-          setTeam(teamData)
-          setUserRole(role)
-          setHasTeam(true)
-          // 获取战队统计数据
-          await fetchTeamStats(teamId)
-        }
-      } else {
-        setHasTeam(false)
-      }
-    } catch (error) {
-      console.error('检查战队失败:', error)
-      setHasTeam(false)
-    } finally {
-      setLoading(false)
-    }
-  }, [user, fetchTeamStats])
 
   // 监听缓存数据变化，更新状态
   useEffect(() => {
@@ -534,9 +494,11 @@ const TeamSpacePage = React.memo(() => {
                     <div className="relative">
                       {team?.avatar_url ? (
                         <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-white shadow-lg">
-                          <img 
+                          <Image 
                             src={team.avatar_url} 
                             alt={team.name} 
+                            width={96}
+                            height={96}
                             className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
                           />
                         </div>

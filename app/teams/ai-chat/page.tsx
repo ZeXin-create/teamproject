@@ -2,8 +2,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { AIService } from '../../services/aiService'
-import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useAIChatData } from './hooks/useAIChatData'
@@ -14,14 +12,6 @@ interface Message {
   role: 'user' | 'ai'
   content: string
   created_at: string
-}
-
-interface ChatSession {
-  id: string
-  user_id: string
-  title: string
-  created_at: string
-  last_message?: string
 }
 
 // 消息项组件
@@ -246,15 +236,12 @@ export default function AIChatPage() {
     messages,
     sessionId,
     sessions,
-    userTeam,
-    teamMembers,
     isLoading,
     errorMessage,
     setErrorMessage,
     loadSessions,
     loadUserTeamData,
     loadChatHistory,
-    saveMessage,
     createNewSession,
     getOrCreateSession,
     switchSession,
@@ -303,7 +290,7 @@ export default function AIChatPage() {
       loadUserTeamData()
       loadChatHistoryWithSessions()
     }
-  }, [user])
+  }, [user, loadUserTeamData, loadChatHistoryWithSessions])
 
   // 自动滚动到底部
   useEffect(() => {
