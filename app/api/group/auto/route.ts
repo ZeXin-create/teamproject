@@ -648,23 +648,8 @@ export async function POST(req: Request) {
       console.log('尝试从 team_applications 表获取数据...');
       console.log('查询条件 - team_id:', team_id);
       
-      // 首先尝试查询所有记录（不限制 status）
-      const allApplicationsResponse = await supabase
-        .from('team_applications')
-        .select('user_id, game_id, current_rank, main_positions, position_stats, available_time, accept_position_adjustment, status')
-        .eq('team_id', team_id)
-        .order('created_at', { ascending: false });
       
-      const allApplications = 'data' in allApplicationsResponse ? allApplicationsResponse.data : null;
-      const allAppError = 'error' in allApplicationsResponse ? allApplicationsResponse.error : null;
-      
-      console.log('team_applications 所有记录:', { count: allApplications?.length || 0, error: allAppError });
-      if (allApplications && allApplications.length > 0) {
-        console.log('第一条记录:', JSON.stringify(allApplications[0], null, 2));
-        console.log('所有记录的 status:', (allApplications as Array<{ status: string }>).map(a => a.status));
-      }
-      
-      // 然后查询 approved 状态的记录
+      // 只查询 approved 状态的记录
       const applicationsResponse = await supabase
         .from('team_applications')
         .select('user_id, game_id, current_rank, main_positions, position_stats, available_time, accept_position_adjustment')
@@ -729,7 +714,7 @@ interface PlayerProfile {
       const combinedProfiles = Object.values(mergedData);
       console.log('合并后的数据数量:', combinedProfiles.length);
       
-      // 检查合并后的数据是否有效（至少有一个字段不为空）
+      // 检查合并后的数据是否有效（至少有 user_id 和有效的 main_positions）
       const validProfiles = combinedProfiles.filter(p => {
         // 处理 main_positions 可能是 JSON 字符串的情况
         let mainPositions = p.main_positions;
@@ -740,9 +725,11 @@ interface PlayerProfile {
             mainPositions = [];
           }
         }
-        // 更宽松的有效性检查，只要有 user_id 就认为有效
-        const isValid = p.user_id;
-        console.log('检查队员有效性:', p.user_id, p.game_id, '有效:', isValid);
+        // 有效性检查：需要有 user_id 和有效的 main_positions
+        const hasUserId = !!p.user_id;
+        const hasValidMainPositions = Array.isArray(mainPositions) && mainPositions.length > 0;
+        const isValid = hasUserId && hasValidMainPositions;
+        console.log('检查队员有效性:', p.user_id, p.game_id, '有效:', isValid, '有位置:', hasValidMainPositions);
         return isValid;
       });
       console.log('有效的数据数量:', validProfiles.length);
