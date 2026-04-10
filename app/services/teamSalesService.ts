@@ -3,6 +3,8 @@
 import { supabase } from '../lib/supabase';
 import {
   GoodsType,
+  ServerArea,
+  TeamBadge,
   SaleStatus,
   TeamSale,
   CreateTeamSaleRequest,
@@ -55,7 +57,18 @@ export const createTeamSale = async (data: CreateTeamSaleRequest): Promise<TeamS
   }
 
   // 构建插入数据，只包含必要字段，确保不包含数据库中不存在的字段
-  const insertData: any = {
+  const insertData: {
+    goods_type: GoodsType;
+    server_area: ServerArea;
+    price: number;
+    description: string;
+    contact: string;
+    status: SaleStatus;
+    team_size: number;
+    team_badge?: TeamBadge;
+    id_name?: string;
+    image_url?: string;
+  } = {
     goods_type: data.goods_type,
     server_area: data.server_area,
     price: data.price,
@@ -63,7 +76,7 @@ export const createTeamSale = async (data: CreateTeamSaleRequest): Promise<TeamS
     contact: data.contact,
     status: SaleStatus.ON_SALE,
     // 确保 team_size 字段始终存在且为正数
-    team_size: (data.goods_type === GoodsType.TEAM || data.goods_type === GoodsType.TEAM_AND_ID) ? data.team_size : 1
+    team_size: (data.goods_type === GoodsType.TEAM || data.goods_type === GoodsType.TEAM_AND_ID) ? data.team_size! : 1
   };
 
   // 只添加相关字段
@@ -80,11 +93,7 @@ export const createTeamSale = async (data: CreateTeamSaleRequest): Promise<TeamS
   }
 
   // 确保不包含数据库中不存在的字段
-  Object.keys(insertData).forEach(key => {
-    if (['author_id', 'seller_id', 'user_id', 'created_by'].includes(key)) {
-      delete insertData[key];
-    }
-  });
+  // 由于我们只添加了有效的字段，所以不需要这个检查
 
   // 创建商品
   const { data: newSale, error } = await supabase
