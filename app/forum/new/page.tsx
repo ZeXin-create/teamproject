@@ -24,6 +24,7 @@ export default function NewPostPage() {
   const [teams, setTeams] = useState<Team[]>([])
   const [images, setImages] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [showPreview, setShowPreview] = useState(false)
 
   const [formData, setFormData] = useState({
     title: '',
@@ -100,6 +101,50 @@ export default function NewPostPage() {
     setImagePreviews(prev => prev.filter((_, i) => i !== index))
   }
 
+  // 内容验证函数
+  const validateContent = (content: string) => {
+    const issues: string[] = []
+    
+    if (content.length < 10) {
+      issues.push('内容至少需要10个字符')
+    }
+    
+    if (content.length > 5000) {
+      issues.push('内容不能超过5000个字符')
+    }
+    
+    // 检查过度重复的内容
+    const words = content.split(/\s+/).filter(w => w.length > 0)
+    const wordCount: Record<string, number> = {}
+    words.forEach(word => {
+      wordCount[word] = (wordCount[word] || 0) + 1
+    })
+    const mostFrequent = Object.entries(wordCount).sort((a, b) => b[1] - a[1])[0]
+    if (mostFrequent && mostFrequent[1] > words.length * 0.5 && words.length > 10) {
+      issues.push('请避免过度重复相同内容')
+    }
+    
+    return issues
+  }
+
+  // 简单的内容格式化
+  const formatContent = (content: string) => {
+    // 移除多余的空行
+    return content.replace(/\n{3,}/g, '\n\n').trim()
+  }
+
+  // 敏感词检测（简单示例）
+  const checkSensitiveWords = (content: string) => {
+    const sensitiveWords = ['广告', '推销', '链接']
+    const found: string[] = []
+    sensitiveWords.forEach(word => {
+      if (content.includes(word)) {
+        found.push(word)
+      }
+    })
+    return found
+  }
+
   const uploadImages = async (postId: string): Promise<string[]> => {
     const uploadedUrls: string[] = []
 
@@ -138,6 +183,21 @@ export default function NewPostPage() {
     e.preventDefault()
     setError('')
     setSuccess('')
+
+    // 验证内容
+    const contentIssues = validateContent(formData.content)
+    if (contentIssues.length > 0) {
+      setError(contentIssues.join('；'))
+      return
+    }
+
+    // 检查敏感词
+    const sensitiveWords = checkSensitiveWords(formData.title + ' ' + formData.content)
+    if (sensitiveWords.length > 0) {
+      setError(`内容包含不适合的词汇：${sensitiveWords.join('、')}`)
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -145,9 +205,11 @@ export default function NewPostPage() {
         throw new Error('请先登录')
       }
 
+      const formattedContent = formatContent(formData.content)
+
       const data = {
         title: formData.title,
-        content: formData.content,
+        content: formattedContent,
         category: formData.category,
         author_id: user.id,
         team_id: formData.team_id || undefined
@@ -177,7 +239,7 @@ export default function NewPostPage() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8">
         <div className="glass-card p-8 max-w-3xl mx-auto">
           <h1 className="text-3xl font-bold gradient-text mb-6 text-center">发布帖子</h1>
 
@@ -194,11 +256,30 @@ export default function NewPostPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* 格式指导提示 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                <span>💡</span> 发帖规范
+              </h3>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• 标题清晰简洁，5-100个字符</li>
+                <li>• 内容详细具体，10-5000个字符</li>
+                <li>• 选择合适的分类，便于其他用户查找</li>
+                <li>• 禁止发布广告、推销等违规内容</li>
+                <li>• 支持上传最多3张图片</li>
+              </ul>
+            </div>
+
             {/* 帖子标题 */}
             <div>
-              <label htmlFor="title" className="block text-gray-700 font-medium mb-2">
-                帖子标题 *
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="title" className="block text-gray-700 font-medium">
+                  帖子标题 *
+                </label>
+                <span className={`text-sm ${formData.title.length >= 5 && formData.title.length <= 100 ? 'text-green-600' : 'text-gray-500'}`}>
+                  {formData.title.length}/100
+                </span>
+              </div>
               <input
                 type="text"
                 id="title"
@@ -259,20 +340,50 @@ export default function NewPostPage() {
 
             {/* 帖子内容 */}
             <div>
-              <label htmlFor="content" className="block text-gray-700 font-medium mb-2">
-                帖子内容 *
-              </label>
-              <textarea
-                id="content"
-                name="content"
-                value={formData.content}
-                onChange={handleChange}
-                placeholder="请输入帖子内容（至少10个字符）"
-                className="glass-input w-full px-4 py-3"
-                rows={10}
-                required
-                minLength={10}
-              />
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="content" className="block text-gray-700 font-medium">
+                  帖子内容 *
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(!showPreview)}
+                    className={`text-sm px-3 py-1 rounded-lg transition-colors ${
+                      showPreview ? 'bg-pink-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {showPreview ? '编辑' : '预览'}
+                  </button>
+                  <span className={`text-sm ${
+                    formData.content.length >= 10 && formData.content.length <= 5000 
+                      ? 'text-green-600' 
+                      : formData.content.length > 5000 
+                        ? 'text-red-500' 
+                        : 'text-gray-500'
+                  }`}>
+                    {formData.content.length}/5000
+                  </span>
+                </div>
+              </div>
+              
+              {showPreview ? (
+                <div className="glass-input w-full px-4 py-3 min-h-[200px] whitespace-pre-wrap">
+                  {formData.content || <span className="text-gray-400">暂无内容</span>}
+                </div>
+              ) : (
+                <textarea
+                  id="content"
+                  name="content"
+                  value={formData.content}
+                  onChange={handleChange}
+                  placeholder="请输入帖子内容（至少10个字符）&#10;&#10;提示：&#10;• 分段描述，便于阅读&#10;• 详细说明你的问题或想法&#10;• 可以上传图片辅助说明"
+                  className="glass-input w-full px-4 py-3"
+                  rows={10}
+                  required
+                  minLength={10}
+                  maxLength={5000}
+                />
+              )}
             </div>
 
             {/* 图片上传 */}

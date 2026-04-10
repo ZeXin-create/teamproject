@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useState, useEffect } from 'react'
 import Navbar from './components/Navbar'
@@ -127,10 +128,11 @@ export default function Home() {
     const [error, setError] = useState('')
     const [showModal, setShowModal] = useState(false)
     const [selectedRecruit, setSelectedRecruit] = useState<Recruit | null>(null)
+    const [hasFetched, setHasFetched] = useState(false)
 
     useEffect(() => {
-      // 只有当recruits为空时才请求数据
-      if (recruits.length === 0) {
+      // 只有当还没有获取过数据时才请求
+      if (!hasFetched) {
         const fetchRecruits = async () => {
           try {
             setError('')
@@ -146,10 +148,9 @@ export default function Home() {
           } catch (err) {
             console.error('获取招募信息失败:', err)
             setError('网络连接失败，请检查网络设置或稍后重试')
-            // 设置空数组，避免重复请求
-            setRecruits([])
           } finally {
             setLoading(false)
+            setHasFetched(true)
           }
         }
 
@@ -158,7 +159,7 @@ export default function Home() {
         // 如果已有数据，直接设置loading为false
         setLoading(false)
       }
-    }, [recruits.length])
+    }, [hasFetched])
 
     const handleCardClick = (recruit: Recruit) => {
       setSelectedRecruit(recruit)
@@ -294,14 +295,15 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <div className="mt-8 text-center">
+            {/* 暂时隐藏查看更多按钮，等待招募大厅页面开发 */}
+            {/* <div className="mt-8 text-center">
               <Link 
                 href="/teams/recruitment-management" 
                 className="py-3 px-8 bg-gradient-to-r from-pink-400 to-purple-400 text-white font-medium rounded-xl shadow-md shadow-pink-200 hover:shadow-lg hover:shadow-pink-300 hover:from-pink-500 hover:to-purple-500 transition-all duration-300 inline-block"
               >
                 查看更多
               </Link>
-            </div>
+            </div> */}
           </>
         ) : (
           <div className="text-center py-8">
@@ -621,10 +623,11 @@ export default function Home() {
 
     const [sales, setSales] = useState<Sale[]>([])
     const [loading, setLoading] = useState(true)
+    const [hasFetched, setHasFetched] = useState(false)
 
     useEffect(() => {
-      // 只有当sales为空时才请求数据
-      if (sales.length === 0) {
+      // 只有当还没有获取过数据时才请求
+      if (!hasFetched) {
         const fetchSales = async () => {
           try {
             console.log('开始获取出售信息...')
@@ -643,43 +646,50 @@ export default function Home() {
 
             if (salesData && Array.isArray(salesData)) {
               console.log(`获取到 ${salesData.length} 条出售信息`)
-              // 获取所有卖家ID
-              const sellerIdMap: Record<string, boolean> = {}
-              for (let i = 0; i < salesData.length; i++) {
-                const sale = salesData[i]
-                if (sale && typeof sale === 'object' && 'seller_id' in sale && sale.seller_id) {
-                  sellerIdMap[sale.seller_id] = true
-                }
-              }
-              const sellerIds = Object.keys(sellerIdMap)
-              console.log('卖家IDs:', sellerIds)
               
-              // 如果有卖家，获取卖家信息
-              let sellersMap: Record<string, string> = {}
-              if (sellerIds.length > 0) {
-                const { data: profilesData, error: profilesError } = await supabase
-                  .from('profiles')
-                  .select('id, nickname')
-                  .in('id', sellerIds)
-                
-                console.log('卖家信息:', profilesData)
-                console.log('卖家信息错误:', profilesError)
-                
-                if (profilesData && Array.isArray(profilesData)) {
-                  sellersMap = (profilesData as Array<{ id: string; nickname: string }>).reduce((acc, profile) => {
-                    acc[profile.id] = profile.nickname || '未知用户'
-                    return acc
-                  }, {} as Record<string, string>)
-                }
-              }
-
-              // 合并数据
-              const salesWithSellers = (salesData as Array<{ id: string; description: string; price: number; goods_type: 'TEAM' | 'ID' | 'TEAM_AND_ID'; status: 'ON_SALE' | 'SOLD' | 'OFF_SHELF'; created_at: string; seller_id: string }>).map(sale => ({
-                ...sale,
-                seller: {
-                  nickname: sellersMap[sale.seller_id || ''] || '未知用户'
-                }
-              }))
+              // 打印原始的第一条数据，看看数据库中真正有什么字段
+              console.log('原始的第一条 sale 数据:', JSON.stringify(salesData[0], null, 2))
+              
+              // 获取卖家信息 - 尝试使用各种可能的字段名
+              const salesWithSellers = await Promise.all(
+                (salesData as Array<any>).map(async (sale) => {
+                  let sellerNickname = '未知用户'
+                  
+                  // 尝试多种可能的卖家ID字段名
+                  const sellerId = sale.author_id || sale.seller_id || sale.user_id || sale.created_by
+                  
+                  console.log('处理 sale，sellerId:', sellerId, '所有字段:', Object.keys(sale))
+                  
+                  // 或者直接检查是否有 seller 或 profiles 字段
+                  if (sale.seller?.nickname) {
+                    sellerNickname = sale.seller.nickname
+                  } else if (sale.profiles?.nickname) {
+                    sellerNickname = sale.profiles.nickname
+                  } else if (sellerId) {
+                    try {
+                      const { data: sellerData } = await supabase
+                        .from('profiles')
+                        .select('nickname')
+                        .eq('id', sellerId)
+                        .single()
+                      
+                      if (sellerData?.nickname) {
+                        sellerNickname = sellerData.nickname
+                        console.log('成功获取到卖家昵称:', sellerNickname)
+                      }
+                    } catch (err) {
+                      console.log('获取卖家信息失败:', err)
+                    }
+                  }
+                  
+                  return {
+                    ...sale,
+                    seller: {
+                      nickname: sellerNickname
+                    }
+                  }
+                })
+              )
 
               console.log('最终数据:', salesWithSellers)
               setSales(salesWithSellers)
@@ -691,6 +701,7 @@ export default function Home() {
             console.error('获取出售信息失败:', err)
           } finally {
             setLoading(false)
+            setHasFetched(true)
           }
         }
 
@@ -699,7 +710,7 @@ export default function Home() {
         // 如果已有数据，直接设置loading为false
         setLoading(false)
       }
-    }, [sales.length])
+    }, [hasFetched])
 
     // 获取商品类型标签
     const getGoodsTypeLabel = (type: string) => {

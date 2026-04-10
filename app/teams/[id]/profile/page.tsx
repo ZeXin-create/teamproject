@@ -272,7 +272,7 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen">
         <Navbar />
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8">
           <div className="max-w-4xl mx-auto">
             <ProfileSkeleton />
           </div>
@@ -286,8 +286,7 @@ export default function ProfilePage() {
       <Navbar />
       {error && <ErrorToast message={error} onClose={clearError} />}
       {loading && <LoadingOverlay message="保存中..." />}
-      <div className="container m
-x-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8">
       <div className="glass-card p-8 max-w-4xl mx-auto">
         <div className="flex items-center mb-6">
           <button

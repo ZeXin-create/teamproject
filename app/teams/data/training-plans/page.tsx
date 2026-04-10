@@ -198,7 +198,7 @@ export default function TrainingPlansPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8">
           <div className="flex items-center justify-center py-16">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
@@ -211,37 +211,60 @@ export default function TrainingPlansPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50/30">
+      {/* 装饰性背景元素 */}
+      <div className="fixed top-32 -left-20 w-60 h-60 bg-purple-200/30 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="fixed bottom-20 -right-20 w-80 h-80 bg-pink-200/30 rounded-full blur-3xl pointer-events-none"></div>
+      
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
-        <div className="glass-card p-6">
-          <div className="flex items-center justify-between mb-6">
+      <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8 relative">
+        <div className="glass-card p-8">
+          <div className="flex items-center justify-between mb-8">
             <button
-              className="px-4 py-2 rounded-2xl text-gray-700 hover:text-pink-500 hover:bg-white/50 transition-all duration-300 font-medium flex items-center gap-2"
+              className="px-4 py-2 rounded-2xl bg-white/70 backdrop-blur-md text-gray-700 hover:text-pink-500 hover:bg-white transition-all duration-300 font-medium flex items-center gap-2 shadow-sm border border-white/50"
               onClick={() => router.push('/teams/space')}
             >
-              <span>←</span> 返回战队管理后台
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              返回战队管理后台
             </button>
-            <h1 className="text-2xl font-bold gradient-text">训练计划管理</h1>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-600 flex items-center justify-center">
+                <span className="text-white text-xl">📅</span>
+              </div>
+              <h1 className="text-2xl font-bold gradient-text">训练计划管理</h1>
+            </div>
             <div className="w-20"></div>
           </div>
 
           {error && (
-            <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
-              {error}
+            <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
+              <div className="flex items-center gap-2">
+                <span>⚠️</span>
+                <span>{error}</span>
+              </div>
             </div>
           )}
 
           {success && (
-            <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-lg">
-              {success}
+            <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200">
+              <div className="flex items-center gap-2">
+                <span>✅</span>
+                <span>{success}</span>
+              </div>
             </div>
           )}
 
           {/* 创建新计划 */}
           {hasTrainingPlanPermission() ? (
-            <div className="mb-8">
-              <h2 className="text-lg font-semibold mb-4">添加训练计划</h2>
+            <div className="mb-10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center">
+                  <span className="text-white">➕</span>
+                </div>
+                <h2 className="text-xl font-bold text-gray-800">添加训练计划</h2>
+              </div>
               <form onSubmit={editingPlan ? handleUpdatePlan : handleCreatePlan} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>

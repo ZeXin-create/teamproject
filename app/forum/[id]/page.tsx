@@ -141,7 +141,7 @@ export default function PostDetailPage() {
     return (
       <div className="min-h-screen">
         <Navbar />
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8 max-w-4xl">
           <div className="card p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
             <p className="text-gray-600">加载中...</p>
@@ -155,7 +155,7 @@ export default function PostDetailPage() {
     return (
       <div className="min-h-screen">
         <Navbar />
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8 max-w-4xl">
           <div className="card p-12 text-center">
             <div className="text-6xl mb-4">📝</div>
             <p className="text-gray-600 text-lg">帖子不存在</p>
@@ -168,7 +168,7 @@ export default function PostDetailPage() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8 max-w-4xl">
         <button
           onClick={() => router.back()}
           className="mb-6 text-primary-500 hover:text-primary-600 btn-secondary px-4 py-2 rounded-lg"

@@ -1,11 +1,14 @@
 'use client';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoodsType, ServerArea, TeamBadge, SaleStatus, TeamSale, TeamSaleQueryParams } from '../types/teamSales';
 import { getTeamSales } from '../services/teamSalesService';
 import Navbar from '../components/Navbar';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { supabase } from '../lib/supabase';
 
 export default function TeamSalesPage() {
   const router = useRouter();
@@ -28,10 +31,52 @@ export default function TeamSalesPage() {
     setLoading(true);
     try {
       const data = await getTeamSales(filters);
-      setSales(data);
+      
+      // 获取卖家信息 - 尝试使用各种可能的字段名
+      const salesWithSellers = await Promise.all(
+        (data as Array<any>).map(async (sale) => {
+          let sellerNickname = '未知用户'
+          
+          // 打印完整的 sale 数据结构，方便调试
+          console.log('完整的 sale 数据:', JSON.stringify(sale, null, 2))
+          
+          // 尝试多种可能的卖家ID字段名
+          const sellerId = sale.author_id || sale.seller_id || sale.user_id || sale.created_by
+          
+          // 或者直接检查是否有 seller 或 profiles 字段
+          if (sale.seller?.nickname) {
+            sellerNickname = sale.seller.nickname
+          } else if (sale.profiles?.nickname) {
+            sellerNickname = sale.profiles.nickname
+          } else if (sellerId) {
+            try {
+              const { data: sellerData } = await supabase
+                .from('profiles')
+                .select('nickname')
+                .eq('id', sellerId)
+                .single()
+              
+              if (sellerData?.nickname) {
+                sellerNickname = sellerData.nickname
+              }
+            } catch (err) {
+              console.log('获取卖家信息失败:', err)
+            }
+          }
+          
+          return {
+            ...sale,
+            profiles: {
+              nickname: sellerNickname
+            }
+          }
+        })
+      )
+      
+      setSales(salesWithSellers);
       // 默认选中第一个
-      if (data.length > 0 && !selectedSale) {
-        setSelectedSale(data[0]);
+      if (salesWithSellers.length > 0 && !selectedSale) {
+        setSelectedSale(salesWithSellers[0]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取商品列表失败');
@@ -119,11 +164,21 @@ export default function TeamSalesPage() {
     <ErrorBoundary>
     <div className="min-h-screen">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8">
         {/* 页面标题和发布按钮 */}
         <div className="card p-6 mb-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <h1 className="text-2xl font-bold gradient-text">王者荣耀战队/ID出售</h1>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/')}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h1 className="text-2xl font-bold gradient-text">王者荣耀战队/ID出售</h1>
+            </div>
             <button
               onClick={() => router.push('/team-sales/new')}
               className="btn-primary px-6 py-2 text-white font-medium"
@@ -237,14 +292,17 @@ export default function TeamSalesPage() {
                       }}
                     >
                       <div className="flex items-start justify-between">
-                        <div>
+                        <div className="flex-1">
                           <h3 className="font-semibold">{sale.id_name || getGoodsTypeLabel(sale.goods_type)}</h3>
                           <div className="flex gap-2 mt-1">
                             <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">{getGoodsTypeLabel(sale.goods_type)}</span>
                             <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">{getServerAreaLabel(sale.server_area)}</span>
                           </div>
                           <div className="text-sm font-bold text-primary-500 mt-2">¥{sale.price}</div>
-                          <div className="text-xs text-gray-500 mt-2">
+                          <div className="text-xs text-gray-500 mt-1">
+                            卖家：{sale.profiles?.nickname || '未知用户'}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
                             {new Date(sale.created_at).toLocaleDateString()}
                           </div>
                         </div>
@@ -296,6 +354,10 @@ export default function TeamSalesPage() {
                       <p className={`font-medium ${selectedSale.status === SaleStatus.ON_SALE ? 'text-green-600' : 'text-gray-600'}`}>
                         {getStatusLabel(selectedSale.status)}
                       </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">卖家</p>
+                      <p className="font-medium">{selectedSale.profiles?.nickname || '未知用户'}</p>
                     </div>
                   </div>
                   
@@ -393,6 +455,10 @@ export default function TeamSalesPage() {
                     <p className={`font-medium ${selectedSale.status === SaleStatus.ON_SALE ? 'text-green-600' : 'text-gray-600'}`}>
                       {getStatusLabel(selectedSale.status)}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">卖家</p>
+                    <p className="font-medium">{selectedSale.profiles?.nickname || '未知用户'}</p>
                   </div>
                 </div>
                 

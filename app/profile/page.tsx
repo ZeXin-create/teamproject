@@ -384,7 +384,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* 侧边栏 */}
           <div className="hidden lg:block">

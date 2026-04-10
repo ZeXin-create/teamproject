@@ -56,7 +56,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isDarkMode, onCopy, 
             whileHover={{ scale: 1.02 }}
             className={`py-3 px-4 rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 ${message.role === 'user'
               ? 'bg-gradient-to-r from-pink-400 to-pink-600 text-white rounded-tr-md'
-              : (isDarkMode ? 'bg-gray-800 border border-gray-700 text-gray-200' : 'bg-white border border-pink-100 text-gray-800') + ' rounded-tl-md'
+              : (isDarkMode ? 'bg-gray-700 border border-gray-600 text-gray-100' : 'bg-white border border-pink-100 text-gray-800') + ' rounded-tl-md'
               }`}
           >
             {/* 消息操作菜单 */}
@@ -76,7 +76,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isDarkMode, onCopy, 
             
             <div className="whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
               {message.role === 'ai' ? (
-                <MarkdownContent content={message.content} />
+                <MarkdownContent content={message.content} isDarkMode={isDarkMode} />
               ) : (
                 <span className="text-sm">{message.content}</span>
               )}
@@ -138,9 +138,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isDarkMode, onCopy, 
 }
 
 // Markdown解析组件
-const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
-  // 安全检查window对象
-  const isDarkMode = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+const MarkdownContent: React.FC<{ content: string; isDarkMode: boolean }> = ({ content, isDarkMode }) => {
   
   const lines = content.split('\n')
   const elements = []
@@ -156,7 +154,7 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
         // 代码块结束
         elements.push(
           <div key={i} className="mb-4">
-            <pre className={`${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-800'} p-4 rounded-lg overflow-x-auto text-sm`}>
+            <pre className={`${isDarkMode ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-800'} p-4 rounded-lg overflow-x-auto text-sm`}>
               <code>{codeContent}</code>
             </pre>
           </div>
@@ -180,7 +178,7 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
       elements.push(
         <h3 
           key={i} 
-          className={`text-lg font-bold mb-4 mt-6 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`} 
+          className={`text-lg font-bold mb-4 mt-6 ${isDarkMode ? 'text-white' : 'text-gray-800'}`} 
           style={{ fontSize: '18px', fontWeight: 'bold' }}
         >
           {line.substring(3)}
@@ -195,7 +193,7 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
           className="pl-4 mb-2" 
           style={{ textIndent: '-20px', paddingLeft: '20px' }}
         >
-          <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>• {line.substring(2)}</span>
+          <span className={`text-sm ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>• {line.substring(2)}</span>
         </div>
       )
     }
@@ -214,7 +212,7 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
       })
       
       elements.push(
-        <p key={i} className={`text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`} dangerouslySetInnerHTML={{ __html: textWithLinks }} />
+        <p key={i} className={`text-sm mb-3 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`} dangerouslySetInnerHTML={{ __html: textWithLinks }} />
       )
     }
   }
@@ -388,28 +386,39 @@ export default function AIChatPage() {
   }
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-white to-pink-50 text-gray-800'}`}>
+    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-gradient-to-br from-white to-pink-50 text-gray-800'} pb-safe`}>
       {/* 顶部导航栏 - 高度56px，#eee颜色下边框，z-index:100 */}
       <div 
-        className={`fixed top-0 left-0 right-0 z-[100] h-14 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} 
+        className={`fixed top-0 left-0 right-0 z-[100] h-14 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} pt-safe`} 
         style={{ borderBottom: `1px solid ${isDarkMode ? '#374151' : '#eee'}` }}
       >
         <div className="max-w-[800px] mx-auto w-full px-5 h-full flex items-center justify-between">
-          {/* 左侧菜单按钮 */}
-          <button
-            onClick={() => setShowQuickCommands(!showQuickCommands)}
-            className={`px-3 py-1.5 rounded-xl text-sm ${isDarkMode ? 'text-gray-300 hover:text-pink-400 hover:bg-gray-700' : 'text-gray-600 hover:text-pink-500 hover:bg-gray-50'} transition-all duration-300 font-medium flex items-center gap-1.5 mr-4`}
-          >
-            ☰ 菜单
-          </button>
+          {/* 左侧按钮组 */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/teams/space')}
+              className={`px-3 py-1.5 rounded-xl text-sm ${isDarkMode ? 'text-gray-300 hover:text-pink-400 hover:bg-gray-700' : 'text-gray-600 hover:text-pink-500 hover:bg-gray-50'} transition-all duration-300 font-medium flex items-center gap-1.5`}
+            >
+              <span className="text-base">←</span> 返回
+            </button>
+            <button
+              onClick={() => setShowQuickCommands(!showQuickCommands)}
+              className={`px-3 py-1.5 rounded-xl text-sm ${isDarkMode ? 'text-gray-300 hover:text-pink-400 hover:bg-gray-700' : 'text-gray-600 hover:text-pink-500 hover:bg-gray-50'} transition-all duration-300 font-medium flex items-center gap-1.5`}
+            >
+              ☰ 菜单
+            </button>
+          </div>
           
-          <button
-            onClick={() => router.push('/teams/space')}
-            className={`px-3 py-1.5 rounded-xl text-sm ${isDarkMode ? 'text-gray-300 hover:text-pink-400 hover:bg-gray-700' : 'text-gray-600 hover:text-pink-500 hover:bg-gray-50'} transition-all duration-300 font-medium flex items-center gap-1.5`}
-          >
-            <span className="text-base">←</span> 返回
-          </button>
-          <div className="flex items-center gap-4">
+          {/* 中间标题 */}
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-r from-pink-400 to-pink-600 flex items-center justify-center">
+              <span className="text-white font-bold text-xs">AI</span>
+            </div>
+            <h1 className="text-base font-bold">智能战队助手</h1>
+          </div>
+          
+          {/* 右侧按钮组 */}
+          <div className="flex items-center gap-2">
             {/* 主题切换按钮 */}
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -417,7 +426,7 @@ export default function AIChatPage() {
               onClick={() => setIsDarkMode(!isDarkMode)}
               className={`px-3 py-1.5 rounded-xl text-sm ${isDarkMode ? 'text-gray-300 hover:text-pink-400 hover:bg-gray-700' : 'text-gray-600 hover:text-pink-500 hover:bg-gray-50'} transition-all duration-300 font-medium flex items-center gap-1.5`}
             >
-              {isDarkMode ? '🌞 浅色' : '🌙 深色'}
+              {isDarkMode ? '🌞' : '🌙'}
             </motion.button>
             
             {/* 会话管理按钮 */}
@@ -426,7 +435,7 @@ export default function AIChatPage() {
                 onClick={() => setShowSessions(!showSessions)}
                 className={`px-3 py-1.5 rounded-xl text-sm ${isDarkMode ? 'text-gray-300 hover:text-pink-400 hover:bg-gray-800' : 'text-gray-600 hover:text-pink-500 hover:bg-gray-50'} transition-all duration-300 font-medium flex items-center gap-1.5`}
               >
-                <span>💬</span> 会话
+                💬
               </button>
               
               {/* 会话列表弹窗 */}
@@ -531,15 +540,7 @@ export default function AIChatPage() {
                 </motion.div>
               )}
             </div>
-            
-            <div className="flex items-center gap-1.5">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-pink-400 to-pink-600 flex items-center justify-center">
-                <span className="text-white font-bold text-xs">AI</span>
-              </div>
-              <h1 className="text-base font-bold text-gray-800">智能战队助手</h1>
-            </div>
           </div>
-          <div className="w-16"></div>
         </div>
       </div>
       
@@ -596,7 +597,7 @@ export default function AIChatPage() {
       )}
       
       {/* 主容器 - 最大宽度800px，水平居中，左右各20px内边距 */}
-      <div className="max-w-[800px] mx-auto w-full px-5 pt-20 pb-8">
+      <div className="max-w-[800px] mx-auto w-full px-5 pt-24 pb-24">
         {/* 聊天区域 - 右侧自适应 */}
         <div className="flex gap-8">
           {/* 左侧建议列表 - 固定宽度240px，80px margin-top避开导航栏，点击菜单按钮从左侧弹出 */}
@@ -639,7 +640,7 @@ export default function AIChatPage() {
             {/* 聊天消息区域 */}
             <div
               ref={messagesContainerRef}
-              className="h-[calc(100vh-320px)] min-h-[400px] overflow-y-auto mb-4 space-y-4 px-2"
+              className="h-[calc(100vh-360px)] min-h-[400px] overflow-y-auto mb-4 space-y-4 px-2 py-4"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {messages.length === 0 ? (
@@ -677,7 +678,7 @@ export default function AIChatPage() {
                         <div className="w-8 h-8 rounded-full bg-gradient-to-r from-pink-400 to-pink-600 flex-shrink-0 flex items-center justify-center shadow-md">
                           <span className="text-white text-xs font-bold">AI</span>
                         </div>
-                        <div className={`py-3 px-4 rounded-2xl ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-pink-100'} shadow-md`}>
+                        <div className={`py-3 px-4 rounded-2xl ${isDarkMode ? 'bg-gray-700 border border-gray-600' : 'bg-white border border-pink-100'} shadow-md`}>
                           <div className="flex items-center gap-2">
                             <div className="flex gap-1">
                               <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -696,7 +697,7 @@ export default function AIChatPage() {
             </div>
 
             {/* 输入框 */}
-            <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-pink-100'} rounded-2xl shadow-md p-3`}>
+            <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-pink-100'} rounded-2xl shadow-md p-3 pb-safe`}>
               {/* 错误提示 */}
               {errorMessage && (
                 <div className={`mb-3 p-3 rounded-xl ${isDarkMode ? 'bg-red-900/30 border border-red-800 text-red-300' : 'bg-red-50 border border-red-200 text-red-600'}`}>

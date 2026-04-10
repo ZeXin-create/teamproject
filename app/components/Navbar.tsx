@@ -259,7 +259,7 @@ export default function Navbar() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="fixed inset-x-4 top-[45%] -translate-y-1/2 z-[10000] md:hidden"
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-[10000] md:hidden"
             >
               <div className="mx-auto max-w-sm">
               <div 

@@ -31,6 +31,41 @@ export default function RootLayout({
         localStorage.setItem('hasVisited', 'true')
       }
 
+      // 版本控制和缓存管理
+      const storedVersion = localStorage.getItem('appVersion')
+      if (storedVersion !== APP_VERSION) {
+        console.log(`版本更新: ${storedVersion || '首次访问'} -> ${APP_VERSION}`)
+        
+        // 清除旧版本缓存
+        if ('caches' in window) {
+          caches.keys().then((cacheNames) => {
+            cacheNames.forEach((cacheName) => {
+              caches.delete(cacheName)
+              console.log('已清除缓存:', cacheName)
+            })
+          })
+        }
+
+        // 清除并重新注册 Service Worker
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            registrations.forEach((registration) => {
+              registration.unregister()
+              console.log('已注销旧的 Service Worker')
+            })
+          })
+        }
+
+        // 存储新版本号
+        localStorage.setItem('appVersion', APP_VERSION)
+        
+        // 强制刷新页面以加载新版本
+        if (storedVersion) {
+          window.location.reload()
+        }
+      }
+
+      // 注册新版本的 Service Worker（如果还没注册）
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/service-worker.js')
           .then((registration) => {
@@ -68,6 +103,8 @@ export default function RootLayout({
             <VersionUpdateModal 
               version={APP_VERSION} 
               updateContent={[
+                "缓存优化：添加版本控制机制，自动清除旧版本缓存",
+                "缓存优化：Service Worker 版本管理，确保用户始终看到最新页面",
                 "智能分组系统：修复数据合并逻辑，确保有效数据不被覆盖",
                 "智能分组系统：实现时间区间兼容性，时间多的队员兼容时间少的队员",
                 "智能分组系统：修复分组算法，确保每组最多5人，优先覆盖5个位置",

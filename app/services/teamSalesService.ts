@@ -37,25 +37,59 @@ export const createTeamSale = async (data: CreateTeamSaleRequest): Promise<TeamS
     }
 
     // 检查ID名称是否已存在
-    const { data: existingId } = await supabase
-      .from('team_sales')
-      .select('id')
-      .eq('id_name', data.id_name)
-      .eq('status', SaleStatus.ON_SALE)
-      .single();
+    try {
+      const { data: existingId } = await supabase
+        .from('team_sales')
+        .select('id')
+        .eq('id_name', data.id_name)
+        .eq('status', SaleStatus.ON_SALE)
+        .single();
 
-    if (existingId) {
-      throw new Error('该ID名称已存在');
+      if (existingId) {
+        throw new Error('该ID名称已存在');
+      }
+    } catch (err) {
+      console.log('检查ID名称失败:', err);
+      // 继续执行，不阻止创建
     }
   }
+
+  // 构建插入数据，只包含必要字段，确保不包含数据库中不存在的字段
+  const insertData: any = {
+    goods_type: data.goods_type,
+    server_area: data.server_area,
+    price: data.price,
+    description: data.description,
+    contact: data.contact,
+    status: SaleStatus.ON_SALE,
+    // 确保 team_size 字段始终存在且为正数
+    team_size: (data.goods_type === GoodsType.TEAM || data.goods_type === GoodsType.TEAM_AND_ID) ? data.team_size : 1
+  };
+
+  // 只添加相关字段
+  if (data.goods_type === GoodsType.TEAM || data.goods_type === GoodsType.TEAM_AND_ID) {
+    insertData.team_badge = data.team_badge;
+  }
+
+  if (data.goods_type === GoodsType.ID || data.goods_type === GoodsType.TEAM_AND_ID) {
+    insertData.id_name = data.id_name;
+  }
+
+  if (data.image_url) {
+    insertData.image_url = data.image_url;
+  }
+
+  // 确保不包含数据库中不存在的字段
+  Object.keys(insertData).forEach(key => {
+    if (['author_id', 'seller_id', 'user_id', 'created_by'].includes(key)) {
+      delete insertData[key];
+    }
+  });
 
   // 创建商品
   const { data: newSale, error } = await supabase
     .from('team_sales')
-    .insert({
-      ...data,
-      status: SaleStatus.ON_SALE
-    })
+    .insert(insertData)
     .select()
     .single();
 

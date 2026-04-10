@@ -43,6 +43,12 @@ export interface TeamSale {
   image_url?: string;
   created_at: string;
   updated_at: string;
+  seller_id?: string;
+  author_id?: string;
+  profiles?: {
+    id: string;
+    nickname: string;
+  };
 }
 
 // 创建商品请求类型

@@ -264,6 +264,9 @@ export class TeamDataService {
   }
   
   static async deleteMatchRecord(id: string): Promise<void> {
+    if (!id) {
+      throw new Error('记录ID不能为空');
+    }
     try {
       const { error } = await supabase
         .from('match_records')
@@ -342,6 +345,9 @@ export class TeamDataService {
   }
   
   static async deleteTrainingPlan(id: string): Promise<void> {
+    if (!id) {
+      throw new Error('记录ID不能为空');
+    }
     try {
       const { error } = await supabase
         .from('training_plans')

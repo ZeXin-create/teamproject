@@ -176,7 +176,7 @@ export default function AnalyticsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8">
           <div className="flex items-center justify-center py-16">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
@@ -191,7 +191,7 @@ export default function AnalyticsPage() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8">
         <div className="glass-card p-6">
           <div className="flex items-center justify-between mb-6">
             <button
