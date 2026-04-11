@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
 
+// 强制动态渲染，因为使用了 request.url
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
