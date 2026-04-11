@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
+import Navbar from '../components/Navbar'
+import PageLayout from '../components/layout/PageLayout'
 import Image from 'next/image'
 
 interface User {
@@ -357,218 +359,221 @@ export default function FriendsPage() {
   }
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
-        {/* 返回按钮 */}
-        <div className="flex items-center mb-8">
-          <button 
-            className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2"
-            onClick={() => router.back()}
-          >
-            <span>←</span> 返回
-          </button>
-        </div>
-
-        {/* 错误和成功提示 */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200">
-            {success}
-          </div>
-        )}
-
-        {/* 页面标题 */}
-        <h1 className="text-2xl font-bold gradient-text mb-8 text-center">👥 好友系统</h1>
-
-        {/* 搜索用户 */}
-        <div className="glass-card p-6 mb-8">
-          <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-            <span>🔍</span> 添加好友
-          </h2>
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索用户昵称或邮箱..."
-              className="flex-1 glass-input px-4 py-3"
-            />
-            <button
-              type="submit"
-              className="glass-button px-6 py-3 text-white font-medium"
-              disabled={searching}
+    <div className="min-h-screen">
+      <Navbar />
+      <PageLayout>
+        <div className="container mx-auto px-4 max-w-4xl py-8">
+          {/* 返回按钮 */}
+          <div className="flex items-center mb-8">
+            <button 
+              className="glass-card px-4 py-2 text-gray-700 hover:text-pink-500 transition-colors flex items-center gap-2"
+              onClick={() => router.back()}
             >
-              {searching ? '搜索中...' : '搜索'}
+              <span>←</span> 返回
             </button>
-          </form>
+          </div>
 
-          {/* 搜索结果 */}
-          {searchResults.length > 0 && (
-            <div className="mt-4 space-y-3">
-              {searchResults.map((result) => (
-                <div key={result.id} className="glass-card p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {result.avatar ? (
-                      <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/50">
-                        <Image 
-                          src={result.avatar} 
-                          alt={result.nickname}
-                          width={48}
-                          height={48}
-                          className="object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      </div>
-                    ) : null}
-                    <div 
-                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold ${result.avatar ? 'hidden' : ''}`}
-                      style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
-                    >
-                      {result.nickname.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-800">{result.nickname} {result.systemId && `(ID: ${result.systemId})`}</h3>
-                      <p className="text-sm text-gray-500">{result.email}</p>
-                    </div>
-                  </div>
-                  <button
-                    className="glass-button px-4 py-2 text-white text-sm font-medium"
-                    onClick={() => sendFriendRequest(result.id)}
-                  >
-                    发送请求
-                  </button>
-                </div>
-              ))}
+          {/* 错误和成功提示 */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-100/80 backdrop-blur-sm text-red-700 rounded-2xl border border-red-200">
+              {error}
             </div>
           )}
-        </div>
 
-        {/* 好友请求 */}
-        {friendRequests.length > 0 && (
+          {success && (
+            <div className="mb-6 p-4 bg-green-100/80 backdrop-blur-sm text-green-700 rounded-2xl border border-green-200">
+              {success}
+            </div>
+          )}
+
+          {/* 页面标题 */}
+          <h1 className="text-2xl font-bold gradient-text mb-8 text-center">👥 好友系统</h1>
+
+          {/* 搜索用户 */}
           <div className="glass-card p-6 mb-8">
             <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-              <span>📋</span> 好友请求
+              <span>🔍</span> 添加好友
             </h2>
-            <div className="space-y-3">
-              {friendRequests.map((request) => (
-                <div key={request.id} className="glass-card p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {request.sender.avatar ? (
-                      <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/50">
-                        <Image 
-                          src={request.sender.avatar} 
-                          alt={request.sender.nickname}
-                          width={48}
-                          height={48}
-                          className="object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      </div>
-                    ) : null}
-                    <div 
-                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold ${request.sender.avatar ? 'hidden' : ''}`}
-                      style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
-                    >
-                      {request.sender.nickname.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-800">{request.sender.nickname}</h3>
-                      <p className="text-sm text-gray-500">
-                        {new Date(request.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="px-4 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-xl text-sm hover:shadow-lg transition-all"
-                      onClick={() => acceptFriendRequest(request.id)}
-                    >
-                      接受
-                    </button>
-                    <button
-                      className="px-4 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-xl text-sm hover:shadow-lg transition-all"
-                      onClick={() => rejectFriendRequest(request.id)}
-                    >
-                      拒绝
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索用户昵称或邮箱..."
+                className="flex-1 glass-input px-4 py-3"
+              />
+              <button
+                type="submit"
+                className="glass-button px-6 py-3 text-white font-medium"
+                disabled={searching}
+              >
+                {searching ? '搜索中...' : '搜索'}
+              </button>
+            </form>
 
-        {/* 好友列表 */}
-        <div className="glass-card p-6">
-          <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-            <span>👥</span> 我的好友
-          </h2>
-          {friends.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">🌸</div>
-              <p className="text-gray-600 text-lg">暂无好友</p>
-              <p className="text-gray-400 text-sm mt-2">搜索用户并发送好友请求吧~</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {friends.map((friend) => (
-                <div key={friend.friend_id} className="glass-card p-4 flex items-center justify-between hover:scale-[1.02] transition-transform">
-                  <div className="flex items-center gap-4">
-                    {friend.user.avatar ? (
-                      <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/50">
-                        <Image 
-                          src={friend.user.avatar} 
-                          alt={friend.user.nickname}
-                          width={48}
-                          height={48}
-                          className="object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                        <div className={`absolute bottom-1 right-1 w-4 h-4 rounded-full ${friend.user.status === 'online' ? 'bg-green-500' : friend.user.status === 'away' ? 'bg-yellow-500' : 'bg-gray-500'}`}></div>
+            {/* 搜索结果 */}
+            {searchResults.length > 0 && (
+              <div className="mt-4 space-y-3">
+                {searchResults.map((result) => (
+                  <div key={result.id} className="glass-card p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {result.avatar ? (
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/50">
+                          <Image 
+                            src={result.avatar} 
+                            alt={result.nickname}
+                            width={48}
+                            height={48}
+                            className="object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                      <div 
+                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold ${result.avatar ? 'hidden' : ''}`}
+                        style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
+                      >
+                        {result.nickname.charAt(0).toUpperCase()}
                       </div>
-                    ) : null}
-                    <div 
-                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold ${friend.user.avatar ? 'hidden' : ''}`}
-                      style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
-                    >
-                      <div className={`absolute bottom-1 right-1 w-4 h-4 rounded-full ${friend.user.status === 'online' ? 'bg-green-500' : friend.user.status === 'away' ? 'bg-yellow-500' : 'bg-gray-500'}`}></div>
-                      {friend.user.nickname.charAt(0).toUpperCase()}
+                      <div>
+                        <h3 className="font-bold text-gray-800">{result.nickname} {result.systemId && `(ID: ${result.systemId})`}</h3>
+                        <p className="text-sm text-gray-500">{result.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-gray-800">{friend.user.nickname}</h3>
-                      <p className="text-sm text-gray-500">
-                        {friend.user.status === 'online' ? '在线' : 
-                         friend.user.status === 'away' ? '离开' : 
-                         `最后在线: ${new Date(friend.user.last_seen).toLocaleString()}`}
-                      </p>
+                    <button
+                      className="glass-button px-4 py-2 text-white text-sm font-medium"
+                      onClick={() => sendFriendRequest(result.id)}
+                    >
+                      发送请求
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 好友请求 */}
+          {friendRequests.length > 0 && (
+            <div className="glass-card p-6 mb-8">
+              <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+                <span>📋</span> 好友请求
+              </h2>
+              <div className="space-y-3">
+                {friendRequests.map((request) => (
+                  <div key={request.id} className="glass-card p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {request.sender.avatar ? (
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/50">
+                          <Image 
+                            src={request.sender.avatar} 
+                            alt={request.sender.nickname}
+                            width={48}
+                            height={48}
+                            className="object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                      <div 
+                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold ${request.sender.avatar ? 'hidden' : ''}`}
+                        style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
+                      >
+                        {request.sender.nickname.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-800">{request.sender.nickname}</h3>
+                        <p className="text-sm text-gray-500">
+                          {new Date(request.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        className="px-4 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-xl text-sm hover:shadow-lg transition-all"
+                        onClick={() => acceptFriendRequest(request.id)}
+                      >
+                        接受
+                      </button>
+                      <button
+                        className="px-4 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-xl text-sm hover:shadow-lg transition-all"
+                        onClick={() => rejectFriendRequest(request.id)}
+                      >
+                        拒绝
+                      </button>
                     </div>
                   </div>
-                  <button
-                    className="px-4 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-xl text-sm hover:shadow-lg transition-all"
-                    onClick={() => removeFriend(friend.friend_id)}
-                  >
-                    删除
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
+
+          {/* 好友列表 */}
+          <div className="glass-card p-6">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+              <span>👥</span> 我的好友
+            </h2>
+            {friends.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🌸</div>
+                <p className="text-gray-600 text-lg">暂无好友</p>
+                <p className="text-gray-400 text-sm mt-2">搜索用户并发送好友请求吧~</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {friends.map((friend) => (
+                  <div key={friend.friend_id} className="glass-card p-4 flex items-center justify-between hover:scale-[1.02] transition-transform">
+                    <div className="flex items-center gap-4">
+                      {friend.user.avatar ? (
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/50">
+                          <Image 
+                            src={friend.user.avatar} 
+                            alt={friend.user.nickname}
+                            width={48}
+                            height={48}
+                            className="object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                          <div className={`absolute bottom-1 right-1 w-4 h-4 rounded-full ${friend.user.status === 'online' ? 'bg-green-500' : friend.user.status === 'away' ? 'bg-yellow-500' : 'bg-gray-500'}`}></div>
+                        </div>
+                      ) : null}
+                      <div 
+                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold ${friend.user.avatar ? 'hidden' : ''}`}
+                        style={{ background: 'linear-gradient(135deg, #ff6b9d, #c44569)' }}
+                      >
+                        <div className={`absolute bottom-1 right-1 w-4 h-4 rounded-full ${friend.user.status === 'online' ? 'bg-green-500' : friend.user.status === 'away' ? 'bg-yellow-500' : 'bg-gray-500'}`}></div>
+                        {friend.user.nickname.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-800">{friend.user.nickname}</h3>
+                        <p className="text-sm text-gray-500">
+                          {friend.user.status === 'online' ? '在线' : 
+                           friend.user.status === 'away' ? '离开' : 
+                           `最后在线: ${new Date(friend.user.last_seen).toLocaleString()}`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      className="px-4 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white rounded-xl text-sm hover:shadow-lg transition-all"
+                      onClick={() => removeFriend(friend.friend_id)}
+                    >
+                      删除
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </PageLayout>
     </div>
   )
 }

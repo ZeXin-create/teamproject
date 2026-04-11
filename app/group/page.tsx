@@ -15,6 +15,8 @@ import { Group, TeamMember as TeamMemberType } from './types';
 // 导入组件
 import GroupCard from './components/GroupCard';
 import UnassignedMember from './components/UnassignedMember';
+import Navbar from '@/app/components/Navbar';
+import PageLayout from '@/app/components/layout/PageLayout';
 
 export default function GroupPage() {
   const router = useRouter();
@@ -238,21 +240,23 @@ export default function GroupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      {/* 背景装饰 */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-pink-200/30 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 right-1/4 w-80 h-80 bg-blue-200/20 rounded-full blur-3xl" />
-      </div>
+      <Navbar />
+      <PageLayout paddingTop="pt-20 md:pt-24">
+        {/* 背景装饰 */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-pink-200/30 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl" />
+          <div className="absolute -bottom-40 right-1/4 w-80 h-80 bg-blue-200/20 rounded-full blur-3xl" />
+        </div>
 
-      <div className="relative z-10 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+        <div className="relative z-10">
         {/* 页面头部 - 玻璃拟态卡片 */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="bg-white/70 backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-[0_8px_32px_rgba(236,72,153,0.1)] border border-white/50">
+          <div className="card">
             <div className="flex items-center gap-3 mb-4">
               <motion.button 
                 whileHover={{ scale: 1.05 }}
@@ -291,16 +295,9 @@ export default function GroupPage() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className={`
-              relative overflow-hidden px-8 py-4 rounded-2xl font-semibold text-white
-              transition-all duration-500 shadow-lg
-              ${loading || locked 
-                ? 'bg-gray-300 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 hover:shadow-pink-500/30 animate-gradient'
-              }
+              btn-primary px-8 py-4
+              ${loading || locked ? 'btn-loading' : ''}
             `}
-            style={{
-              backgroundSize: '200% 200%',
-            }}
           >
             <span className="relative z-10 flex items-center gap-2">
               {loading ? (
@@ -316,7 +313,7 @@ export default function GroupPage() {
               ) : (
                 <>
                   <Swords className="w-5 h-5" />
-                  <span>开始分组</span>
+                  <span>智能分组</span>
                 </>
               )}
             </span>
@@ -328,7 +325,7 @@ export default function GroupPage() {
               disabled={confirmLoading}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="px-8 py-4 rounded-2xl font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-500 hover:shadow-lg hover:shadow-green-500/30 transition-all duration-300 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className={`btn-primary px-8 py-4 ${confirmLoading ? 'btn-loading' : ''}`}
             >
               <span className="flex items-center gap-2">
                 {confirmLoading ? (
@@ -339,7 +336,7 @@ export default function GroupPage() {
                 ) : (
                   <>
                     <CheckCircle className="w-5 h-5" />
-                    <span>确认分组</span>
+                    <span>锁定分组</span>
                   </>
                 )}
               </span>
@@ -356,11 +353,11 @@ export default function GroupPage() {
             disabled={!teamId}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="px-8 py-4 rounded-2xl font-semibold text-gray-700 bg-white/80 backdrop-blur-sm border border-gray-200 hover:bg-white hover:shadow-lg transition-all duration-300 disabled:opacity-50"
+            className={`btn-secondary px-8 py-4 ${!teamId ? 'opacity-50' : ''}`}
           >
             <span className="flex items-center gap-2">
               <History className="w-5 h-5" />
-              <span>{showHistory ? '隐藏历史' : '历史分组'}</span>
+              <span>{showHistory ? '隐藏历史' : '分组历史'}</span>
             </span>
           </motion.button>
         </motion.div>
@@ -440,7 +437,7 @@ export default function GroupPage() {
               exit={{ opacity: 0, height: 0 }}
               className="mb-8 overflow-hidden"
             >
-              <div className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.05)] border border-white/50">
+              <div className="card">
                 <h2 className="text-xl font-bold mb-6 text-gray-800 flex items-center gap-3">
                   <div className="p-2 bg-purple-100 rounded-xl">
                     <History className="w-5 h-5 text-purple-600" />
@@ -508,7 +505,7 @@ export default function GroupPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.05)] border border-white/50"
+              className="card"
             >
               <h3 className="font-bold mb-6 text-gray-800 flex items-center gap-3">
                 <div className="p-2 bg-amber-100 rounded-xl">
@@ -537,7 +534,7 @@ export default function GroupPage() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 sm:p-12 text-center shadow-[0_8px_32px_rgba(0,0,0,0.05)] border border-white/50"
+            className="card text-center p-8 sm:p-12"
           >
             <motion.div 
               animate={{ 
@@ -562,7 +559,7 @@ export default function GroupPage() {
               disabled={loading}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 rounded-2xl font-semibold text-white bg-gradient-to-r from-pink-500 to-purple-500 hover:shadow-lg hover:shadow-pink-500/30 transition-all duration-300 disabled:opacity-50"
+              className={`btn-primary px-8 py-4 ${loading ? 'btn-loading' : ''}`}
             >
               <span className="flex items-center gap-2">
                 {loading ? (
@@ -573,7 +570,7 @@ export default function GroupPage() {
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5" />
-                    <span>开始分组</span>
+                    <span>智能分组</span>
                   </>
                 )}
               </span>
@@ -581,6 +578,7 @@ export default function GroupPage() {
           </motion.div>
         )}
       </div>
+      </PageLayout>
 
       {/* 自定义滚动条样式 */}
       <style jsx global>{`

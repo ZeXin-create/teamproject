@@ -83,11 +83,11 @@ export default function RootLayout({
       <head>
         <title>战队系统</title>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#ff6b9d" />
+        <meta name="theme-color" content="#8b5cf6" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="战队系统" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="战队助手" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <link rel="icon" href="/icons/icon-192x192.png" type="image/png" />
       </head>
@@ -103,17 +103,21 @@ export default function RootLayout({
             <VersionUpdateModal 
               version={APP_VERSION} 
               updateContent={[
-                "缓存优化：添加版本控制机制，自动清除旧版本缓存",
-                "缓存优化：Service Worker 版本管理，确保用户始终看到最新页面",
-                "智能分组系统：修复数据合并逻辑，确保有效数据不被覆盖",
-                "智能分组系统：实现时间区间兼容性，时间多的队员兼容时间少的队员",
-                "智能分组系统：修复分组算法，确保每组最多5人，优先覆盖5个位置",
-                "智能分组系统：修复位置解析问题，正确读取'射手'映射为'发育路'的数据",
-                "智能分组系统：添加23条完整的模拟数据用于测试",
-                "智能分组系统：移除可视化分析功能，简化页面",
-                "页面样式：优化智能分组页面，添加玻璃拟态、呼吸感设计和现代UI元素",
-                "错误修复：修复队长踢出队员时的500错误，修复队长查找失败问题",
-                "用户体验：为分组操作添加加载动画和进度提示，改进错误处理"
+                "版本更新：从 1.0.6 升级到 1.0.8",
+                "战队空间：添加战队统计卡片（成员数、比赛数、胜率）",
+                "战队空间：优化近期活动展示，添加动画效果",
+                "战队空间：新增地区、省份、城市标签显示",
+                "战队空间：改进移动端菜单，采用侧边栏滑入效果",
+                "战队空间：优化整体视觉效果，添加玻璃拟态、渐变背景等现代 UI 元素",
+                "类型定义：完善论坛分类的类型定义和映射表",
+                "类型定义：扩展战队销售的类型定义",
+                "类型定义：改进分类标签和颜色的获取函数",
+                "数据查询：修复数据查询问题，确保数据正确显示",
+                "数据查询：优化类型转换，解决类型错误",
+                "工具脚本：添加数据库结构检查脚本，用于验证数据库表结构",
+                "代码质量：修复多个 ESLint 错误，确保代码符合规范",
+                "用户体验：使用 Framer Motion 实现平滑的动画效果",
+                "响应式设计：优化移动端适配，提供更好的移动设备体验"
               ]} 
             />
           </NotificationProvider>

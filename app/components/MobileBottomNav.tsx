@@ -3,53 +3,42 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '../context/AuthContext'
+import { Home, Target, MessageSquare, ShoppingCart, User } from 'lucide-react'
 
 interface NavItem {
   path: string
   label: string
-  icon: string
-  activeIcon?: string
+  icon: React.ReactNode
   requireAuth?: boolean
 }
 
 const navItems: NavItem[] = [
   {
-    path: '/',
-    label: '首页',
-    icon: '🏠',
-    activeIcon: '🏡'
-  },
-  {
     path: '/teams/space',
-    label: '战队',
-    icon: '👥',
-    activeIcon: '👨‍👩‍👧‍👦',
+    label: '首页',
+    icon: <Home size={20} />,
     requireAuth: true
   },
   {
     path: '/group',
-    label: '分组',
-    icon: '📋',
-    activeIcon: '📊',
+    label: '智能分组',
+    icon: <Target size={20} />,
     requireAuth: true
   },
   {
-    path: '/team-sales',
-    label: '出售',
-    icon: '💰',
-    activeIcon: '💎'
+    path: '/forum',
+    label: '论坛',
+    icon: <MessageSquare size={20} />
   },
   {
-    path: '/forum',
-    label: '社区',
-    icon: '💬',
-    activeIcon: '💭'
+    path: '/team-sales',
+    label: '交易',
+    icon: <ShoppingCart size={20} />
   },
   {
     path: '/profile',
-    label: '我的',
-    icon: '👤',
-    activeIcon: '🙋',
+    label: '个人中心',
+    icon: <User size={20} />,
     requireAuth: true
   }
 ]
@@ -146,9 +135,9 @@ export default function MobileBottomNav() {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <span className="text-xl mb-0.5 transition-transform duration-200">
-                  {active && item.activeIcon ? item.activeIcon : item.icon}
-                </span>
+                <div className="w-5 h-5 mb-0.5 transition-transform duration-200">
+                  {item.icon}
+                </div>
                 <span className={`text-xs ${active ? 'font-medium' : ''}`}>
                   {item.label}
                 </span>

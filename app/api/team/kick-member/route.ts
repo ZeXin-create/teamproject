@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '无权操作' }, { status: 403 })
     }
 
-    const allowedRoles = ['队长', '副队长']
+    const allowedRoles = ['captain', 'vice_captain']
     if (!allowedRoles.includes(operator.role) && kickedBy !== userId) {
       return NextResponse.json({ success: false, error: '无权踢出队员' }, { status: 403 })
     }
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     }
 
     // 队长不能被踢
-    if (target.role === '队长' && kickedBy !== userId) {
+    if (target.role === 'captain' && kickedBy !== userId) {
       return NextResponse.json({ success: false, error: '不能踢出队长' }, { status: 403 })
     }
 

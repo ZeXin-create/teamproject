@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const teamMember = 'data' in teamMemberResponse ? teamMemberResponse.data : null;
     const memberError = 'error' in teamMemberResponse ? teamMemberResponse.error : null;
 
-    if (memberError || !teamMember || teamMember.role !== '队长') {
+    if (memberError || !teamMember || teamMember.role !== 'captain') {
       return NextResponse.json({ error: '只有队长可以解散战队' }, { status: 403 });
     }
 
@@ -77,13 +77,19 @@ export async function POST(request: NextRequest) {
       .delete()
       .eq('team_id', teamId);
 
-    // 6. 删除队员个人游戏资料
+    // 6. 删除战队相关的论坛帖子
+    await supabase
+      .from('forum_posts')
+      .delete()
+      .eq('team_id', teamId);
+
+    // 7. 删除队员个人游戏资料
     await supabase
       .from('player_profiles')
       .delete()
       .eq('team_id', teamId);
 
-    // 7. 删除战队本身
+    // 8. 删除战队本身
     const deleteResponse = await supabase
       .from('teams')
       .delete()

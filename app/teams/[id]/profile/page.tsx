@@ -7,6 +7,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { getHeroes, createOrUpdatePlayerProfile } from '../../../services/teamGroupingService'
 import { Position, Hero, AvailableTime } from '../../../types/teamGrouping'
 import Navbar from '../../../components/Navbar'
+import PageLayout from '../../../components/layout/PageLayout'
 import ProfileSkeleton from '../../../components/Skeleton'
 import { TeamDataService } from '../../../services/teamDataService'
 import { useErrorHandler } from '../../../hooks/useErrorHandler'
@@ -272,11 +273,11 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen">
         <Navbar />
-        <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8">
+        <PageLayout>
           <div className="max-w-4xl mx-auto">
             <ProfileSkeleton />
           </div>
-        </div>
+        </PageLayout>
       </div>
     )
   }
@@ -286,7 +287,7 @@ export default function ProfilePage() {
       <Navbar />
       {error && <ErrorToast message={error} onClose={clearError} />}
       {loading && <LoadingOverlay message="保存中..." />}
-      <div className="container mx-auto px-4 pt-24 md:pt-28 pb-8">
+      <PageLayout>
       <div className="glass-card p-8 max-w-4xl mx-auto">
         <div className="flex items-center mb-6">
           <button
@@ -643,7 +644,7 @@ export default function ProfilePage() {
             </form>
           )}
         </div>
-      </div>
+      </PageLayout>
     </div>
   )
 }

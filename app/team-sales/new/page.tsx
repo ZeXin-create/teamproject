@@ -422,10 +422,23 @@ export default function CreateTeamSalePage() {
               <label className="block text-gray-700 font-medium mb-2">商品图片</label>
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
-                    setImage(e.target.files[0]);
+                    const file = e.target.files[0];
+                    // 检查文件大小（5MB 限制）
+                    if (file.size > 5 * 1024 * 1024) {
+                      setError('图片大小不能超过 5MB');
+                      return;
+                    }
+                    // 检查文件类型
+                    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+                    if (!allowedTypes.includes(file.type)) {
+                      setError('只允许上传 JPG、PNG 或 WEBP 格式的图片');
+                      return;
+                    }
+                    setImage(file);
+                    setError('');
                   }
                 }}
                 className="glass-input w-full px-4 py-3"

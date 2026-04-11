@@ -10,6 +10,8 @@ import { motion } from 'framer-motion'
 import { getHeroes } from '../../services/teamGroupingService'
 import { notifyTeamApplication } from '../../services/notificationService'
 import { Position, Hero, AvailableTime } from '../../types/teamGrouping'
+import Navbar from '../../components/Navbar'
+import PageLayout from '../../components/layout/PageLayout'
 import ErrorBoundary from '../../components/ErrorBoundary'
 
 interface Team {
@@ -540,6 +542,8 @@ export default function JoinTeamPage() {
   return (
     <ErrorBoundary>
     <div className="min-h-screen bg-gradient-to-br from-white to-pink-50">
+      <Navbar />
+      <PageLayout>
       <div className="container mx-auto px-4 py-8">
         {/* 顶部导航 */}
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
@@ -1099,6 +1103,7 @@ export default function JoinTeamPage() {
           </motion.div>
         )}
       </div>
+      </PageLayout>
     </div>
     </ErrorBoundary>
   )

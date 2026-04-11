@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Navbar from './components/Navbar'
+import PageLayout from './components/layout/PageLayout'
 import { useAuth } from './context/AuthContext'
 import { supabase } from './lib/supabase'
 import Link from 'next/link'
@@ -213,7 +214,7 @@ export default function Home() {
               {recruits.map((recruit) => (
                 <div 
                   key={recruit.id} 
-                  className="group relative bg-white/70 backdrop-blur-xl rounded-3xl p-5 shadow-lg hover:shadow-2xl hover:shadow-pink-200/50 transition-all duration-500 cursor-pointer overflow-hidden border border-white/50"
+                  className="group card card-hover cursor-pointer"
                   onClick={() => handleCardClick(recruit)}
                 >
                   {/* 玻璃罩渐变背景 */}
@@ -282,7 +283,7 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400">{new Date(recruit.created_at).toLocaleDateString()}</span>
                     <button 
-                      className="py-2.5 px-4 bg-gradient-to-r from-pink-400 to-purple-400 text-white font-medium rounded-xl shadow-md shadow-pink-200 group-hover:shadow-lg group-hover:shadow-pink-300 group-hover:from-pink-500 group-hover:to-purple-500 transition-all duration-300"
+                      className="btn-primary py-2.5 px-4"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleCardClick(recruit);
@@ -552,13 +553,13 @@ export default function Home() {
             <div className="flex gap-4 justify-center">
               <Link 
                 href="/teams/join" 
-                className="py-3 px-8 bg-gradient-to-r from-pink-400 to-purple-400 text-white font-medium rounded-xl shadow-md shadow-pink-200 hover:shadow-lg hover:shadow-pink-300 hover:from-pink-500 hover:to-purple-500 transition-all duration-300"
+                className="btn-primary py-3 px-8"
               >
                 加入战队
               </Link>
               <Link 
                 href="/teams/new" 
-                className="py-3 px-8 bg-gradient-to-r from-blue-400 to-cyan-400 text-white font-medium rounded-xl shadow-md shadow-blue-200 hover:shadow-lg hover:shadow-blue-300 hover:from-blue-500 hover:to-cyan-500 transition-all duration-300"
+                className="btn-secondary py-3 px-8"
               >
                 创建战队
               </Link>
@@ -577,7 +578,7 @@ export default function Home() {
           </div>
           <Link 
             href="/teams/space" 
-            className="py-2 px-4 bg-gradient-to-r from-pink-400 to-purple-400 text-white font-medium rounded-xl shadow-md shadow-pink-200 hover:shadow-lg hover:shadow-pink-300 hover:from-pink-500 hover:to-purple-500 transition-all duration-300"
+            className="btn-primary py-2 px-4"
           >
             进入战队
           </Link>
@@ -751,7 +752,7 @@ export default function Home() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {sales.map((sale) => (
-                <div key={sale.id} className="card p-4 hover:shadow-lg transition-shadow">
+                <div key={sale.id} className="card card-hover">
                   <div className="flex items-center justify-between mb-2">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                       sale.goods_type === 'TEAM' ? 'bg-blue-100 text-blue-600' : 
@@ -778,7 +779,7 @@ export default function Home() {
             <div className="mt-8 text-center">
               <Link 
                 href="/team-sales" 
-                className="py-3 px-8 bg-gradient-to-r from-pink-400 to-purple-400 text-white font-medium rounded-xl shadow-md shadow-pink-200 hover:shadow-lg hover:shadow-pink-300 hover:from-pink-500 hover:to-purple-500 transition-all duration-300 inline-block"
+                className="btn-primary py-3 px-8 inline-block"
               >
                 查看更多
               </Link>
@@ -868,7 +869,7 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {posts.map((post) => (
                 <Link key={post.id} href={`/forum/${post.id}`} className="block group">
-                  <div className="relative bg-white/70 backdrop-blur-xl rounded-3xl p-5 shadow-lg hover:shadow-2xl hover:shadow-pink-200/50 transition-all duration-500 overflow-hidden border border-white/50">
+                  <div className="group card card-hover">
                     {/* 玻璃罩渐变背景 */}
                     <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-pink-50/30 to-purple-50/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl" />
                     
@@ -897,7 +898,7 @@ export default function Home() {
                         </div>
                         <span className="text-sm text-gray-400">{new Date(post.created_at).toLocaleDateString()}</span>
                       </div>
-                      <button className="w-full py-2.5 bg-gradient-to-r from-pink-400 to-purple-400 text-white font-medium rounded-xl shadow-md shadow-pink-200 group-hover:shadow-lg group-hover:shadow-pink-300 group-hover:from-pink-500 group-hover:to-purple-500 transition-all duration-300">
+                      <button className="w-full btn-primary py-2.5">
                         阅读更多
                       </button>
                     </div>
@@ -908,7 +909,7 @@ export default function Home() {
             <div className="mt-8 text-center">
               <Link 
                 href="/forum" 
-                className="py-3 px-8 bg-gradient-to-r from-pink-400 to-purple-400 text-white font-medium rounded-xl shadow-md shadow-pink-200 hover:shadow-lg hover:shadow-pink-300 hover:from-pink-500 hover:to-purple-500 transition-all duration-300 inline-block"
+                className="btn-primary py-3 px-8 inline-block"
               >
                 查看更多
               </Link>
@@ -945,8 +946,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
       <Navbar />
-      
-      <main className="container mx-auto px-4 py-8 pt-24 md:pt-28">
+      <PageLayout>
         {/* 标签页导航 */}
         <div className="card p-2 mb-6">
           <div className="flex flex-wrap gap-2">
@@ -968,7 +968,7 @@ export default function Home() {
 
         {/* 内容区域 */}
         {renderContent()}
-      </main>
+      </PageLayout>
     </div>
   )
 }

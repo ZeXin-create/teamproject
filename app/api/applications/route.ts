@@ -74,7 +74,7 @@ export async function POST(req: Request) {
         .insert({
           user_id: applicantUserId,
           team_id: applicantTeamId,
-          role: '队员',
+          role: 'member',
           status: 'active',
           joined_at: new Date().toISOString(),
           join_method: 'application',
