@@ -60,27 +60,27 @@ export default function VersionUpdateModal({ version, updateContent }: VersionUp
               damping: 20,
               stiffness: 300
             }}
-            className="glass-card p-8 w-full max-w-md"
+            className="glass-card p-4 w-full max-w-md max-h-[80vh] overflow-y-auto"
           >
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold gradient-text">🎉 版本更新</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold gradient-text">🎉 版本更新</h3>
               <button 
-                className="text-gray-400 hover:text-gray-600 text-2xl"
+                className="text-gray-400 hover:text-gray-600 text-2xl p-1"
                 onClick={handleClose}
               >
                 ×
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div className="glass-card p-4">
-                <div className="text-sm text-gray-400 mb-1">当前版本</div>
+            <div className="space-y-3">
+              <div className="glass-card p-3">
+                <div className="text-xs text-gray-400 mb-1">当前版本</div>
                 <div className="font-bold text-gray-800">v{version}</div>
               </div>
 
               <div>
-                <div className="text-sm text-gray-400 mb-2">更新内容</div>
-                <div className="glass-card p-4 space-y-2">
+                <div className="text-xs text-gray-400 mb-2">更新内容</div>
+                <div className="glass-card p-3 space-y-2 max-h-[40vh] overflow-y-auto">
                   {updateContent.map((item, index) => (
                     <motion.div 
                       key={index} 
@@ -90,7 +90,7 @@ export default function VersionUpdateModal({ version, updateContent }: VersionUp
                       transition={{ delay: index * 0.1 }}
                     >
                       <span className="text-green-500 mt-1">✓</span>
-                      <span className="text-gray-800 text-sm">{item}</span>
+                      <span className="text-gray-800 text-xs">{item}</span>
                     </motion.div>
                   ))}
                 </div>
@@ -98,7 +98,7 @@ export default function VersionUpdateModal({ version, updateContent }: VersionUp
 
               <motion.button
                 onClick={handleClose}
-                className="w-full glass-button mt-6 py-3 text-white font-medium"
+                className="w-full glass-button mt-4 py-3 text-white font-medium"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
